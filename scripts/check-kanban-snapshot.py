@@ -183,6 +183,18 @@ def run_resolver_checks() -> None:
     expect(explicit_blocked["display_state"] == "blocked_user_task", "explicit blocked work still renders blocked")
 
 
+def run_gateway_liveness_checks() -> None:
+    stamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    expect(
+        srv.gateway_ok_recently(f'{stamp} INFO gateway.run: inbound message: platform=telegram user=Brian chat=123 msg="hello"'),
+        "recent inbound gateway message counts as gateway healthy",
+    )
+    expect(
+        srv.gateway_ok_recently(f'{stamp} INFO gateway.run: response ready: platform=telegram chat=123 time=1.2s'),
+        "recent gateway response counts as gateway healthy",
+    )
+
+
 def run_turn_end_checks(tmp_path: Path) -> None:
     stamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     session_id = "testsession_000001"
@@ -228,6 +240,7 @@ def main() -> int:
         build_kanban_db(db_path)
         run_snapshot_checks(db_path)
         run_resolver_checks()
+        run_gateway_liveness_checks()
         run_turn_end_checks(tmp_path)
 
     if FAILURES:

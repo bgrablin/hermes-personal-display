@@ -1,0 +1,52 @@
+{
+  "work": {
+    "active": false,
+    "state": "quiet_watch",
+    "summary": "Systems steady. Local operator online.",
+    "detail": "Public demo state: no active turn is running.",
+    "kind": "quiet",
+    "visual_kind": "quiet",
+    "age_seconds": 900
+  },
+  "active_summary": {"count": 0, "sessions": []},
+  "resident_agents": 0,
+  "kanban": {"active": 0, "summary": "0 active task(s)", "tasks": []},
+  "system": {
+    "cpu": {"value": 0.22, "status": "fresh"},
+    "memory": {"value": 0.41, "status": "fresh"},
+    "temp_c": {"value": 58.0, "status": "fresh"},
+    "cpu_temp_c": {"value": 58.0, "status": "fresh"},
+    "pch_temp_c": {"value": 50.0, "status": "fresh"},
+    "thermal_readings": 6,
+    "sensor_error": false
+  },
+  "gateway_ok": true,
+  "warn_lines": [],
+  "manual_override": {
+    "active": true,
+    "mode": "complete",
+    "caption": "Systems steady. Local operator online.",
+    "source": "public_demo"
+  },
+  "route_rail": {
+    "as_of_ms": 1779998400000,
+    "active_provider_id": "openai-codex",
+    "providers": [
+      {"id": "openai-codex", "label": "CHATGPT", "tier_label": "PROLITE", "rank": 1, "state": "confirmed", "headroom": 0.82, "secondary_headroom": 0.75, "reachable": true, "last_used_age_s": 0, "stale_age_s": 0},
+      {"id": "anthropic", "label": "CLAUDE", "tier_label": "MAX", "rank": 2, "state": "confirmed", "headroom": 0.93, "secondary_headroom": 0.88, "reachable": true, "last_used_age_s": 120, "stale_age_s": 0},
+      {"id": "google-gemini-cli", "label": "GEMINI", "tier_label": "STD", "rank": 3, "state": "confirmed", "headroom": 0.91, "secondary_headroom": 0.91, "reachable": true, "last_used_age_s": 360, "stale_age_s": 0},
+      {"id": "copilot", "label": "COPILOT", "tier_label": "SUB", "rank": 4, "state": "confirmed", "headroom": 0.87, "secondary_headroom": 0.87, "reachable": true, "last_used_age_s": 600, "stale_age_s": 0}
+    ]
+  },
+  "remote_memory": {
+    "provider": "honcho",
+    "label": "HONCHO",
+    "state": "ok",
+    "status": "UP",
+    "age_seconds": 45,
+    "api": "ok",
+    "service": "ok",
+    "app": "ok"
+  },
+  "now_hour": 14
+}

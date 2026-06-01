@@ -1617,13 +1617,38 @@ def build_state_from_facts(facts: dict) -> dict:
     return state
 
 
+def gateway_process_running() -> bool:
+    """Best-effort local gateway liveness check for the physical display."""
+    try:
+        subprocess.check_output(
+            ["pgrep", "-af", r"hermes_cli\.main gateway run|hermes.*gateway run"],
+            text=True,
+            stderr=subprocess.DEVNULL,
+            timeout=1.0,
+        )
+        return True
+    except Exception:
+        return False
+
+
 def gateway_ok_recently(text: str, minutes: float = 10.0) -> bool:
-    """True only when gateway-health markers are recent, not merely present in a stale tail."""
-    markers = ("Telegram polling resumed", "[MEMORY]", "kanban dispatcher")
+    """True when recent gateway logs or the local gateway process show liveness."""
+    markers = (
+        "Telegram polling resumed",
+        "[MEMORY]",
+        "kanban dispatcher",
+        "inbound message:",
+        "response ready:",
+        "Sending response",
+        "Flushing text batch",
+        "Connected to Telegram",
+        "Gateway running",
+        "Cron ticker started",
+    )
     for line in str(text or "").splitlines():
         if any(marker in line for marker in markers) and line_is_recent(line, minutes):
             return True
-    return False
+    return gateway_process_running()
 
 
 def build_state() -> dict:
