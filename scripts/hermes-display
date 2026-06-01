@@ -1,0 +1,290 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+PROJECT="${HERMES_PERSONAL_DISPLAY_PROJECT:-$HOME/.hermes/projects/personal-display}"
+DISPLAY_NUM="${HERMES_DISPLAY_NUM:-:0}"
+SYSTEM_SERVICE="${HERMES_DISPLAY_SYSTEM_SERVICE:-hermes-personal-display-minix.service}"
+PREVIEW_SERVICE="${HERMES_DISPLAY_PREVIEW_SERVICE:-hermes-personal-display-preview.service}"
+STATE_URL="${HERMES_DISPLAY_STATE_URL:-http://127.0.0.1:8770/api/hermes-state}"
+RUNTIME_PATH="/src/character-runtime-v2.html"
+LOG_DIR="${HERMES_DISPLAY_LOG_DIR:-$HOME/.hermes/logs}"
+LOG_FILE="$LOG_DIR/hermes-display.log"
+AUDIO_SINK="${HERMES_DISPLAY_AUDIO_SINK:-alsa_output.pci-0000_00_1f.3.hdmi-stereo}"
+AUDIO_VOLUME="${HERMES_DISPLAY_AUDIO_VOLUME:-90%}"
+XAUTH_GLOB="/tmp/serverauth.*"
+mkdir -p "$LOG_DIR"
+
+log() {
+  printf '%s %s\n' "$(date -Is)" "$*" | tee -a "$LOG_FILE" >&2
+}
+
+usage() {
+  cat <<'EOF'
+Usage: hermes-display [verify|fix|restart|status|screenshot|build-id|url]
+
+Commands:
+  verify      Check preview API, system service, live Chromium URL/build, and DP-2 layout.
+  fix         Repair the display path: restart preview if needed, restart the real system kiosk, then verify.
+  restart     Force a full preview + system kiosk restart, then verify.
+  status      Show service, process, URL, and DP-2 status.
+  screenshot  Capture a DP-2 screenshot under docs/review-artifacts/.
+  build-id    Print the expected display build id from src/mascot-v2/app.js.
+  url         Print the canonical kiosk URL using the current build id.
+
+This command is intentionally service-aware. It uses hermes-personal-display-minix.service
+instead of spawning an unmanaged nohup/startx chain, so one command path owns the physical kiosk.
+EOF
+}
+
+build_id() {
+  python3 - "$PROJECT/src/mascot-v2/app.js" <<'PY'
+import re, sys
+path = sys.argv[1]
+text = open(path, encoding='utf-8').read()
+match = re.search(r"const\s+DISPLAY_BUILD_ID\s*=\s*['\"]([^'\"]+)['\"]", text)
+if not match:
+    raise SystemExit(f"could not find DISPLAY_BUILD_ID in {path}")
+print(match.group(1))
+PY
+}
+
+canonical_url() {
+  local build
+  build="$(build_id)"
+  printf 'http://127.0.0.1:8770%s?kiosk=1&orientation=landscape&augury=1&v=%s\n' "$RUNTIME_PATH" "$build"
+}
+
+latest_xauth() {
+  ls -t $XAUTH_GLOB 2>/dev/null | head -1 || true
+}
+
+xrun() {
+  local auth
+  auth="$(latest_xauth)"
+  if [[ -n "$auth" ]]; then
+    DISPLAY="$DISPLAY_NUM" XAUTHORITY="$auth" "$@"
+  else
+    DISPLAY="$DISPLAY_NUM" "$@"
+  fi
+}
+
+live_chromium_line() {
+  pgrep -af '[c]hromium.*character-runtime-v2.html.*kiosk=1' || true
+}
+
+state_api_ok() {
+  python3 - "$STATE_URL" <<'PY'
+import json, sys, urllib.request
+url = sys.argv[1]
+try:
+    with urllib.request.urlopen(url, timeout=2.5) as res:
+        data = json.loads(res.read().decode('utf-8', 'replace'))
+    print(data.get('freshness', {}).get('tier') or data.get('gateway', {}).get('status') or 'ok')
+except Exception as exc:
+    print(f"state API failed: {type(exc).__name__}: {exc}")
+    raise SystemExit(1)
+PY
+}
+
+check_dp2() {
+  local line
+  line="$(xrun xrandr --query 2>/dev/null | grep '^DP-2 connected' || true)"
+  if [[ -z "$line" ]]; then
+    echo "DP-2 not connected"
+    return 1
+  fi
+  echo "$line"
+  [[ "$line" == *"primary"* && "$line" == *"1920x1280+0+0"* && "$line" == *"inverted"* ]]
+}
+
+check_audio() {
+  if ! command -v pactl >/dev/null 2>&1; then
+    echo "pactl unavailable"
+    return 1
+  fi
+  local default mute volume sinks desired_pct
+  sinks="$(pactl list short sinks 2>/dev/null || true)"
+  default="$(pactl get-default-sink 2>/dev/null || true)"
+  mute="$(pactl get-sink-mute "${default:-@DEFAULT_SINK@}" 2>/dev/null || true)"
+  volume="$(pactl get-sink-volume "${default:-@DEFAULT_SINK@}" 2>/dev/null | head -1 || true)"
+  desired_pct="${AUDIO_VOLUME%%%}"
+  echo "default=${default:-unknown} mute=${mute:-unknown} volume=${volume:-unknown} desired=${desired_pct}%"
+  [[ "$sinks" == *"$AUDIO_SINK"* && "$default" == "$AUDIO_SINK" && "$mute" == *"no"* && "$volume" == *" ${desired_pct}%"* ]]
+}
+
+repair_audio_access() {
+  # If PipeWire falls back to auto_null while ALSA still exposes /dev/snd,
+  # restore user access to the current sound nodes and restart the user stack.
+  if [[ -d /dev/snd ]] && command -v sudo >/dev/null 2>&1; then
+    sudo -n setfacl -m "u:$(id -un):rw" /dev/snd/* >/dev/null 2>&1 || true
+  fi
+}
+
+configure_audio() {
+  if ! command -v pactl >/dev/null 2>&1; then
+    log "pactl unavailable; skipping audio routing"
+    return 0
+  fi
+  local sink
+  sink="$(pactl list short sinks 2>/dev/null | awk -v target="$AUDIO_SINK" '$2 == target {print $2; exit}' || true)"
+  if [[ -z "$sink" ]]; then
+    repair_audio_access
+    systemctl --user restart wireplumber pipewire-pulse pipewire >/dev/null 2>&1 || true
+    sleep 2
+    sink="$(pactl list short sinks 2>/dev/null | awk -v target="$AUDIO_SINK" '$2 == target {print $2; exit}' || true)"
+  fi
+  if [[ -n "$sink" ]]; then
+    pactl set-default-sink "$sink" >/dev/null 2>&1 || true
+    pactl set-sink-mute "$sink" 0 >/dev/null 2>&1 || true
+    pactl set-sink-volume "$sink" "$AUDIO_VOLUME" >/dev/null 2>&1 || true
+    log "Audio configured: $sink volume=$AUDIO_VOLUME"
+  else
+    log "Audio HDMI sink unavailable after repair attempt"
+  fi
+}
+
+status_kiosk() {
+  local build live
+  build="$(build_id)"
+  echo "Project: $PROJECT"
+  echo "Expected build: $build"
+  echo "Canonical URL: $(canonical_url)"
+  echo "System service: $SYSTEM_SERVICE $(systemctl is-active "$SYSTEM_SERVICE" 2>/dev/null || true)"
+  echo "Preview service: $PREVIEW_SERVICE $(systemctl --user is-active "$PREVIEW_SERVICE" 2>/dev/null || true)"
+  echo
+  echo "Live Chromium:"
+  live="$(live_chromium_line)"
+  if [[ -n "$live" ]]; then
+    printf '%s\n' "$live" | sed -n '1,8p'
+  else
+    echo "not running"
+  fi
+  echo
+  echo "DP-2:"
+  check_dp2 || true
+  echo
+  echo "Audio:"
+  check_audio || true
+}
+
+verify_kiosk() {
+  local ok=0 build live state dp2
+  build="$(build_id)"
+  echo "Expected build: $build"
+
+  if systemctl --user is-active --quiet "$PREVIEW_SERVICE"; then
+    echo "OK preview service active: $PREVIEW_SERVICE"
+  else
+    echo "FAIL preview service inactive: $PREVIEW_SERVICE"
+    ok=1
+  fi
+
+  if systemctl is-active --quiet "$SYSTEM_SERVICE"; then
+    echo "OK system kiosk active: $SYSTEM_SERVICE"
+  else
+    echo "FAIL system kiosk inactive: $SYSTEM_SERVICE"
+    ok=1
+  fi
+
+  if state="$(state_api_ok 2>&1)"; then
+    echo "OK state API: $state"
+  else
+    echo "FAIL state API: $state"
+    ok=1
+  fi
+
+  live="$(live_chromium_line)"
+  if [[ -n "$live" && "$live" == *"v=$build"* ]]; then
+    echo "OK live Chromium URL has v=$build"
+  else
+    echo "FAIL live Chromium URL missing v=$build"
+    [[ -n "$live" ]] && printf '%s\n' "$live" | sed -n '1,4p' || echo "no live Chromium kiosk process"
+    ok=1
+  fi
+
+  if dp2="$(check_dp2 2>&1)"; then
+    echo "OK DP-2 layout: $dp2"
+  else
+    echo "FAIL DP-2 layout: $dp2"
+    ok=1
+  fi
+
+  if audio="$(check_audio 2>&1)"; then
+    echo "OK audio sink: $audio"
+  else
+    echo "FAIL audio sink: $audio"
+    ok=1
+  fi
+
+  return "$ok"
+}
+
+wait_for_verified_display() {
+  local i out
+  for i in $(seq 1 60); do
+    if out="$(verify_kiosk 2>&1)"; then
+      printf '%s\n' "$out"
+      return 0
+    fi
+    # X startup is not atomic: after systemd restarts startx, DP-2 can briefly appear at
+    # the wrong position/rotation and Chromium may not have opened the app URL yet.
+    sleep 1
+  done
+  printf '%s\n' "$out"
+  return 1
+}
+
+fix_kiosk() {
+  local force="${1:-}"
+  log "Fixing Hermes physical display path"
+  configure_audio
+
+  if [[ "$force" == "--force" ]] || ! systemctl --user is-active --quiet "$PREVIEW_SERVICE" || ! state_api_ok >/dev/null 2>&1; then
+    log "Restarting preview service: $PREVIEW_SERVICE"
+    systemctl --user restart "$PREVIEW_SERVICE"
+  fi
+
+  log "Restarting physical kiosk service: $SYSTEM_SERVICE"
+  sudo -n systemctl restart "$SYSTEM_SERVICE"
+
+  if ! wait_for_verified_display; then
+    log "Display did not verify cleanly after restart"
+    status_kiosk >&2 || true
+    return 1
+  fi
+}
+
+screenshot_dp2() {
+  local out_dir ts full crop
+  if ! command -v scrot >/dev/null 2>&1; then
+    echo "scrot is required for screenshots" >&2
+    exit 1
+  fi
+  out_dir="$PROJECT/docs/review-artifacts"
+  mkdir -p "$out_dir"
+  ts="$(date +%Y%m%d-%H%M%S)"
+  full="$out_dir/hermes-display-full-$ts.png"
+  crop="$out_dir/hermes-display-dp2-$ts.png"
+  xrun scrot "$full"
+  python3 - "$full" "$crop" <<'PY'
+import sys
+from PIL import Image
+full, crop = sys.argv[1], sys.argv[2]
+im = Image.open(full)
+im.crop((0, 0, 1920, 1280)).save(crop)
+print(crop)
+PY
+}
+
+cmd="${1:-verify}"
+case "$cmd" in
+  verify) verify_kiosk ;;
+  fix) fix_kiosk ;;
+  restart) fix_kiosk --force ;;
+  status) status_kiosk ;;
+  screenshot) screenshot_dp2 ;;
+  build-id) build_id ;;
+  url) canonical_url ;;
+  -h|--help|help) usage ;;
+  *) usage >&2; exit 2 ;;
+esac

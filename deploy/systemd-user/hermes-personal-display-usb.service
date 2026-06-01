@@ -1,0 +1,16 @@
+[Unit]
+Description=Hermes Personal Display USB panel renderer
+After=network-online.target hermes-personal-display-preview.service
+Wants=network-online.target hermes-personal-display-preview.service
+
+[Service]
+Type=simple
+WorkingDirectory=@PROJECT_ROOT@
+Environment=HERMES_USB_PANEL_FPS=2.0
+Environment=HERMES_USB_PANEL_BRIGHTNESS=7
+ExecStart=/usr/bin/python3 @PROJECT_ROOT@/scripts/hermes_usb_display_loop.py
+Restart=always
+RestartSec=2
+
+[Install]
+WantedBy=default.target

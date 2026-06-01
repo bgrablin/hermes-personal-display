@@ -1,0 +1,60 @@
+# Python/runtime build artifacts
+__pycache__/
+*.py[cod]
+
+# Local agent/config state
+.claude/
+.remember/
+.codex
+.hermes/
+.mascot-motion-prompt.txt
+openai_api_key
+*.api_key
+*.apikey
+*.secret
+
+# Local review scratch space
+.review-tmp/
+*.log
+*.stdout
+*.stderr
+*.err
+*.port
+*.tgz
+*.tar.gz
+*.bak
+*.bak-*
+*.before
+
+# Generated/heavy review artifacts
+perf.data
+perf.data.*
+docs/review-artifacts/**/*.png
+docs/physical-review/
+docs/runtime-artifacts/
+docs/design-imports/
+docs/thermal-review/
+docs/review-artifacts/**/*.log
+docs/review-artifacts/**/*.stdout
+docs/review-artifacts/**/*.stderr
+docs/review-artifacts/**/*.html
+docs/review-artifacts/**/*.mp4
+docs/review-artifacts/live-artifacts-*/
+docs/review-artifacts/motion-review/
+docs/design-reviews/**/*.stderr
+docs/design-reviews/**/*.log
+docs/design-reviews/**/*.png
+docs/design-reviews/**/empty-mcp.json
+docs/design-reviews/**/live-state.json
+docs/design-reviews/**/post-state.json
+docs/design-reviews/**/post-restart-augury-feed.json
+
+# Raw third-party asset research packs. Keep curated runtime assets under src/assets/.
+assets/character-candidates/
+
+# Browser/runtime noise
+.DS_Store
+node_modules/
+dist/
+test-results/
+playwright-report/

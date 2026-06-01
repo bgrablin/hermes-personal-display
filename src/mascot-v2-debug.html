@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Mascot v2 — Debug Contact Sheet</title>
+  <link rel="stylesheet" href="./styles.css">
+  <link rel="stylesheet" href="./mascot-v2/styles.css">
+</head>
+<body>
+  <main class="debug-shell">
+    <header>
+      <p class="eyebrow">Hermes Personal Display</p>
+      <h1>mascot v2 · debug contact sheet</h1>
+      <p class="note">
+        Static stills of every required pose. Each card freezes its renderer ~700ms after
+        load so the result reads as a printed contact sheet. Use the per-card "sample intent"
+        button to play one named intent and capture it, or "re-freeze" to restore the still.
+        Global toolbar samples every card in parallel.
+      </p>
+      <p class="note">
+        <a href="./character-runtime-v2.html">Animated runtime</a> ·
+        <a href="./character-runtime.html">Reference abstract runtime</a> ·
+        <a href="./rgs-runtime.html">Previous RGS route</a>
+      </p>
+    </header>
+
+    <div class="toolbar" role="group" aria-label="Debug toolbar">
+      <button id="sample-all">Sample intent on every card</button>
+      <button id="refreeze-all">Re-freeze all to baseline</button>
+      <button id="play-all">Play all (unfreeze)</button>
+      <button id="freeze-all">Freeze all immediately</button>
+      <button id="budget-check">Log motion/gaze budgets</button>
+      <button id="resolver-check">Log resolver diagnostics</button>
+    </div>
+
+    <output id="debug-status" role="status">Booting…</output>
+
+    <section id="contact-sheet" class="contact-sheet" aria-label="Mascot v2 still sheet"></section>
+
+    <details open style="margin-top:20px">
+      <summary>What each card is verifying</summary>
+      <ul>
+        <li><strong>quiet watch</strong>: gaze centered, brows skeptical-neutral. Verifies the puppet does <em>not</em> always look right.</li>
+        <li><strong>look left</strong> and <strong>look right</strong>: plain non-side-eye gaze cards, so reviewer can compare center vs left vs right directly.</li>
+        <li><strong>side-eye left</strong> and <strong>side-eye right</strong>: must read as distinctly different stills, not just label changes.</li>
+        <li><strong>reasoning</strong>: focused calm squint, neutral mouth, scan beam visible, not sad/distressed.</li>
+        <li><strong>planning</strong> and <strong>working</strong>: bounded active states with restrained float/wing knobs and gold active accent.</li>
+        <li><strong>warm load</strong>: adaptive CPU/load throttling slows blink, float, wing and frame budgets without making the character look broken.</li>
+        <li><strong>completed</strong>: smug arch brow, asymmetric smirk, gaze off-right.</li>
+        <li><strong>blocked</strong>: patient serious side-eye, not panic.</li>
+        <li><strong>feed stale</strong>: calm diagnostic look toward telemetry without incident drama.</li>
+        <li><strong>night watch</strong>: heavy lids, sleepy mouth, dim aura, gaze down.</li>
+        <li><strong>critical</strong>: red/serious preset reserved for true local issues.</li>
+      </ul>
+    </details>
+  </main>
+
+  <script src="./state.js"></script>
+  <script src="./mascot-v2/states.js"></script>
+  <script src="./mascot-v2/runtime.js"></script>
+  <script src="./mascot-v2/approval.js"></script>
+</body>
+</html>

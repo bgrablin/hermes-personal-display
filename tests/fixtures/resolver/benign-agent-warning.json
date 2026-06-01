@@ -1,0 +1,26 @@
+{
+  "gateway_ok": true,
+  "now_hour": 14,
+  "resident_agents": 0,
+  "active_summary": {"count": 0, "sessions": []},
+  "work": {
+    "active": false,
+    "state": "quiet_watch",
+    "summary": "Quiet watch. No active turn is running.",
+    "detail": "Local display is monitoring without an active turn.",
+    "age_seconds": null
+  },
+  "kanban": {"active": 0, "summary": "0 active task(s)", "tasks": []},
+  "system": {
+    "cpu": 0.20,
+    "memory": 0.25,
+    "sensor_error": false,
+    "temp_c": 63.0,
+    "cpu_temp_c": 63.0,
+    "pch_temp_c": 55.0
+  },
+  "warn_lines": [
+    "2026-05-20 13:57:21,637 WARNING [session] agent.tool_executor: Tool vision_analyze returned error: Error code: 429 usage_limit_reached",
+    "2026-05-20 14:04:44,407 WARNING agent.title_generator: Title generation failed: Error code: 429"
+  ]
+}

@@ -1,0 +1,87 @@
+{
+  "schema_version": "0.1.0",
+  "generated_at": "2026-05-16T14:30:05Z",
+  "valid_for_seconds": 90,
+  "mood": "healthy_smug",
+  "skin": "retro-robot-core",
+  "playfulness": 0.62,
+  "energy": 0.38,
+  "focus": 0.31,
+  "curiosity": 0.46,
+  "impatience": 0.05,
+  "eyes": {
+    "expression": "smug",
+    "gaze": "wander",
+    "blink_rate": "slow",
+    "pupil": "soft",
+    "intensity": 0.54
+  },
+  "posture": {
+    "pose": "hover_center",
+    "tilt": "left_small",
+    "motion": "breathing",
+    "orbit": "lazy",
+    "scale": 1.0
+  },
+  "palette": {
+    "name": "graphite-teal",
+    "background": "#070A12",
+    "primary": "#65F3FF",
+    "secondary": "#2AD6A3",
+    "accent": "#B899FF",
+    "danger": "#FF4D7A",
+    "brightness": 0.72
+  },
+  "micro_actions": [
+    {
+      "name": "smug_nod",
+      "weight": 0.55,
+      "cooldown_seconds": 45,
+      "params": {
+        "pixels": 3
+      }
+    },
+    {
+      "name": "mote_reorder",
+      "weight": 0.35,
+      "cooldown_seconds": 30,
+      "params": {
+        "style": "lazy-orbit"
+      }
+    }
+  ],
+  "caption": {
+    "text": "All green. I remain unconvinced.",
+    "tone": "dry",
+    "priority": "ambient",
+    "max_width_chars": 42
+  },
+  "snippet": {
+    "id": "status-healthy-1",
+    "text": "all green, suspiciously polite",
+    "kind": "system",
+    "sensitivity": "display_safe",
+    "allowed_boundaries": ["local_trusted_display", "trusted_lan"],
+    "ttl_seconds": 600
+  },
+  "duration": {
+    "packet_seconds": 90,
+    "transition_ms": 700,
+    "min_hold_seconds": 20,
+    "max_hold_seconds": 120
+  },
+  "avoid_repeating": {
+    "captions": ["Standing by with opinions."],
+    "micro_actions": ["blink_single", "mote_reorder"],
+    "skins": ["retro-robot-core"],
+    "moods": ["idle_watchful"],
+    "window_seconds": 900
+  },
+  "safety": {
+    "boundary": "local_trusted_display",
+    "redaction_level": "display_safe",
+    "contains_credentials": false,
+    "external_model_safe": false,
+    "notes": ["local display packet; no credential material"]
+  }
+}

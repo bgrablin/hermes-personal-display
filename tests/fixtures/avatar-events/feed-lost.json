@@ -1,0 +1,22 @@
+{
+  "schema_version": "0.1.0",
+  "id": "2026-05-21T14:36:05.000Z-000077",
+  "event": "feed.lost",
+  "occurred_at": "2026-05-21T14:36:05.000Z",
+  "source": "personal-display.feed-monitor",
+  "boundary": "localhost_only",
+  "privacy": "display_safe_intent",
+  "ttl_ms": 300000,
+  "priority": "attention",
+  "sequence": 77,
+  "display": {
+    "intent": "feed_lost",
+    "visual_kind": "feed",
+    "label": "feed lost",
+    "glyph": "warning",
+    "intensity": 0.85
+  },
+  "meta": {
+    "feed_age_ms": 180000
+  }
+}

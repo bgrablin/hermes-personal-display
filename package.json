@@ -1,0 +1,37 @@
+{
+  "name": "hermes-personal-display",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Local SVG-first Hermes personal display kiosk runtime.",
+  "scripts": {
+    "dev": "vite --host 0.0.0.0 --port 8770",
+    "build": "vite build",
+    "preview": "vite preview --host 0.0.0.0 --port 8770",
+    "test": "npm run test:unit && npm run check:stack && npm run test:server",
+    "test:unit": "vitest run",
+    "test:server": "python3 scripts/check-kanban-snapshot.py && python3 scripts/check-entertainment-server.py && python3 -m py_compile scripts/hermes_display_server.py",
+    "test:e2e": "playwright test",
+    "check:stack": "node scripts/check-adopted-stack.js",
+    "check:client-events": "node scripts/check-client-avatar-event-validator.js",
+    "check:kiosk": "node scripts/check-kiosk-recommendation-regressions.js",
+    "check:augury-feed": "python3 scripts/check-augury-feed.py",
+    "capture:dashboard": "scripts/capture-current-dashboard.sh",
+    "capture:modes": "node scripts/capture-mode-artifacts.cjs",
+    "install:hooks": "git config core.hooksPath .githooks",
+    "test:all": "npm run build && npm test && npm run check:client-events && npm run check:kiosk && npm run check:augury-feed && npm run test:e2e -- --project=chromium-kiosk --project=minix-sf10t-landscape"
+  },
+  "dependencies": {
+    "@vitejs/plugin-legacy": "8.0.2",
+    "animejs": "4.4.1",
+    "dompurify": "3.4.5",
+    "xstate": "5.31.1",
+    "zod": "4.4.3"
+  },
+  "devDependencies": {
+    "@playwright/test": "1.60.0",
+    "ccusage": "20.0.4",
+    "vite": "8.0.14",
+    "vitest": "4.1.7"
+  }
+}

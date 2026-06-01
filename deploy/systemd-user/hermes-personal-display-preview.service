@@ -1,0 +1,16 @@
+[Unit]
+Description=Hermes Personal Display preview server
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+WorkingDirectory=@PROJECT_ROOT@
+Environment=PERSONAL_DISPLAY_BIND=127.0.0.1
+Environment=PERSONAL_DISPLAY_PORT=8770
+ExecStart=@PROJECT_ROOT@/scripts/serve-preview.sh
+Restart=on-failure
+RestartSec=5
+
+[Install]
+WantedBy=default.target

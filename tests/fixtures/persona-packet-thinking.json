@@ -1,0 +1,88 @@
+{
+  "schema_version": "0.1.0",
+  "generated_at": "2026-05-16T14:40:00Z",
+  "valid_for_seconds": 60,
+  "mood": "thinking_focused",
+  "skin": "retro-terminal-focus",
+  "playfulness": 0.55,
+  "energy": 0.64,
+  "focus": 0.88,
+  "curiosity": 0.73,
+  "impatience": 0.12,
+  "eyes": {
+    "expression": "focused",
+    "gaze": "track_activity",
+    "blink_rate": "fast",
+    "pupil": "scanline",
+    "intensity": 0.78
+  },
+  "posture": {
+    "pose": "hover_center",
+    "tilt": "forward",
+    "motion": "focused_pulse",
+    "orbit": "focused",
+    "scale": 1.02
+  },
+  "palette": {
+    "name": "phosphor-green",
+    "background": "#030706",
+    "primary": "#63FFB8",
+    "secondary": "#26D6FF",
+    "accent": "#FFB84D",
+    "danger": "#FF4D7A",
+    "brightness": 0.76
+  },
+  "micro_actions": [
+    {
+      "name": "tool_glyph_spark",
+      "weight": 0.7,
+      "cooldown_seconds": 12,
+      "params": {
+        "glyph": "tool"
+      }
+    },
+    {
+      "name": "eye_track_right",
+      "weight": 0.45,
+      "cooldown_seconds": 10,
+      "params": {
+        "hold_ms": 600
+      }
+    },
+    {
+      "name": "ring_pulse",
+      "weight": 0.5,
+      "cooldown_seconds": 18,
+      "params": {
+        "rings": 2
+      }
+    }
+  ],
+  "caption": {
+    "text": "Poking the machinery.",
+    "tone": "focused",
+    "priority": "status",
+    "max_width_chars": 42
+  },
+  "snippet": null,
+  "duration": {
+    "packet_seconds": 60,
+    "transition_ms": 350,
+    "min_hold_seconds": 10,
+    "max_hold_seconds": 75
+  },
+  "avoid_repeating": {
+    "captions": ["Consulting the tiny machines."],
+    "micro_actions": ["blink_double", "mote_reorder"],
+    "skins": ["retro-robot-core"],
+    "moods": ["idle_watchful"],
+    "window_seconds": 600
+  },
+  "safety": {
+    "boundary": "local_trusted_display",
+    "redaction_level": "display_safe",
+    "contains_credentials": false,
+    "external_model_safe": true,
+    "notes": ["no snippet included; enum/counter-only packet is safe for structured route"]
+  }
+}

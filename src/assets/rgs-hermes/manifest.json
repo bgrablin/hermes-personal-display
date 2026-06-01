@@ -1,0 +1,354 @@
+{
+  "schema_version": "1.0.0",
+  "generator": "scripts/stage_rgs_runtime.py",
+  "source_root": "assets/character-candidates/modular-parts/extracted/rgs_modular_vector_characters/Free 2D Animated Vector Game Character Sprites",
+  "source_canvas": [
+    2048,
+    2048
+  ],
+  "shared_bbox_raw": [
+    739,
+    1136,
+    1304,
+    1804
+  ],
+  "shared_bbox_padded": [
+    723,
+    1120,
+    1320,
+    1820
+  ],
+  "shared_bbox_size": [
+    597,
+    700
+  ],
+  "output_size": [
+    341,
+    400
+  ],
+  "output_scale_from_source_px": 0.5714285714285714,
+  "safe_states": {
+    "idle": 6,
+    "walk": 8,
+    "jumpStart": 2,
+    "fall": 5
+  },
+  "excluded_states": [
+    "jumpEnd",
+    "roll",
+    "death",
+    "hit"
+  ],
+  "excluded_part_summary": "Toothy and zombie mouth variants, aggressive eye variants, alternate head variants, horns, hair, wings, weapons, enemies, and generic death frames are intentionally excluded from this staged set. See docs/rgs-expression-inventory-and-curation.md for the curation rules.",
+  "parts": {
+    "body1": {
+      "frames": {
+        "idle": [
+          "body1_idle_0.png",
+          "body1_idle_1.png",
+          "body1_idle_2.png",
+          "body1_idle_3.png",
+          "body1_idle_4.png",
+          "body1_idle_5.png"
+        ],
+        "walk": [
+          "body1_walk_0.png",
+          "body1_walk_1.png",
+          "body1_walk_2.png",
+          "body1_walk_3.png",
+          "body1_walk_4.png",
+          "body1_walk_5.png",
+          "body1_walk_6.png",
+          "body1_walk_7.png"
+        ],
+        "jumpStart": [
+          "body1_jumpStart_0.png",
+          "body1_jumpStart_1.png"
+        ],
+        "fall": [
+          "body1_fall_0.png",
+          "body1_fall_1.png",
+          "body1_fall_2.png",
+          "body1_fall_3.png",
+          "body1_fall_4.png"
+        ]
+      },
+      "source": "Animated body parts/Bodies/body1"
+    },
+    "head1": {
+      "frames": {
+        "idle": [
+          "head1_idle_0.png",
+          "head1_idle_1.png",
+          "head1_idle_2.png",
+          "head1_idle_3.png",
+          "head1_idle_4.png",
+          "head1_idle_5.png"
+        ],
+        "walk": [
+          "head1_walk_0.png",
+          "head1_walk_1.png",
+          "head1_walk_2.png",
+          "head1_walk_3.png",
+          "head1_walk_4.png",
+          "head1_walk_5.png",
+          "head1_walk_6.png",
+          "head1_walk_7.png"
+        ],
+        "jumpStart": [
+          "head1_jumpStart_0.png",
+          "head1_jumpStart_1.png"
+        ],
+        "fall": [
+          "head1_fall_0.png",
+          "head1_fall_1.png",
+          "head1_fall_2.png",
+          "head1_fall_3.png",
+          "head1_fall_4.png"
+        ]
+      },
+      "source": "Animated body parts/Heads/head1"
+    },
+    "handL1": {
+      "frames": {
+        "idle": [
+          "handL1_idle_0.png",
+          "handL1_idle_1.png",
+          "handL1_idle_2.png",
+          "handL1_idle_3.png",
+          "handL1_idle_4.png",
+          "handL1_idle_5.png"
+        ],
+        "walk": [
+          "handL1_walk_0.png",
+          "handL1_walk_1.png",
+          "handL1_walk_2.png",
+          "handL1_walk_3.png",
+          "handL1_walk_4.png",
+          "handL1_walk_5.png",
+          "handL1_walk_6.png",
+          "handL1_walk_7.png"
+        ],
+        "jumpStart": [
+          "handL1_jumpStart_0.png",
+          "handL1_jumpStart_1.png"
+        ],
+        "fall": [
+          "handL1_fall_0.png",
+          "handL1_fall_1.png",
+          "handL1_fall_2.png",
+          "handL1_fall_3.png",
+          "handL1_fall_4.png"
+        ]
+      },
+      "source": "Animated body parts/Left hands/handL1"
+    },
+    "handR1": {
+      "frames": {
+        "idle": [
+          "handR1_idle_0.png",
+          "handR1_idle_1.png",
+          "handR1_idle_2.png",
+          "handR1_idle_3.png",
+          "handR1_idle_4.png",
+          "handR1_idle_5.png"
+        ],
+        "walk": [
+          "handR1_walk_0.png",
+          "handR1_walk_1.png",
+          "handR1_walk_2.png",
+          "handR1_walk_3.png",
+          "handR1_walk_4.png",
+          "handR1_walk_5.png",
+          "handR1_walk_6.png",
+          "handR1_walk_7.png"
+        ],
+        "jumpStart": [
+          "handR1_jumpStart_0.png",
+          "handR1_jumpStart_1.png"
+        ],
+        "fall": [
+          "handR1_fall_0.png",
+          "handR1_fall_1.png",
+          "handR1_fall_2.png",
+          "handR1_fall_3.png",
+          "handR1_fall_4.png"
+        ]
+      },
+      "source": "Animated body parts/Right hands/handR1"
+    },
+    "footL1": {
+      "frames": {
+        "idle": [
+          "footL1_idle_0.png",
+          "footL1_idle_1.png",
+          "footL1_idle_2.png",
+          "footL1_idle_3.png",
+          "footL1_idle_4.png",
+          "footL1_idle_5.png"
+        ],
+        "walk": [
+          "footL1_walk_0.png",
+          "footL1_walk_1.png",
+          "footL1_walk_2.png",
+          "footL1_walk_3.png",
+          "footL1_walk_4.png",
+          "footL1_walk_5.png",
+          "footL1_walk_6.png",
+          "footL1_walk_7.png"
+        ],
+        "jumpStart": [
+          "footL1_jumpStart_0.png",
+          "footL1_jumpStart_1.png"
+        ],
+        "fall": [
+          "footL1_fall_0.png",
+          "footL1_fall_1.png",
+          "footL1_fall_2.png",
+          "footL1_fall_3.png",
+          "footL1_fall_4.png"
+        ]
+      },
+      "source": "Animated body parts/Left feet/footL1"
+    },
+    "footR1": {
+      "frames": {
+        "idle": [
+          "footR1_idle_0.png",
+          "footR1_idle_1.png",
+          "footR1_idle_2.png",
+          "footR1_idle_3.png",
+          "footR1_idle_4.png",
+          "footR1_idle_5.png"
+        ],
+        "walk": [
+          "footR1_walk_0.png",
+          "footR1_walk_1.png",
+          "footR1_walk_2.png",
+          "footR1_walk_3.png",
+          "footR1_walk_4.png",
+          "footR1_walk_5.png",
+          "footR1_walk_6.png",
+          "footR1_walk_7.png"
+        ],
+        "jumpStart": [
+          "footR1_jumpStart_0.png",
+          "footR1_jumpStart_1.png"
+        ],
+        "fall": [
+          "footR1_fall_0.png",
+          "footR1_fall_1.png",
+          "footR1_fall_2.png",
+          "footR1_fall_3.png",
+          "footR1_fall_4.png"
+        ]
+      },
+      "source": "Animated body parts/Right feet/footR1"
+    },
+    "eyes1": {
+      "frames": {
+        "idle": [
+          "eyes1_idle_0.png",
+          "eyes1_idle_1.png",
+          "eyes1_idle_2.png",
+          "eyes1_idle_3.png",
+          "eyes1_idle_4.png",
+          "eyes1_idle_5.png"
+        ]
+      },
+      "source": "Animated body parts/Eyes/eyes1"
+    },
+    "eyes2": {
+      "frames": {
+        "idle": [
+          "eyes2_idle_0.png",
+          "eyes2_idle_1.png",
+          "eyes2_idle_2.png",
+          "eyes2_idle_3.png",
+          "eyes2_idle_4.png",
+          "eyes2_idle_5.png"
+        ]
+      },
+      "source": "Animated body parts/Eyes/eyes2"
+    },
+    "eyes5": {
+      "frames": {
+        "idle": [
+          "eyes5_idle_0.png",
+          "eyes5_idle_1.png",
+          "eyes5_idle_2.png",
+          "eyes5_idle_3.png",
+          "eyes5_idle_4.png",
+          "eyes5_idle_5.png"
+        ]
+      },
+      "source": "Animated body parts/Eyes/eyes5"
+    },
+    "eyes6": {
+      "frames": {
+        "idle": [
+          "eyes6_idle_0.png",
+          "eyes6_idle_1.png",
+          "eyes6_idle_2.png",
+          "eyes6_idle_3.png",
+          "eyes6_idle_4.png",
+          "eyes6_idle_5.png"
+        ]
+      },
+      "source": "Animated body parts/Eyes/eyes6"
+    },
+    "mouth1": {
+      "frames": {
+        "idle": [
+          "mouth1_idle_0.png",
+          "mouth1_idle_1.png",
+          "mouth1_idle_2.png",
+          "mouth1_idle_3.png",
+          "mouth1_idle_4.png",
+          "mouth1_idle_5.png"
+        ]
+      },
+      "source": "Animated body parts/Mouths/mouth1"
+    },
+    "mouth2": {
+      "frames": {
+        "idle": [
+          "mouth2_idle_0.png",
+          "mouth2_idle_1.png",
+          "mouth2_idle_2.png",
+          "mouth2_idle_3.png",
+          "mouth2_idle_4.png",
+          "mouth2_idle_5.png"
+        ]
+      },
+      "source": "Animated body parts/Mouths/mouth2"
+    },
+    "mouth3": {
+      "frames": {
+        "idle": [
+          "mouth3_idle_0.png",
+          "mouth3_idle_1.png",
+          "mouth3_idle_2.png",
+          "mouth3_idle_3.png",
+          "mouth3_idle_4.png",
+          "mouth3_idle_5.png"
+        ]
+      },
+      "source": "Animated body parts/Mouths/mouth3"
+    },
+    "mouth4": {
+      "frames": {
+        "idle": [
+          "mouth4_idle_0.png",
+          "mouth4_idle_1.png",
+          "mouth4_idle_2.png",
+          "mouth4_idle_3.png",
+          "mouth4_idle_4.png",
+          "mouth4_idle_5.png"
+        ]
+      },
+      "source": "Animated body parts/Mouths/mouth4"
+    }
+  },
+  "license": "CC0 / public domain (RGS_Dev / Raphael Gon\u00e7alves)"
+}

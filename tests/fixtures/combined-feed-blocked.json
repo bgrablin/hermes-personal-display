@@ -1,0 +1,201 @@
+{
+  "schema_version": "0.1.0",
+  "generated_at": "2026-05-16T14:35:05Z",
+  "display_state": {
+    "schema_version": "0.1.0",
+    "generated_at": "2026-05-16T14:35:00Z",
+    "source": "hermes-display-collector",
+    "boundary": "local_trusted_display",
+    "mode": "day",
+    "overall_status": "blocked",
+    "status_summary": "One card wants a human decision",
+    "services": {
+      "gateway": {
+        "state": "ok",
+        "label": "gateway ok",
+        "severity": "success",
+        "last_change": "2026-05-16T14:18:00Z"
+      },
+      "kanban": {
+        "state": "blocked",
+        "label": "kanban blocked",
+        "severity": "warning",
+        "last_change": "2026-05-16T14:34:00Z",
+        "detail": "approval needed; display-safe title only"
+      },
+      "cron": {
+        "state": "ok",
+        "label": "cron quiet",
+        "severity": "info",
+        "last_change": "2026-05-16T14:10:00Z"
+      }
+    },
+    "activity": {
+      "active_sessions": 1,
+      "active_tools": 0,
+      "active_workers": 0,
+      "cron_running": 0,
+      "cron_failed_recent": 0,
+      "kanban_ready": 1,
+      "kanban_running": 0,
+      "kanban_blocked": 1,
+      "last_gateway_event": "2026-05-16T14:29:40Z",
+      "display_safe_title": "review required"
+    },
+    "system": {
+      "host": "display-host",
+      "cpu_band": "low",
+      "memory_band": "moderate",
+      "disk_band": "low",
+      "network_band": "normal",
+      "temperature_band": "normal"
+    },
+    "display_policy": {
+      "allow_local_snippets": true,
+      "allow_external_model_context": false,
+      "redaction_required": true,
+      "forbid_credentials": true,
+      "approved_external_routes": []
+    },
+    "snippets": [
+      {
+        "id": "kanban-blocked-1",
+        "text": "one blocked card is staring at us",
+        "kind": "kanban",
+        "sensitivity": "display_safe",
+        "allowed_boundaries": [
+          "local_trusted_display",
+          "trusted_lan"
+        ],
+        "ttl_seconds": 300
+      }
+    ],
+    "attention": {
+      "needs_human": true,
+      "reason": "review required",
+      "count": 1,
+      "severity": "warning"
+    },
+    "recent_persona": [
+      {
+        "mood": "healthy_smug",
+        "skin": "operator-familiar",
+        "caption": "All green. I remain unconvinced.",
+        "micro_actions": [
+          "smug_nod",
+          "ring_pulse"
+        ],
+        "at": "2026-05-16T14:25:00Z"
+      }
+    ]
+  },
+  "persona_packet": {
+    "schema_version": "0.1.0",
+    "generated_at": "2026-05-16T14:35:05Z",
+    "valid_for_seconds": 75,
+    "mood": "blocked_annoyed",
+    "skin": "incident-imp",
+    "playfulness": 0.72,
+    "energy": 0.58,
+    "focus": 0.66,
+    "curiosity": 0.28,
+    "impatience": 0.84,
+    "eyes": {
+      "expression": "side_eye",
+      "gaze": "left",
+      "blink_rate": "staccato",
+      "pupil": "pinpoint",
+      "intensity": 0.86
+    },
+    "posture": {
+      "pose": "slumped_annoyed",
+      "tilt": "right_small",
+      "motion": "impatient_bounce",
+      "orbit": "crossed",
+      "scale": 1.03
+    },
+    "palette": {
+      "name": "amber-skeptic",
+      "background": "#08080D",
+      "primary": "#F7D36B",
+      "secondary": "#FF9E4A",
+      "accent": "#FF4D7A",
+      "danger": "#FF335F",
+      "brightness": 0.8
+    },
+    "micro_actions": [
+      {
+        "name": "side_eye_hold",
+        "weight": 0.9,
+        "cooldown_seconds": 20,
+        "params": {
+          "hold_ms": 1500
+        }
+      },
+      {
+        "name": "glyph_arms_cross",
+        "weight": 0.75,
+        "cooldown_seconds": 25,
+        "params": {
+          "motes": 2
+        }
+      },
+      {
+        "name": "dramatic_sigh_wave",
+        "weight": 0.35,
+        "cooldown_seconds": 45,
+        "params": {
+          "rings": 1
+        }
+      }
+    ],
+    "caption": {
+      "text": "I require a human. Tragic.",
+      "tone": "annoyed",
+      "priority": "blocked",
+      "max_width_chars": 42
+    },
+    "snippet": {
+      "id": "kanban-blocked-1",
+      "text": "one blocked card is staring at us",
+      "kind": "kanban",
+      "sensitivity": "display_safe",
+      "allowed_boundaries": [
+        "local_trusted_display",
+        "trusted_lan"
+      ],
+      "ttl_seconds": 300
+    },
+    "duration": {
+      "packet_seconds": 75,
+      "transition_ms": 450,
+      "min_hold_seconds": 20,
+      "max_hold_seconds": 100
+    },
+    "avoid_repeating": {
+      "captions": [
+        "All green. I remain unconvinced."
+      ],
+      "micro_actions": [
+        "smug_nod",
+        "ring_pulse"
+      ],
+      "skins": [
+        "operator-familiar"
+      ],
+      "moods": [
+        "healthy_smug"
+      ],
+      "window_seconds": 900
+    },
+    "safety": {
+      "boundary": "local_trusted_display",
+      "redaction_level": "display_safe",
+      "contains_credentials": false,
+      "external_model_safe": false,
+      "notes": [
+        "blocked summary is display-safe and local only"
+      ]
+    }
+  }
+}

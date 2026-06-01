@@ -1,0 +1,470 @@
+#!/usr/bin/env python3
+"""Refresh provider_route_rail.json from local agent.log activity.
+
+Reads a rolling window of recent `API call #N` lines from
+~/.hermes/logs/agent.log, aggregates per-provider requests, and writes a
+sanitized route-rail artifact at ~/.hermes/display/provider_route_rail.json.
+
+State vocabulary used here matches the renderer's allowlist:
+  * confirmed — headroom read from a provider/account quota endpoint
+  * inferred  — headroom derived from local activity when no quota endpoint is available
+  * unknown   — provider configured but no signal available
+
+Designed to run every ~5 minutes via systemd user timer.
+"""
+from __future__ import annotations
+
+import datetime as dt
+import json
+import os
+import re
+import subprocess
+import sys
+import time
+from pathlib import Path
+from typing import Any
+import urllib.error
+import urllib.request
+
+
+HOME = Path(os.path.expanduser("~"))
+PROJECT_ROOT = Path(__file__).resolve().parents[1]
+LOG_PATH = HOME / ".hermes/logs/agent.log"
+OUT_PATH = HOME / ".hermes/display/provider_route_rail.json"
+CCUSAGE_BIN = Path(os.environ.get("HERMES_DISPLAY_CCUSAGE_BIN", PROJECT_ROOT / "node_modules/.bin/ccusage"))
+
+# Per-provider plan budgets, expressed as a rolling-window request cap.
+# Subscription tier caps are public guidance; tune as needed.
+PROVIDER_PLAN = {
+    # Caps are API-call counts per rolling window (each agent turn fires
+    # multiple internal calls — tune from observed agent.log volume).
+    "openai-codex": {
+        "label": "CHATGPT",
+        "tier_label": "PROLITE 5H",
+        "rank": 1,
+        "window_minutes": 300,
+        "request_cap": 1200,
+    },
+    "anthropic": {
+        "label": "CLAUDE",
+        "tier_label": "MAX 5H/7D",
+        "rank": 2,
+        "window_minutes": 300,
+        "request_cap": 800,
+    },
+    "google-gemini-cli": {
+        "label": "GEMINI",
+        "tier_label": "STD",
+        "rank": 3,
+        "window_minutes": 60,
+        "request_cap": 600,
+    },
+    "copilot": {
+        # No usable local quota signal for Copilot today — render as
+        # reachable-but-unknown rather than fabricate a number.
+        "label": "COPILOT",
+        "tier_label": None,
+        "rank": 4,
+        "window_minutes": None,
+        "request_cap": None,
+    },
+}
+
+ALLOWED_PROVIDER_IDS = set(PROVIDER_PLAN.keys()) | {"google-gemini"}
+
+# Match either the standalone API-call summary or the surrounding client
+# create/close noise. Only the API-call summary carries token counts but the
+# client-create line is what tells us provider was actually contacted.
+API_CALL_RE = re.compile(
+    r"API call #\d+:.*?\bprovider=(?P<provider>[A-Za-z0-9._-]+)"
+)
+TS_RE = re.compile(r"^(\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2})")
+
+ACTIVE_WINDOW_S = 600  # consider a provider "active" if used in last 10 min
+
+# ccusage estimates Claude Code subscription block usage in dollars. Recent
+# exhausted Max 5x blocks on this host land around this value, and it maps the
+# current Claude Code block to the ~59% remaining Brian sees in Claude Code far
+# better than counting Hermes agent.log provider calls. This remains
+# display-only inferred headroom, not a confirmed Anthropic quota API reading.
+CLAUDE_MAX_5H_COST_CAP = 47.5
+
+
+def parse_ts(line: str) -> float | None:
+    m = TS_RE.match(line)
+    if not m:
+        return None
+    try:
+        return dt.datetime.strptime(m.group(1), "%Y-%m-%d %H:%M:%S").timestamp()
+    except ValueError:
+        return None
+
+
+def scan_log(path: Path, oldest_needed: float) -> dict[str, dict]:
+    """Return {provider_id: {requests:int, last_ts:float}} for entries within window."""
+    counts: dict[str, dict] = {}
+    if not path.is_file():
+        return counts
+    current_ts: float | None = None
+    try:
+        # Read whole file; agent.log rotates at ~2MB so cost is small.
+        with path.open("r", encoding="utf-8", errors="ignore") as fh:
+            for line in fh:
+                ts = parse_ts(line)
+                if ts is not None:
+                    current_ts = ts
+                if current_ts is None or current_ts < oldest_needed:
+                    continue
+                m = API_CALL_RE.search(line)
+                if not m:
+                    continue
+                prov = m.group("provider")
+                if prov == "google-gemini":
+                    prov = "google-gemini-cli"
+                if prov not in ALLOWED_PROVIDER_IDS:
+                    continue
+                bucket = counts.setdefault(
+                    prov, {"requests": 0, "last_ts": 0.0}
+                )
+                bucket["requests"] += 1
+                if current_ts > bucket["last_ts"]:
+                    bucket["last_ts"] = current_ts
+    except OSError as exc:
+        print(f"agent.log read failed: {exc}", file=sys.stderr)
+    return counts
+
+
+
+def _hermes_agent_path() -> Path:
+    return HOME / ".hermes/hermes-agent"
+
+
+def _load_hermes_env_and_path() -> None:
+    """Make Hermes internals importable without echoing secrets."""
+    agent_path = _hermes_agent_path()
+    if str(agent_path) not in sys.path:
+        sys.path.insert(0, str(agent_path))
+    try:
+        from hermes_cli.env_loader import load_hermes_dotenv
+        load_hermes_dotenv()
+    except Exception:
+        # Quota probes fail closed to the log-derived/unknown rows.
+        pass
+
+
+def _codex_usage_url(base_url: str | None) -> str:
+    normalized = (base_url or "https://chatgpt.com/backend-api/codex").strip().rstrip("/")
+    if normalized.endswith("/codex"):
+        normalized = normalized[: -len("/codex")]
+    if "/backend-api" in normalized:
+        return f"{normalized}/wham/usage"
+    return f"{normalized}/api/codex/usage"
+
+
+def fetch_codex_headroom() -> tuple[float | None, float | None, str | None]:
+    """Return confirmed ChatGPT/Codex primary and secondary headroom."""
+    try:
+        _load_hermes_env_and_path()
+        from agent.credential_pool import load_pool
+
+        pool = load_pool("openai-codex")
+        entry = pool.peek() if pool else None
+        token = str(getattr(entry, "runtime_api_key", "") or "").strip() if entry else ""
+        if not token:
+            return None, None, None
+        headers = {
+            "Authorization": f"Bearer {token}",
+            "Accept": "application/json",
+            "User-Agent": "codex-cli",
+        }
+        account_id = str((getattr(entry, "extra", None) or {}).get("account_id") or "").strip()
+        if account_id:
+            headers["ChatGPT-Account-Id"] = account_id
+        req = urllib.request.Request(
+            _codex_usage_url(getattr(entry, "runtime_base_url", None)),
+            headers=headers,
+            method="GET",
+        )
+        with urllib.request.urlopen(req, timeout=12.0) as resp:
+            payload = json.loads(resp.read().decode("utf-8")) or {}
+        rate_limit = payload.get("rate_limit") or {}
+        primary = rate_limit.get("primary_window") or {}
+        secondary = rate_limit.get("secondary_window") or {}
+        used = float(primary.get("used_percent"))
+        headroom = max(0.0, min(1.0, 1.0 - used / 100.0))
+        secondary_headroom = None
+        if secondary.get("used_percent") is not None:
+            secondary_headroom = max(0.0, min(1.0, 1.0 - float(secondary.get("used_percent")) / 100.0))
+        tier = str(payload.get("plan_type") or "").strip().upper().replace("_", "-") or None
+        return headroom, secondary_headroom, tier
+    except Exception as exc:
+        print(f"codex quota probe failed: {type(exc).__name__}: {exc}", file=sys.stderr)
+        return None, None, None
+
+
+def fetch_anthropic_headroom() -> tuple[float | None, float | None]:
+    """Return confirmed Anthropic OAuth five-hour and seven-day headroom."""
+    try:
+        _load_hermes_env_and_path()
+        from agent.account_usage import fetch_account_usage
+
+        snap = fetch_account_usage("anthropic")
+        if not snap or not snap.windows:
+            return None, None
+        primary = None
+        secondary = None
+        for window in snap.windows:
+            label = str(window.label or "").lower()
+            if window.used_percent is None:
+                continue
+            remaining = max(0.0, min(1.0, 1.0 - float(window.used_percent) / 100.0))
+            if primary is None and ("session" in label or "five" in label):
+                primary = remaining
+            elif secondary is None and "week" in label:
+                secondary = remaining
+        if primary is None and snap.windows[0].used_percent is not None:
+            primary = max(0.0, min(1.0, 1.0 - float(snap.windows[0].used_percent) / 100.0))
+        return primary, secondary
+    except Exception as exc:
+        print(f"anthropic quota probe failed: {type(exc).__name__}: {exc}", file=sys.stderr)
+        return None, None
+
+
+def fetch_gemini_headroom() -> tuple[float | None, str | None]:
+    """Return confirmed Gemini Code Assist request headroom from retrieveUserQuota."""
+    try:
+        _load_hermes_env_and_path()
+        from agent.google_oauth import get_valid_access_token, load_credentials
+        from agent.google_code_assist import retrieve_user_quota
+
+        token = get_valid_access_token()
+        creds = load_credentials()
+        project_id = (creds.project_id if creds else "") or ""
+        buckets = retrieve_user_quota(token, project_id=project_id)
+        request_buckets = [
+            b for b in buckets
+            if (not getattr(b, "token_type", "") or str(getattr(b, "token_type", "")).upper() == "REQUESTS")
+            and getattr(b, "remaining_fraction", None) is not None
+        ]
+        if not request_buckets:
+            return None, None
+        remaining = min(float(b.remaining_fraction) for b in request_buckets)
+        return max(0.0, min(1.0, remaining)), "STD"
+    except Exception as exc:
+        print(f"gemini quota probe failed: {type(exc).__name__}: {exc}", file=sys.stderr)
+        return None, None
+
+
+def apply_confirmed_quota(providers: list[dict]) -> None:
+    codex_headroom, codex_secondary, codex_tier = fetch_codex_headroom()
+    anthropic_headroom, anthropic_secondary = fetch_anthropic_headroom()
+    gemini_headroom, gemini_tier = fetch_gemini_headroom()
+
+    quota_updates: dict[str, dict[str, Any]] = {}
+    if codex_headroom is not None:
+        quota_updates["openai-codex"] = {
+            "state": "confirmed",
+            "headroom": codex_headroom,
+            "secondary_headroom": codex_secondary,
+            "tier_label": f"{codex_tier} 5H" if codex_tier else PROVIDER_PLAN["openai-codex"]["tier_label"],
+            "last_used_age_s": 0,
+        }
+    if anthropic_headroom is not None:
+        quota_updates["anthropic"] = {
+            "state": "confirmed",
+            "headroom": anthropic_headroom,
+            "secondary_headroom": anthropic_secondary,
+            "tier_label": PROVIDER_PLAN["anthropic"]["tier_label"],
+            "last_used_age_s": 0,
+        }
+    if gemini_headroom is not None:
+        quota_updates["google-gemini-cli"] = {
+            "state": "confirmed",
+            "headroom": gemini_headroom,
+            "secondary_headroom": None,
+            "tier_label": gemini_tier or PROVIDER_PLAN["google-gemini-cli"]["tier_label"],
+            "last_used_age_s": 0,
+        }
+
+    for provider in providers:
+        update = quota_updates.get(provider["id"])
+        if update:
+            provider.update(update)
+
+
+def build_providers(now: float, counts: dict[str, dict]) -> tuple[list[dict], str]:
+    rows: list[dict] = []
+    active_id = ""
+    most_recent_ts = 0.0
+    for prov_id, plan in PROVIDER_PLAN.items():
+        window_s = (plan["window_minutes"] or 0) * 60
+        cap = plan["request_cap"]
+        c = counts.get(prov_id) or {"requests": 0, "last_ts": 0.0}
+
+        if cap is None or window_s == 0:
+            # No quota signal possible (e.g. Copilot).
+            state = "unknown"
+            headroom = None
+            last_age = (
+                int(now - c["last_ts"]) if c["last_ts"] > 0 else None
+            )
+        else:
+            # Re-filter requests to this provider's actual window. No observed
+            # request in-window is not proof of full quota. Render unknown
+            # rather than manufacturing a confident 100% headroom row.
+            window_cutoff = now - window_s
+            if c["last_ts"] <= 0 or c["last_ts"] < window_cutoff:
+                headroom = None
+                state = "unknown"
+                last_age = int(now - c["last_ts"]) if c["last_ts"] > 0 else None
+            else:
+                used = max(0, int(c["requests"] or 0))
+                headroom = max(0.0, 1.0 - used / cap)
+                state = "inferred"
+                last_age = int(now - c["last_ts"])
+
+        row = {
+            "id": prov_id,
+            "label": plan["label"],
+            "tier_label": plan["tier_label"],
+            "rank": plan["rank"],
+            "state": state,
+            "headroom": headroom,
+            "secondary_headroom": None,
+            "reachable": True,
+            "last_used_age_s": last_age,
+            "stale_age_s": None,
+        }
+        rows.append(row)
+        if (
+            row["state"] == "inferred"
+            and c["last_ts"] > most_recent_ts
+            and (now - c["last_ts"]) <= ACTIVE_WINDOW_S
+        ):
+            most_recent_ts = c["last_ts"]
+            active_id = prov_id
+
+    rows.sort(key=lambda r: r["rank"])
+    return rows, active_id
+
+
+def load_claude_code_headroom() -> tuple[float | None, int | None]:
+    """Return inferred Claude Code headroom from ccusage's active block.
+
+    Claude Code activity is stored under ~/.claude, not Hermes agent.log. If we
+    only count Hermes API-call summaries, Claude looks idle/100% even after a
+    heavy Claude Code run. ccusage already knows Claude Code's JSONL format, so
+    use it when available and fail closed to the log-derived value.
+    """
+
+    # This display service is a local appliance path. Do not run
+    # `npx ... @latest` from the timer: even with --offline it leaves package
+    # resolution ambiguous and can fail differently depending on cache state.
+    # Use the project-pinned ccusage binary when present; otherwise fail closed
+    # to the log-derived/unknown row.
+    if not CCUSAGE_BIN.is_file():
+        return None, None
+
+    try:
+        proc = subprocess.run(
+            [
+                str(CCUSAGE_BIN),
+                "blocks",
+                "--json",
+                "--timezone",
+                "America/Chicago",
+                "--offline",
+            ],
+            text=True,
+            capture_output=True,
+            timeout=12,
+            check=False,
+        )
+    except (OSError, subprocess.TimeoutExpired):
+        return None, None
+    if proc.returncode != 0 or not proc.stdout.strip():
+        return None, None
+    try:
+        data = json.loads(proc.stdout)
+    except json.JSONDecodeError:
+        return None, None
+    active_blocks = [b for b in data.get("blocks", []) if b.get("isActive") and not b.get("isGap")]
+    if not active_blocks:
+        return None, None
+    block = active_blocks[-1]
+    models = " ".join(str(m) for m in block.get("models") or [])
+    if "claude" not in models.lower():
+        return None, None
+    try:
+        cost = float(block.get("costUSD") or 0.0)
+    except (TypeError, ValueError):
+        return None, None
+    if cost <= 0:
+        return None, None
+    headroom = max(0.0, min(1.0, 1.0 - (cost / CLAUDE_MAX_5H_COST_CAP)))
+    last_age = None
+    actual_end = block.get("actualEndTime")
+    start_time = block.get("startTime")
+    try:
+        if actual_end:
+            ts = dt.datetime.fromisoformat(str(actual_end).replace("Z", "+00:00")).timestamp()
+            last_age = max(0, int(time.time() - ts))
+        elif start_time:
+            # Active blocks may not have an end timestamp yet. Use start age as
+            # a conservative freshness guard so malformed/ancient artifacts do
+            # not keep the route rail looking fresh forever.
+            ts = dt.datetime.fromisoformat(str(start_time).replace("Z", "+00:00")).timestamp()
+            last_age = max(0, int(time.time() - ts))
+    except (TypeError, ValueError):
+        return None, None
+    if last_age is not None and last_age > PROVIDER_PLAN["anthropic"]["window_minutes"] * 60:
+        return None, None
+    return headroom, last_age
+
+
+def main() -> int:
+    now = time.time()
+    # Scan window = longest configured provider window; default to 5h.
+    longest_minutes = max(
+        (p["window_minutes"] or 0) for p in PROVIDER_PLAN.values()
+    )
+    oldest_needed = now - (longest_minutes * 60 if longest_minutes else 3600)
+
+    counts = scan_log(LOG_PATH, oldest_needed)
+    providers, active_id = build_providers(now, counts)
+
+    # Prefer real provider/account quota signals. This restores the
+    # percentage rail Brian expects for ChatGPT/Codex, Claude, and Gemini.
+    apply_confirmed_quota(providers)
+
+    # Fallback only: ccusage estimates Claude Code blocks when the Anthropic
+    # OAuth usage endpoint is unavailable. Do not overwrite confirmed usage.
+    claude_headroom, claude_last_age = load_claude_code_headroom()
+    if claude_headroom is not None:
+        for provider in providers:
+            if provider["id"] == "anthropic" and provider.get("state") != "confirmed":
+                provider["headroom"] = claude_headroom
+                provider["state"] = "inferred"
+                if claude_last_age is not None:
+                    provider["last_used_age_s"] = claude_last_age
+                break
+
+    payload = {
+        "as_of_ms": int(now * 1000),
+        "active_provider_id": active_id,
+        "providers": providers,
+    }
+
+    OUT_PATH.parent.mkdir(parents=True, exist_ok=True)
+    tmp = OUT_PATH.with_suffix(".json.tmp")
+    tmp.write_text(json.dumps(payload, indent=2))
+    os.replace(tmp, OUT_PATH)
+    print(
+        f"route-rail updated: active={active_id or '-'} "
+        f"providers={len(providers)} at {dt.datetime.fromtimestamp(now).isoformat(timespec='seconds')}"
+    )
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())

@@ -1,0 +1,31 @@
+{
+  "work": {
+    "active": true,
+    "state": "current_work",
+    "kind": "tool",
+    "tool": "terminal",
+    "summary": "Working in the local shell.",
+    "detail": "Working in the shell.",
+    "visual_kind": "shell",
+    "age_seconds": 18,
+    "source": "CLI session"
+  },
+  "active_summary": {"count": 1, "sessions": [{"session_label": "CLI session", "age_seconds": 18}]},
+  "kanban": {
+    "active": 1,
+    "summary": "1 active task(s)",
+    "tasks": [{"title": "review deployment decision", "status": "blocked", "assignee": "brian"}]
+  },
+  "system": {
+    "cpu": {"value": 0.30, "status": "fresh", "age_seconds": 4},
+    "memory": {"value": 0.40, "status": "fresh", "age_seconds": 4},
+    "temp_c": {"value": 58.0, "status": "fresh", "age_seconds": 4},
+    "cpu_temp_c": {"value": 58.0, "status": "fresh", "age_seconds": 4},
+    "pch_temp_c": {"value": 49.0, "status": "fresh", "age_seconds": 4},
+    "thermal_readings": 6,
+    "sensor_error": false
+  },
+  "gateway_ok": true,
+  "warn_lines": [],
+  "now_hour": 14
+}

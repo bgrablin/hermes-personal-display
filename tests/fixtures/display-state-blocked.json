@@ -1,0 +1,88 @@
+{
+  "schema_version": "0.1.0",
+  "generated_at": "2026-05-16T14:35:00Z",
+  "source": "hermes-display-collector",
+  "boundary": "local_trusted_display",
+  "mode": "day",
+  "overall_status": "blocked",
+  "status_summary": "One card wants a human decision",
+  "services": {
+    "gateway": {
+      "state": "ok",
+      "label": "gateway ok",
+      "severity": "success",
+      "last_change": "2026-05-16T14:18:00Z"
+    },
+    "kanban": {
+      "state": "blocked",
+      "label": "kanban blocked",
+      "severity": "warning",
+      "last_change": "2026-05-16T14:34:00Z",
+      "detail": "approval needed; display-safe title only"
+    },
+    "cron": {
+      "state": "ok",
+      "label": "cron quiet",
+      "severity": "info",
+      "last_change": "2026-05-16T14:10:00Z"
+    }
+  },
+  "activity": {
+    "active_sessions": 1,
+    "active_tools": 0,
+    "active_workers": 0,
+    "cron_running": 0,
+    "cron_failed_recent": 0,
+    "kanban_ready": 1,
+    "kanban_running": 0,
+    "kanban_blocked": 1,
+    "last_gateway_event": "2026-05-16T14:29:40Z",
+    "display_safe_title": "review required"
+  },
+  "system": {
+    "host": "display-host",
+    "cpu_band": "low",
+    "memory_band": "moderate",
+    "disk_band": "low",
+    "network_band": "normal",
+    "temperature_band": "normal"
+  },
+  "display_policy": {
+    "allow_local_snippets": true,
+    "allow_external_model_context": false,
+    "redaction_required": true,
+    "forbid_credentials": true,
+    "approved_external_routes": []
+  },
+  "snippets": [
+    {
+      "id": "kanban-blocked-1",
+      "text": "one blocked card is staring at us",
+      "kind": "kanban",
+      "sensitivity": "display_safe",
+      "allowed_boundaries": [
+        "local_trusted_display",
+        "trusted_lan"
+      ],
+      "ttl_seconds": 300
+    }
+  ],
+  "attention": {
+    "needs_human": true,
+    "reason": "review required",
+    "count": 1,
+    "severity": "warning"
+  },
+  "recent_persona": [
+    {
+      "mood": "healthy_smug",
+      "skin": "operator-familiar",
+      "caption": "All green. I remain unconvinced.",
+      "micro_actions": [
+        "smug_nod",
+        "ring_pulse"
+      ],
+      "at": "2026-05-16T14:25:00Z"
+    }
+  ]
+}

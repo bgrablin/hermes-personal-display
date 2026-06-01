@@ -1,0 +1,121 @@
+{
+  "roadmap": "docs/puppet-layer-roadmap-2026-05-21.md",
+  "updated": "2026-05-21",
+  "recommendations": {
+    "1_eye_rig": {
+      "status": "implemented",
+      "evidence": [
+        "src/mascot-v2/hermes-puppet.svg::class=\"iris\"",
+        "src/mascot-v2/hermes-puppet.svg::class=\"pupil\"",
+        "src/mascot-v2/hermes-puppet.svg::class=\"catchlight\"",
+        "src/mascot-v2/runtime.js::irisLeft",
+        "src/mascot-v2/runtime.js::catchlightLeft"
+      ]
+    },
+    "2_eyelids_blinks": {
+      "status": "implemented",
+      "evidence": [
+        "src/mascot-v2/states.js::CONTEXTUAL_BLINK_GRAMMAR",
+        "src/mascot-v2/runtime.js::scheduleContextualBlink",
+        "src/mascot-v2/runtime.js::beginTransitionPhase"
+      ]
+    },
+    "3_gaze_grammar": {
+      "status": "implemented",
+      "evidence": [
+        "src/mascot-v2/states.js::BEHAVIOR_GAZE_GRAMMAR",
+        "src/mascot-v2/runtime.js::behaviorGrammar",
+        "scripts/check-puppet-behavior-mapping.js::requiredBehaviorGazes"
+      ]
+    },
+    "4_restrained_mouth": {
+      "status": "implemented",
+      "evidence": [
+        "src/mascot-v2/states.js::BEHAVIOR_MOUTH_GRAMMAR",
+        "src/mascot-v2/states.js::degraded_offline: 'drowsy_droop'",
+        "src/mascot-v2/runtime.js::updateMouth"
+      ]
+    },
+    "5_helmet_brow_wing_tension": {
+      "status": "implemented",
+      "evidence": [
+        "src/mascot-v2/runtime.js::updateHelmet",
+        "src/mascot-v2/runtime.js::updateWings",
+        "src/mascot-v2/states.js::wingTwitch"
+      ]
+    },
+    "6_subtle_posture": {
+      "status": "implemented",
+      "evidence": [
+        "src/mascot-v2/runtime.js::poseChannel",
+        "src/mascot-v2/runtime.js::updateFloorShadow",
+        "src/mascot-v2/states.js::motionBudget"
+      ]
+    },
+    "7_notice_transient": {
+      "status": "implemented",
+      "evidence": [
+        "src/mascot-v2/runtime.js::notice(source",
+        "src/mascot-v2/runtime.js::ingestAvatarEvent",
+        "src/mascot-v2/app.js::publishLocalAvatarEvent"
+      ]
+    },
+    "8_transition_grammar": {
+      "status": "implemented",
+      "evidence": [
+        "src/mascot-v2/runtime.js::beginTransitionPhase",
+        "src/mascot-v2/runtime.js::notice -> orient -> commit -> sustain -> resolve",
+        "src/mascot-v2/runtime.js::transitionPhase"
+      ]
+    },
+    "9_internal_reasoning": {
+      "status": "implemented",
+      "evidence": [
+        "src/mascot-v2/runtime.js::reasoning: {",
+        "src/mascot-v2/runtime.js::scanBeam: false",
+        "src/mascot-v2/runtime.js::dwellMs: [2000, 4200]"
+      ]
+    },
+    "10_differentiate_work_types": {
+      "status": "implemented",
+      "evidence": [
+        "src/mascot-v2/runtime.js::shell: {",
+        "src/mascot-v2/runtime.js::reading: {",
+        "src/mascot-v2/runtime.js::searching: {",
+        "src/mascot-v2/runtime.js::writing: {"
+      ]
+    },
+    "11_waiting_social_state": {
+      "status": "implemented",
+      "evidence": [
+        "src/state.js::waiting_input",
+        "src/mascot-v2/runtime.js::waiting_input",
+        "src/mascot-v2/runtime.js::gazeTargets: ['center','forward_focus'"
+      ]
+    },
+    "12_trust_states": {
+      "status": "implemented",
+      "evidence": [
+        "src/mascot-v2/states.js::degraded_offline: {",
+        "src/state.js::degraded_offline: {",
+        "src/mascot-v2/runtime.js::feed_lost"
+      ]
+    },
+    "13_attention_memory": {
+      "status": "implemented",
+      "evidence": [
+        "src/mascot-v2/runtime.js::attentionStack",
+        "src/mascot-v2/runtime.js::restoreAttention",
+        "src/mascot-v2/runtime.js::recentAvatarEvents"
+      ]
+    },
+    "14_reduce_symmetry": {
+      "status": "implemented",
+      "evidence": [
+        "src/mascot-v2/states.js::wingAsymmetryDeg",
+        "src/mascot-v2/states.js::smirk_right",
+        "src/mascot-v2/runtime.js::side * 0.28"
+      ]
+    }
+  }
+}

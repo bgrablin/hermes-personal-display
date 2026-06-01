@@ -1,0 +1,95 @@
+{
+  "schema_version": "0.1.0",
+  "generated_at": "2026-05-16T14:35:05Z",
+  "valid_for_seconds": 75,
+  "mood": "blocked_annoyed",
+  "skin": "retro-amber-watch",
+  "playfulness": 0.72,
+  "energy": 0.58,
+  "focus": 0.66,
+  "curiosity": 0.28,
+  "impatience": 0.84,
+  "eyes": {
+    "expression": "side_eye",
+    "gaze": "left",
+    "blink_rate": "staccato",
+    "pupil": "pinpoint",
+    "intensity": 0.86
+  },
+  "posture": {
+    "pose": "slumped_annoyed",
+    "tilt": "right_small",
+    "motion": "impatient_bounce",
+    "orbit": "crossed",
+    "scale": 1.03
+  },
+  "palette": {
+    "name": "amber-skeptic",
+    "background": "#08080D",
+    "primary": "#F7D36B",
+    "secondary": "#FF9E4A",
+    "accent": "#FF4D7A",
+    "danger": "#FF335F",
+    "brightness": 0.8
+  },
+  "micro_actions": [
+    {
+      "name": "side_eye_hold",
+      "weight": 0.9,
+      "cooldown_seconds": 20,
+      "params": {
+        "hold_ms": 1500
+      }
+    },
+    {
+      "name": "glyph_arms_cross",
+      "weight": 0.75,
+      "cooldown_seconds": 25,
+      "params": {
+        "motes": 2
+      }
+    },
+    {
+      "name": "dramatic_sigh_wave",
+      "weight": 0.35,
+      "cooldown_seconds": 45,
+      "params": {
+        "rings": 1
+      }
+    }
+  ],
+  "caption": {
+    "text": "I require a human. Tragic.",
+    "tone": "annoyed",
+    "priority": "blocked",
+    "max_width_chars": 42
+  },
+  "snippet": {
+    "id": "kanban-blocked-1",
+    "text": "one blocked card is staring at us",
+    "kind": "kanban",
+    "sensitivity": "display_safe",
+    "allowed_boundaries": ["local_trusted_display", "trusted_lan"],
+    "ttl_seconds": 300
+  },
+  "duration": {
+    "packet_seconds": 75,
+    "transition_ms": 450,
+    "min_hold_seconds": 20,
+    "max_hold_seconds": 100
+  },
+  "avoid_repeating": {
+    "captions": ["All green. I remain unconvinced."],
+    "micro_actions": ["smug_nod", "ring_pulse"],
+    "skins": ["retro-robot-core"],
+    "moods": ["healthy_smug"],
+    "window_seconds": 900
+  },
+  "safety": {
+    "boundary": "local_trusted_display",
+    "redaction_level": "display_safe",
+    "contains_credentials": false,
+    "external_model_safe": false,
+    "notes": ["blocked summary is display-safe and local only"]
+  }
+}

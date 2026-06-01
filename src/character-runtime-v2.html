@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Hermes Mascot v2 — Custom SVG Puppet Runtime</title>
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Ccircle cx='8' cy='8' r='7' fill='%2365f3ff'/%3E%3C/svg%3E">
+  <link rel="stylesheet" href="./styles.css?v=concept-b-theater1">
+  <link rel="stylesheet" href="./mascot-v2/styles.css?v=concept-b-theater1">
+  <style>
+    /* Kiosk anti-flash: the static .shell below is the dev/prototype layout. On the MINIX
+       landscape kiosk, app.js replaces it with the Concept B optic — but only after it runs.
+       Hide the shell + paint the dashboard background synchronously (before first paint) so a
+       restart never flashes the old dashboard. Non-kiosk preview still shows the shell. */
+    html.cb-kiosk-boot, html.cb-kiosk-boot body { background: #04060a; }
+    html.cb-kiosk-boot body > .shell { display: none !important; }
+  </style>
+  <script>
+    (function () {
+      try {
+        var q = new URLSearchParams(location.search);
+        var on = function (v) { return ['1', 'true', 'yes'].includes(String(v || '').toLowerCase()); };
+        var orientation = (q.get('orientation') || '').toLowerCase();
+        // Only the landscape Concept B kiosk (the MINIX) replaces the shell with the optic, so
+        // only hide it there. Portrait/unspecified kiosk keeps the shell + #display-root visible.
+        if (on(q.get('kiosk')) && orientation === 'landscape') {
+          document.documentElement.classList.add('cb-kiosk-boot');
+        }
+      } catch (e) { /* default to showing the shell if params can't be read */ }
+    })();
+  </script>
+</head>
+<body>
+  <main class="shell">
+    <section class="display-frame" aria-label="320 by 480 Hermes mascot v2 SVG puppet preview">
+      <div id="display-root"></div>
+    </section>
+
+    <section class="controls" aria-label="Mascot v2 controls">
+      <header>
+        <p class="eyebrow">Hermes Personal Display</p>
+        <h1>mascot v2 · retro robot svg puppet</h1>
+        <p class="note">
+          Project-authored Hermes retro-robot puppet built natively in SVG for the hardened motion system.
+          Winged helmet stays as the Hermes identity cue.
+          No hands, no teeth, no pasted cheek blob, no constant whole-body bounce.
+        </p>
+        <p class="note">
+          <a href="./character-runtime.html">Previous v1 runtime</a> ·
+          <a href="./mascot-v2-debug.html">Debug contact sheet</a> ·
+          <a href="./rgs-runtime.html">RGS prototype</a>
+        </p>
+      </header>
+
+      <label>State presets</label>
+      <div class="button-row" role="group" aria-label="State presets">
+        <button data-state-preset="quiet_watch">Quiet watch</button>
+        <button data-state-preset="reasoning">Reasoning</button>
+        <button data-state-preset="planning">Planning</button>
+        <button data-state-preset="working">Working</button>
+        <button data-state-preset="completed">Completed</button>
+        <button data-state-preset="waiting_input">Waiting input</button>
+        <button data-state-preset="blocked">Blocked</button>
+        <button data-state-preset="feed_stale">Feed stale</button>
+        <button data-state-preset="night_watch">Night</button>
+        <button data-state-preset="critical">Critical</button>
+      </div>
+
+      <label>Named intents (random nudge picks from current state's pool)</label>
+      <div class="nudge-row" role="group" aria-label="Named intents">
+        <button data-nudge="glance_left">glance left</button>
+        <button data-nudge="glance_right">glance right</button>
+        <button data-nudge="glance_up_left">glance up-L</button>
+        <button data-nudge="brow_pop">brow pop</button>
+        <button data-nudge="skeptical_squint">skeptical</button>
+        <button data-nudge="settle">settle</button>
+        <button data-nudge="tiny_perk">tiny perk</button>
+        <button data-nudge="smug_nod">smug nod</button>
+        <button data-nudge="side_eye_hold">side-eye</button>
+        <button data-nudge="dramatic_sigh">sigh</button>
+        <button data-nudge="slow_double_blink">2x blink</button>
+        <button data-nudge="sleepy_yawn">yawn</button>
+      </div>
+
+      <label for="skin-select">Skin (tints background and orbits, not the puppet)</label>
+      <select id="skin-select">
+        <option value="operator-familiar">operator-familiar</option>
+        <option value="hermetic-companion">hermetic-companion</option>
+        <option value="terminal-sprite">terminal-sprite</option>
+        <option value="night-watcher">night-watcher</option>
+        <option value="incident-imp">incident-imp</option>
+      </select>
+
+      <label for="state-json">Persona / state JSON</label>
+      <textarea id="state-json" spellcheck="false"></textarea>
+
+      <div class="button-row">
+        <button id="apply-json">Apply JSON</button>
+        <button id="randomize">Random nudge</button>
+        <button id="freeze-toggle">Freeze motion</button>
+        <button id="reset">Reset</button>
+      </div>
+
+      <output id="status-output" role="status">Loading puppet…</output>
+      <output id="motion-debug" class="motion-debug" role="status">Motion debug booting…</output>
+
+      <details>
+        <summary>Runtime contract</summary>
+        <ul>
+          <li>320×480 portrait. Custom Hermes spirit-wisp puppet fetched from <code>mascot-v2/hermes-puppet.svg</code>, inlined into host SVG, each anatomy element animated.</li>
+          <li>Display presets: quiet_watch, reasoning, planning, working, completed, waiting_input, blocked, feed_stale, night_watch, critical. They drive bounded motion variables before raw telemetry styling.</li>
+          <li>Named intents: glance_left, glance_right, glance_up_left, brow_pop, skeptical_squint, settle, tiny_perk, smug_nod, side_eye_hold, dramatic_sigh, slow_double_blink, sleepy_yawn, scan_sweep, sigh_wave, sleep_drift, slow_blink.</li>
+          <li>Motion is split into pose, gaze, blinkFace, and fx channels for explicit budgets.</li>
+          <li>Idle motion is restrained: breath owns root Y, calm states stay within a 1px root-Y budget, and auto intents are face/gaze only.</li>
+          <li>Gaze uses a saccade → hold FSM. Debug line shows current target, FSM state, intent, and root-Y budget.</li>
+          <li>No hands by design. No teeth. Mouth is a single morphing path with a soft glow.</li>
+          <li>Local-only. No CDN, no external assets. Keys 1–5 = states; space/n = random intent.</li>
+        </ul>
+      </details>
+    </section>
+  </main>
+
+  <script src="./vendor/anime.iife.min.js?v=concept-b-theater1"></script>
+  <script src="./vendor/xstate.iife.min.js?v=concept-b-theater1"></script>
+  <script src="./vendor/purify.min.js?v=concept-b-theater1"></script>
+  <script src="./vendor/zod.global.js?v=concept-b-theater1"></script>
+  <script src="./mascot-v2/sanitize.js?v=concept-b-theater1"></script>
+  <script src="./mascot-v2/behavior-machine.js?v=concept-b-theater1"></script>
+  <script src="./state.js?v=concept-b-theater1"></script>
+  <script src="./mascot-v2/states.js?v=concept-b-theater1"></script>
+  <script src="./mascot-v2/motion-adapter.js?v=concept-b-theater1"></script>
+  <script src="./mascot-v2/runtime.js?v=concept-b-theater1"></script>
+  <script src="./mascot-v2/audio.js?v=concept-b-theater1"></script>
+  <script src="./mascot-v2/touch-fx.js?v=concept-b-theater1"></script>
+  <script src="./mascot-v2/entertainment.js?v=concept-b-theater1"></script>
+  <script src="./mascot-v2/watch-sequences.js?v=concept-b-theater1"></script>
+  <script src="./mascot-v2/app.js?v=concept-b-theater1"></script>
+</body>
+</html>

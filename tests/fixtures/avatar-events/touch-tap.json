@@ -1,0 +1,23 @@
+{
+  "schema_version": "0.1.0",
+  "id": "2026-05-21T14:37:01.100Z-000081",
+  "event": "touch.tap",
+  "occurred_at": "2026-05-21T14:37:01.100Z",
+  "source": "renderer.touch",
+  "boundary": "localhost_only",
+  "privacy": "display_safe_intent",
+  "ttl_ms": 3000,
+  "priority": "ambient",
+  "sequence": 81,
+  "display": {
+    "intent": "touch_tap",
+    "visual_kind": "touch",
+    "label": "tap",
+    "glyph": "tap",
+    "intensity": 0.45,
+    "side": "left"
+  },
+  "meta": {
+    "tap_count": 1
+  }
+}

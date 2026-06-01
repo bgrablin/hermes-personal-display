@@ -1,0 +1,32 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+# Keep docs/current-dashboard.png current when frontend/kiosk code changes.
+# This is intentionally a pre-commit hook so the refreshed screenshot is part of
+# the same commit that changed the frontend, instead of creating a follow-up
+# screenshot-only commit.
+
+ROOT_DIR="$(git rev-parse --show-toplevel)"
+cd "$ROOT_DIR"
+
+if [[ "${HERMES_SKIP_DASHBOARD_CAPTURE:-}" == "1" ]]; then
+  exit 0
+fi
+
+changed="$(git diff --cached --name-only --diff-filter=ACMRT)"
+if [[ -z "$changed" ]]; then
+  exit 0
+fi
+
+if ! printf '%s\n' "$changed" | grep -Eq '^(src/|public/|package(-lock)?\.json$|vite\.config\.[cm]?js$|playwright\.config\.[cm]?js$|tests/e2e/|scripts/xsession-minix-kiosk\.sh$|scripts/hermes_display_server\.py$)'; then
+  exit 0
+fi
+
+if [[ ! -x scripts/capture-current-dashboard.sh ]]; then
+  echo "Dashboard capture hook: scripts/capture-current-dashboard.sh is not executable" >&2
+  exit 1
+fi
+
+echo "Dashboard capture hook: frontend change detected; refreshing docs/current-dashboard.png"
+scripts/capture-current-dashboard.sh --repo-only
+git add docs/current-dashboard.png

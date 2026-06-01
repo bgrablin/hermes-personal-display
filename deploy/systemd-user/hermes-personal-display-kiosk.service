@@ -1,0 +1,15 @@
+[Unit]
+Description=Hermes Personal Display kiosk
+After=graphical-session.target hermes-personal-display-preview.service
+Wants=graphical-session.target hermes-personal-display-preview.service
+
+[Service]
+Type=simple
+WorkingDirectory=@PROJECT_ROOT@
+EnvironmentFile=%h/.config/hermes-personal-display.env
+ExecStart=@PROJECT_ROOT@/scripts/launch-kiosk.sh
+Restart=on-failure
+RestartSec=5
+
+[Install]
+WantedBy=default.target

@@ -1,0 +1,7 @@
+# Intentional false positives reviewed during public-readiness scan.
+# scripts/check-augury-feed.py contains split fake credential fixtures used to test display-feed redaction.
+# src/vendor/p5.min.js was vendored upstream minified JavaScript in older commits; gitleaks flags generic-api-key substrings there.
+c526a79cc5c04e80df3c37738c2a60ca83b3ddcf:scripts/check-augury-feed.py:github-pat:67
+c526a79cc5c04e80df3c37738c2a60ca83b3ddcf:scripts/check-augury-feed.py:github-pat:117
+1a276276a9f0374b767e33a9ffa9e95fb70bcb05:src/vendor/p5.min.js:generic-api-key:2
+1a276276a9f0374b767e33a9ffa9e95fb70bcb05:src/vendor/p5.min.js:generic-api-key:2

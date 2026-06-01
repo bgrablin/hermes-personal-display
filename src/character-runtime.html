@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Hermes Character Runtime Experiment</title>
+  <link rel="stylesheet" href="./styles.css">
+</head>
+<body>
+  <main class="shell">
+    <section class="display-frame" aria-label="320 by 480 Hermes expressive character runtime preview">
+      <div id="display-root"></div>
+    </section>
+
+    <section class="controls" aria-label="Prototype controls">
+      <header>
+        <p class="eyebrow">Hermes Personal Display</p>
+        <h1>expressive character runtime</h1>
+        <p class="note">Alternate Rive-inspired route. Static SVG scene graph plus named animation states, local-only, no asset/editor dependency.</p>
+        <p class="note"><a href="./index.html">Original p5 scaffold</a> remains available.</p>
+      </header>
+
+      <div class="button-row" role="group" aria-label="Preset persona packets">
+        <button data-preset="idle_watchful">Idle</button>
+        <button data-preset="thinking_focused">Thinking</button>
+        <button data-preset="healthy_smug">Healthy</button>
+        <button data-preset="blocked_annoyed">Blocked</button>
+        <button data-preset="night_sleepy">Night</button>
+      </div>
+
+      <label for="skin-select">Skin</label>
+      <select id="skin-select">
+        <option value="operator-familiar">operator-familiar</option>
+        <option value="hermetic-companion">hermetic-companion</option>
+        <option value="terminal-sprite">terminal-sprite</option>
+        <option value="night-watcher">night-watcher</option>
+        <option value="incident-imp">incident-imp</option>
+      </select>
+
+      <label for="state-json">Fake persona/state JSON input</label>
+      <textarea id="state-json" spellcheck="false"></textarea>
+
+      <div class="button-row">
+        <button id="apply-json">Apply JSON</button>
+        <button id="randomize">Random nudge</button>
+        <button id="reset">Reset</button>
+      </div>
+
+      <output id="status-output" role="status">Ready.</output>
+
+      <details open>
+        <summary>Runtime experiment contract</summary>
+        <ul>
+          <li>Canvas target remains fixed at 320×480 portrait.</li>
+          <li>Renderer consumes the same normalized persona packet and controls as the p5 page.</li>
+          <li>Named states: idle, thinking, healthy, blocked, night, plus reusable blink/gaze/sigh/scan gestures.</li>
+          <li>Chosen path: Rive-inspired state machine in SVG/JS because a meaningful Rive route needs an authored .riv asset.</li>
+        </ul>
+      </details>
+    </section>
+  </main>
+
+  <script src="./state.js"></script>
+  <script src="./renderer-character-svg.js"></script>
+  <script src="./app-character.js"></script>
+</body>
+</html>

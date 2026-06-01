@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Hermes Foozle Robot Prototype</title>
+  <link rel="stylesheet" href="./styles.css">
+</head>
+<body>
+  <main class="shell">
+    <section class="display-frame" aria-label="320 by 480 Hermes Foozle robot sprite preview">
+      <div id="display-root"></div>
+    </section>
+
+    <section class="controls" aria-label="Foozle prototype controls">
+      <header>
+        <p class="eyebrow">Hermes Personal Display</p>
+        <h1>Foozle cute robot prototype</h1>
+        <p class="note">Selected character route using Foozle Cute Platformer Robot. Local CC0 assets, no CDN/runtime network dependency.</p>
+        <p class="note"><a href="./index.html">Original p5 scaffold</a> · <a href="./gumbot-runtime.html">Previous Gum Bot route</a> · <a href="../docs/foozle-prototype.md">Prototype docs</a></p>
+      </header>
+
+      <div class="button-row" role="group" aria-label="Preset persona packets">
+        <button data-preset="idle_watchful">Idle</button>
+        <button data-preset="thinking_focused">Thinking</button>
+        <button data-preset="healthy_smug">Healthy</button>
+        <button data-preset="blocked_annoyed">Blocked</button>
+        <button data-preset="night_sleepy">Night</button>
+      </div>
+
+      <label for="skin-select">Skin metadata</label>
+      <select id="skin-select">
+        <option value="operator-familiar">operator-familiar</option>
+        <option value="hermetic-companion">hermetic-companion</option>
+        <option value="terminal-sprite">terminal-sprite</option>
+        <option value="night-watcher">night-watcher</option>
+        <option value="incident-imp">incident-imp</option>
+      </select>
+
+      <label for="state-json">Fake persona/state JSON input</label>
+      <textarea id="state-json" spellcheck="false"></textarea>
+
+      <div class="button-row">
+        <button id="apply-json">Apply JSON</button>
+        <button id="randomize">Random nudge</button>
+        <button id="reset">Reset</button>
+      </div>
+
+      <output id="status-output" role="status">Ready.</output>
+
+      <details open>
+        <summary>Foozle implementation notes</summary>
+        <ul>
+          <li>Canvas target is fixed at 320×480 portrait.</li>
+          <li>Uses real Foozle idle, jump, walk, and run-like animation PNG frames.</li>
+          <li>States: idle, thinking, healthy, blocked, night, using frame selection, timing, whole-character motion, stage color, motes, and captions only.</li>
+          <li>Asset: Foozle Cute Platformer Robot, Creative Commons Zero v1.0 Universal / CC0.</li>
+        </ul>
+      </details>
+    </section>
+  </main>
+
+  <script src="./state.js"></script>
+  <script src="./renderer-foozle.js"></script>
+  <script src="./app-foozle.js"></script>
+</body>
+</html>

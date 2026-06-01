@@ -1,0 +1,87 @@
+{
+  "schema_version": "0.1.0",
+  "generated_at": "2026-05-16T14:30:00Z",
+  "source": "hermes-display-collector",
+  "boundary": "local_trusted_display",
+  "mode": "day",
+  "overall_status": "healthy",
+  "status_summary": "NUC steady; no fires detected",
+  "services": {
+    "gateway": {
+      "state": "ok",
+      "label": "gateway ok",
+      "severity": "success",
+      "last_change": "2026-05-16T14:18:00Z"
+    },
+    "kanban": {
+      "state": "ok",
+      "label": "kanban moving",
+      "severity": "success",
+      "last_change": "2026-05-16T14:28:00Z"
+    },
+    "cron": {
+      "state": "ok",
+      "label": "cron quiet",
+      "severity": "info",
+      "last_change": "2026-05-16T14:10:00Z"
+    }
+  },
+  "activity": {
+    "active_sessions": 1,
+    "active_tools": 0,
+    "active_workers": 1,
+    "cron_running": 0,
+    "cron_failed_recent": 0,
+    "kanban_ready": 2,
+    "kanban_running": 1,
+    "kanban_blocked": 0,
+    "last_gateway_event": "2026-05-16T14:29:40Z",
+    "display_safe_title": "persona packet schema"
+  },
+  "system": {
+    "host": "display-host",
+    "cpu_band": "low",
+    "memory_band": "moderate",
+    "disk_band": "low",
+    "network_band": "normal",
+    "temperature_band": "normal"
+  },
+  "display_policy": {
+    "allow_local_snippets": true,
+    "allow_external_model_context": false,
+    "redaction_required": true,
+    "forbid_credentials": true,
+    "approved_external_routes": []
+  },
+  "snippets": [
+    {
+      "id": "status-healthy-1",
+      "text": "all green, suspiciously polite",
+      "kind": "system",
+      "sensitivity": "display_safe",
+      "allowed_boundaries": [
+        "local_trusted_display",
+        "trusted_lan"
+      ],
+      "ttl_seconds": 600
+    }
+  ],
+  "attention": {
+    "needs_human": false,
+    "reason": "",
+    "count": 0,
+    "severity": "info"
+  },
+  "recent_persona": [
+    {
+      "mood": "idle_watchful",
+      "skin": "operator-familiar",
+      "caption": "Standing by with opinions.",
+      "micro_actions": [
+        "blink_single",
+        "mote_reorder"
+      ],
+      "at": "2026-05-16T14:20:00Z"
+    }
+  ]
+}

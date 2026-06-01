@@ -1,0 +1,777 @@
+{
+  "schema_version": "0.3.0",
+  "sensitivity": "display_safe_family_safe",
+  "max_duration_ms": 30000,
+  "voice_packs": {
+    "tiny_orb": {
+      "voice": "marin",
+      "instructions": "small bright companion, gentle, playful, never sarcastic, not loud"
+    },
+    "sleepy_star": {
+      "voice": "cedar",
+      "instructions": "soft whispery bedtime tone, gentle, slow, not loud"
+    },
+    "space_bug": {
+      "voice": "marin",
+      "instructions": "silly chirpy explorer, tiny friendly robot friend, playful, not loud"
+    },
+    "mini_announcer": {
+      "voice": "coral",
+      "instructions": "tiny showtime host, cheerful, brief, warm, not loud"
+    },
+    "gentle_helper": {
+      "voice": "cedar",
+      "instructions": "calm reassuring companion, gentle, simple, never alarming"
+    }
+  },
+  "prewarm": {
+    "curious_orb": [
+      "hey, hello!",
+      "boop received!",
+      "sparkle found!",
+      "hello, tiny explorer!",
+      "orbit unlocked!",
+      "wiggle confirmed!",
+      "sparkle ping!",
+      "tiny orbit online!"
+    ],
+    "feathered_flyby": [
+      "whoosh!",
+      "tiny comet!",
+      "zoom zoom!"
+    ],
+    "mini_showtime": [
+      "ta-da!",
+      "tiny showtime!",
+      "sparkle parade!",
+      "spotlight ready!",
+      "little parade!",
+      "tiny drum roll!",
+      "moonbeam parade!"
+    ],
+    "peek_a_blink": [
+      "where did you go?",
+      "peek-a-blink!",
+      "found you!",
+      "sleepy sparkle!",
+      "lantern glow!",
+      "peek-a-boop!"
+    ],
+    "daily_creature_visit": [
+      "Zibble found a sparkle!",
+      "tiny visitor online!",
+      "creature parade!"
+    ]
+  },
+  "sequences": [
+    {
+      "id": "curious_orb",
+      "label": "Curious Orb",
+      "triggers": [
+        "tap:center:single"
+      ],
+      "duration_ms": 4300,
+      "steps": [
+        {
+          "t": 0.0,
+          "event": "SFX",
+          "asset": "sfx-chime-1",
+          "gain_db": -20
+        },
+        {
+          "t": 0.0,
+          "event": "POSE",
+          "kind": "pupil",
+          "dur_ms": 240
+        },
+        {
+          "t": 0.3,
+          "event": "GAZE",
+          "target": "user_touch",
+          "hold_ms": 420
+        },
+        {
+          "t": 0.6,
+          "event": "PULSE",
+          "kind": "touch"
+        },
+        {
+          "t": 0.6,
+          "event": "PARTICLE",
+          "kind": "sparkle",
+          "count": 18
+        },
+        {
+          "t": 1.0,
+          "event": "SPEAK",
+          "line_id": "curious_orb.hello.001",
+          "text": "hey, hello!",
+          "voice_pack": "tiny_orb"
+        },
+        {
+          "t": 1.4,
+          "event": "GAZE",
+          "targets": [
+            "augury_left",
+            "front",
+            "route_right"
+          ],
+          "spacing_ms": 180
+        },
+        {
+          "t": 4.0,
+          "event": "BLINK",
+          "style": "slow",
+          "dur_ms": 220
+        },
+        {
+          "t": 4.3,
+          "event": "IDLE"
+        }
+      ],
+      "abort": {
+        "on": [
+          "tap:any:second"
+        ],
+        "actions": [
+          {
+            "event": "IDLE"
+          }
+        ]
+      },
+      "family_safe": true,
+      "max_duration_ms": 4300
+    },
+    {
+      "id": "feathered_flyby",
+      "label": "Feathered Flyby",
+      "triggers": [
+        "tap:left:single",
+        "swipe:left"
+      ],
+      "duration_ms": 3000,
+      "steps": [
+        {
+          "t": 0.0,
+          "event": "SFX",
+          "asset": "sfx-whoosh",
+          "gain_db": -20
+        },
+        {
+          "t": 0.15,
+          "event": "TRAIL",
+          "kind": "winglet",
+          "dur_ms": 600
+        },
+        {
+          "t": 0.15,
+          "event": "PARTICLE",
+          "kind": "feather",
+          "count": 20
+        },
+        {
+          "t": 0.75,
+          "event": "SPEAK",
+          "line_id": "feathered_flyby.hee.001",
+          "text": "hee!",
+          "voice_pack": "space_bug"
+        },
+        {
+          "t": 0.9,
+          "event": "WINK",
+          "eye": "right",
+          "dur_ms": 160
+        },
+        {
+          "t": 2.0,
+          "event": "PULSE",
+          "kind": "notice"
+        },
+        {
+          "t": 3.0,
+          "event": "SFX",
+          "asset": "sfx-chime-soft",
+          "gain_db": -22
+        },
+        {
+          "t": 3.0,
+          "event": "IDLE"
+        }
+      ],
+      "safety": {
+        "max_gain_db": -20,
+        "ambient_mute_threshold_db": 85
+      },
+      "abort": {
+        "on": [
+          "twofinger_tap"
+        ],
+        "actions": [
+          {
+            "event": "IDLE"
+          }
+        ]
+      },
+      "family_safe": true,
+      "max_duration_ms": 3000
+    },
+    {
+      "id": "mini_showtime",
+      "label": "Mini-Showtime",
+      "triggers": [
+        "tap:right:single",
+        "tap:center:double"
+      ],
+      "preconditions": [
+        "!screen_locked",
+        "!tts_active"
+      ],
+      "duration_ms": 5300,
+      "steps": [
+        {
+          "t": 0.0,
+          "event": "SFX_SEQ",
+          "assets": [
+            "sfx-hop1",
+            "sfx-hop2",
+            "sfx-hop3"
+          ],
+          "spacing_ms": 240
+        },
+        {
+          "t": 0.75,
+          "event": "SPOTLIGHT",
+          "dur_ms": 700
+        },
+        {
+          "t": 1.5,
+          "event": "ARMS",
+          "visible": true
+        },
+        {
+          "t": 1.5,
+          "event": "PULSE",
+          "kind": "beat"
+        },
+        {
+          "t": 3.5,
+          "event": "SPEAK",
+          "line_id": "mini_showtime.tada.001",
+          "text": "Ta-da!",
+          "voice_pack": "mini_announcer"
+        },
+        {
+          "t": 3.7,
+          "event": "PARTICLE",
+          "kind": "confetti",
+          "count": 32
+        },
+        {
+          "t": 3.7,
+          "event": "SFX",
+          "asset": "sfx-applause-short",
+          "gain_db": -24
+        },
+        {
+          "t": 5.0,
+          "event": "PULSE",
+          "kind": "complete"
+        },
+        {
+          "t": 5.3,
+          "event": "IDLE"
+        }
+      ],
+      "abort": {
+        "on": [
+          "twofinger_tap"
+        ],
+        "actions": [
+          {
+            "event": "IDLE"
+          }
+        ]
+      },
+      "family_safe": true,
+      "max_duration_ms": 5300
+    },
+    {
+      "id": "peek_a_blink",
+      "label": "Peek-a-Blink",
+      "triggers": [
+        "longpress:center:>500ms",
+        "sensor:motion:entry"
+      ],
+      "duration_ms": 3000,
+      "steps": [
+        {
+          "t": 0.0,
+          "event": "SFX",
+          "asset": "sfx-inhale-soft",
+          "gain_db": -22
+        },
+        {
+          "t": 0.2,
+          "event": "BLINK",
+          "style": "slow_close",
+          "dur_ms": 200
+        },
+        {
+          "t": 0.6,
+          "event": "SFX",
+          "asset": "sfx-step",
+          "gain_db": -26
+        },
+        {
+          "t": 1.2,
+          "event": "SPEAK",
+          "line_id": "peek_a_blink.where.001",
+          "text": "Where did you go?",
+          "voice_pack": "sleepy_star"
+        },
+        {
+          "t": 1.6,
+          "event": "BLINK",
+          "style": "exaggerated_open",
+          "dur_ms": 160
+        },
+        {
+          "t": 1.7,
+          "event": "SFX",
+          "asset": "sfx-giggle-mini",
+          "gain_db": -24
+        },
+        {
+          "t": 1.8,
+          "event": "GLOW",
+          "kind": "complete"
+        },
+        {
+          "t": 3.0,
+          "event": "IDLE"
+        }
+      ],
+      "abort": {
+        "on": [
+          "twofinger_tap"
+        ],
+        "actions": [
+          {
+            "event": "IDLE"
+          }
+        ]
+      },
+      "family_safe": true,
+      "max_duration_ms": 3000
+    },
+    {
+      "id": "orbital_ring",
+      "label": "Orbital Ring",
+      "triggers": [
+        "multi_touch:two_finger"
+      ],
+      "duration_ms": 2600,
+      "steps": [
+        {
+          "t": 0,
+          "event": "ORBIT",
+          "zone": "field"
+        },
+        {
+          "t": 0.15,
+          "event": "SFX_SEQ",
+          "assets": [
+            "sfx-hop1",
+            "sfx-hop2"
+          ],
+          "spacing_ms": 220
+        },
+        {
+          "t": 0.55,
+          "event": "PARTICLE",
+          "kind": "sparkle",
+          "count": 16
+        },
+        {
+          "t": 2.4,
+          "event": "IDLE"
+        }
+      ],
+      "family_safe": true,
+      "max_duration_ms": 2600
+    },
+    {
+      "id": "star_garden",
+      "label": "Star Garden",
+      "triggers": [
+        "tap:sky:single"
+      ],
+      "duration_ms": 3200,
+      "steps": [
+        {
+          "t": 0,
+          "event": "PARTICLE",
+          "kind": "star",
+          "count": 20
+        },
+        {
+          "t": 0.2,
+          "event": "SFX",
+          "asset": "sfx-chime-soft"
+        },
+        {
+          "t": 0.8,
+          "event": "RIPPLE",
+          "zone": "sky"
+        },
+        {
+          "t": 2.9,
+          "event": "IDLE"
+        }
+      ],
+      "family_safe": true,
+      "max_duration_ms": 3200
+    },
+    {
+      "id": "comet_ping_pong",
+      "label": "Comet Ping Pong",
+      "triggers": [
+        "tap:left-right-left"
+      ],
+      "duration_ms": 2800,
+      "steps": [
+        {
+          "t": 0,
+          "event": "COMET",
+          "side": "left"
+        },
+        {
+          "t": 0.35,
+          "event": "SFX",
+          "asset": "sfx-whoosh"
+        },
+        {
+          "t": 0.65,
+          "event": "COMET",
+          "side": "right"
+        },
+        {
+          "t": 1.05,
+          "event": "COMET",
+          "side": "left"
+        },
+        {
+          "t": 2.6,
+          "event": "IDLE"
+        }
+      ],
+      "family_safe": true,
+      "max_duration_ms": 2800
+    },
+    {
+      "id": "tiny_drum_echo",
+      "label": "Tiny Drum Echo",
+      "triggers": [
+        "tap:rhythm:five"
+      ],
+      "duration_ms": 3300,
+      "steps": [
+        {
+          "t": 0,
+          "event": "SFX_SEQ",
+          "assets": [
+            "sfx-step",
+            "sfx-hop1",
+            "sfx-step",
+            "sfx-hop2",
+            "sfx-hop3"
+          ],
+          "spacing_ms": 180
+        },
+        {
+          "t": 0.25,
+          "event": "PARTICLE",
+          "kind": "star",
+          "count": 10
+        },
+        {
+          "t": 1.2,
+          "event": "CAPTION",
+          "text": "tiny drum echo",
+          "dur_ms": 1200
+        },
+        {
+          "t": 3.1,
+          "event": "IDLE"
+        }
+      ],
+      "family_safe": true,
+      "max_duration_ms": 3300
+    },
+    {
+      "id": "magnet_motes",
+      "label": "Magnet Motes",
+      "triggers": [
+        "drag:slow"
+      ],
+      "duration_ms": 2600,
+      "steps": [
+        {
+          "t": 0,
+          "event": "RIPPLE",
+          "zone": "field"
+        },
+        {
+          "t": 0.2,
+          "event": "PARTICLE",
+          "kind": "sparkle",
+          "count": 18
+        },
+        {
+          "t": 0.8,
+          "event": "GAZE",
+          "target": "user_touch",
+          "hold_ms": 650
+        },
+        {
+          "t": 2.4,
+          "event": "IDLE"
+        }
+      ],
+      "family_safe": true,
+      "max_duration_ms": 2600
+    },
+    {
+      "id": "sleepy_lantern",
+      "label": "Sleepy Lantern",
+      "triggers": [
+        "tap:floor:quiet"
+      ],
+      "duration_ms": 3000,
+      "steps": [
+        {
+          "t": 0,
+          "event": "RIPPLE",
+          "zone": "floor"
+        },
+        {
+          "t": 0.25,
+          "event": "SFX",
+          "asset": "sfx-inhale-soft"
+        },
+        {
+          "t": 0.8,
+          "event": "GLOW",
+          "kind": "notice"
+        },
+        {
+          "t": 2.8,
+          "event": "IDLE"
+        }
+      ],
+      "family_safe": true,
+      "max_duration_ms": 3000
+    },
+    {
+      "id": "tool_grid_sparkle",
+      "label": "Tool Grid Sparkle",
+      "triggers": [
+        "mode:tool_shell:boop"
+      ],
+      "duration_ms": 2500,
+      "steps": [
+        {
+          "t": 0,
+          "event": "PARTICLE",
+          "kind": "sparkle",
+          "count": 14
+        },
+        {
+          "t": 0.15,
+          "event": "SFX_SEQ",
+          "assets": [
+            "sfx-step",
+            "sfx-step"
+          ],
+          "spacing_ms": 160
+        },
+        {
+          "t": 0.6,
+          "event": "GAZE",
+          "target": "route_right",
+          "hold_ms": 420
+        },
+        {
+          "t": 2.3,
+          "event": "IDLE"
+        }
+      ],
+      "family_safe": true,
+      "max_duration_ms": 2500
+    },
+    {
+      "id": "searchlight_squid",
+      "label": "Searchlight Squid",
+      "triggers": [
+        "mode:searching:drag"
+      ],
+      "duration_ms": 3000,
+      "steps": [
+        {
+          "t": 0,
+          "event": "SPOTLIGHT",
+          "dur_ms": 700
+        },
+        {
+          "t": 0.2,
+          "event": "GAZE",
+          "target": "internal_focus",
+          "hold_ms": 520
+        },
+        {
+          "t": 0.75,
+          "event": "COMET",
+          "side": "right"
+        },
+        {
+          "t": 2.8,
+          "event": "IDLE"
+        }
+      ],
+      "family_safe": true,
+      "max_duration_ms": 3000
+    },
+    {
+      "id": "constellation_named",
+      "label": "Constellation Named",
+      "triggers": [
+        "longpress:center:third"
+      ],
+      "duration_ms": 3600,
+      "steps": [
+        {
+          "t": 0,
+          "event": "CONSTELLATION"
+        },
+        {
+          "t": 0.35,
+          "event": "PARTICLE",
+          "kind": "star",
+          "count": 12
+        },
+        {
+          "t": 1.1,
+          "event": "SPEAK",
+          "line_id": "constellation_named.line.001",
+          "text": "Wiggly star map!",
+          "voice_pack": "sleepy_star"
+        },
+        {
+          "t": 3.4,
+          "event": "IDLE"
+        }
+      ],
+      "family_safe": true,
+      "max_duration_ms": 3600
+    },
+    {
+      "id": "daily_creature_visit",
+      "label": "Daily Creature Visit",
+      "triggers": [
+        "sensor:motion:first_daily"
+      ],
+      "duration_ms": 3900,
+      "steps": [
+        {
+          "t": 0,
+          "event": "PARTICLE",
+          "kind": "sparkle",
+          "count": 16
+        },
+        {
+          "t": 0.3,
+          "event": "RIPPLE",
+          "zone": "boop"
+        },
+        {
+          "t": 1.0,
+          "event": "SPEAK",
+          "line_id": "daily_creature_visit.line.001",
+          "text": "tiny visitor online!",
+          "voice_pack": "space_bug"
+        },
+        {
+          "t": 3.6,
+          "event": "IDLE"
+        }
+      ],
+      "family_safe": true,
+      "max_duration_ms": 3900
+    },
+    {
+      "id": "aurora_breath",
+      "label": "Aurora Breath",
+      "triggers": [
+        "idle:quiet"
+      ],
+      "duration_ms": 4200,
+      "steps": [
+        {
+          "t": 0,
+          "event": "GLOW",
+          "kind": "notice"
+        },
+        {
+          "t": 0.4,
+          "event": "PARTICLE",
+          "kind": "sparkle",
+          "count": 8
+        },
+        {
+          "t": 2.0,
+          "event": "BLINK",
+          "style": "slow",
+          "dur_ms": 220
+        },
+        {
+          "t": 4.0,
+          "event": "IDLE"
+        }
+      ],
+      "family_safe": true,
+      "max_duration_ms": 4200
+    },
+    {
+      "id": "mirror_wave",
+      "label": "Mirror Wave",
+      "triggers": [
+        "multi_touch:spread"
+      ],
+      "duration_ms": 3000,
+      "steps": [
+        {
+          "t": 0,
+          "event": "ORBIT",
+          "zone": "field"
+        },
+        {
+          "t": 0.2,
+          "event": "RIPPLE",
+          "zone": "field"
+        },
+        {
+          "t": 0.7,
+          "event": "PARTICLE",
+          "kind": "sparkle",
+          "count": 20
+        },
+        {
+          "t": 2.8,
+          "event": "IDLE"
+        }
+      ],
+      "family_safe": true,
+      "max_duration_ms": 3000
+    }
+  ]
+}

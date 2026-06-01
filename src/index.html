@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Hermes Personal Display</title>
+  <style>
+    :root { color-scheme: dark; font-family: Inter, ui-sans-serif, system-ui, sans-serif; }
+    body { margin: 0; min-height: 100vh; display: grid; place-items: center; background: #070a12; color: #dffbff; }
+    main { width: min(760px, calc(100vw - 32px)); padding: 28px; border: 1px solid rgba(101,243,255,.22); border-radius: 24px; background: rgba(12,18,32,.82); box-shadow: 0 24px 80px rgba(0,0,0,.45); }
+    h1 { margin: 0 0 10px; font-size: 28px; }
+    p { color: #96b9c6; line-height: 1.5; }
+    ul { display: grid; gap: 10px; padding-left: 20px; }
+    a { color: #65f3ff; font-weight: 700; }
+    code { color: #ffe7a3; }
+  </style>
+</head>
+<body>
+  <main>
+    <p>Hermes Personal Display</p>
+    <h1>Current runtime: retro robot face mascot</h1>
+    <p>The accepted near-term path is the v2 mascot runtime. Older prototypes remain available for reference, but this page now points to the canonical current preview.</p>
+    <ul>
+      <li><a href="./character-runtime-v2.html">Open current runtime</a></li>
+      <li><a href="./mascot-v2-debug.html">Open debug/contact sheet</a></li>
+      <li><a href="../README.md">Read project status</a></li>
+    </ul>
+    <p>For kiosk launch, target <code>src/character-runtime-v2.html?kiosk=1</code>.</p>
+  </main>
+</body>
+</html>

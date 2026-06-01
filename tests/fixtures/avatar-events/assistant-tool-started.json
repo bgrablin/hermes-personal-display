@@ -1,0 +1,23 @@
+{
+  "schema_version": "0.1.0",
+  "id": "2026-05-21T14:35:12.220Z-000042",
+  "event": "assistant.tool_started",
+  "occurred_at": "2026-05-21T14:35:12.220Z",
+  "source": "hermes.gateway.lifecycle",
+  "boundary": "localhost_only",
+  "privacy": "display_safe_intent",
+  "ttl_ms": 12000,
+  "priority": "normal",
+  "sequence": 42,
+  "correlation_id": "turn-7f3a9c",
+  "display": {
+    "intent": "tool_active",
+    "visual_kind": "shell",
+    "label": "tool running",
+    "glyph": "terminal",
+    "intensity": 0.7
+  },
+  "meta": {
+    "tool_kind": "shell"
+  }
+}
