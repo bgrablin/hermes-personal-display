@@ -1,104 +1,212 @@
-# Hermes Personal Display
+# Hermes personal display
 
-Local Hermes personal display runtime for the Intel NUC-hosted assistant.
+A local, browser-based companion display for [Hermes Agent](https://github.com/NousResearch/hermes-agent). It turns a small screen attached to a home-lab machine into an ambient status panel for an AI operator: current activity, tool use, health, degraded states, touch cues, and a lightweight character runtime.
 
-## Current decision
+![Hermes personal display screenshot](docs/current-dashboard.png)
 
-The current accepted display direction is the **Concept B optic/instrument** runtime, with the older retro robot path retained only as historical reference:
+This repo is useful if you are running Hermes Agent on a local box and want something more physical than a chat window: a kiosk display that shows what the agent is doing without leaking prompts, answers, secrets, or raw logs.
 
-- Runtime: `src/character-runtime-v2.html`
-- Main app: `src/app.js`
-- State resolver: `src/state.js`
+## Why this exists
 
-The current accepted Intel NUC thermal baseline is documented in `docs/thermal-baseline.md`:
+Hermes can run as a practical local operator: reading files, using tools, monitoring services, and coordinating work. That creates a UX problem. If the assistant is doing real work, the human should be able to see enough state to trust it without staring at terminal logs.
 
-- MINIX/SF10T remains on `DP-2` at `1920x1280`, inverted, primary.
-- Unused `DP-1` is disabled by default during kiosk operation.
-- Conservative Chromium raster/compositor flags are enabled through a systemd drop-in.
-- FPS, refresh rate, resolution, and visual effects are not reduced.
+Hermes personal display is one answer:
 
-Generated review dumps, local screenshots, raw agent transcripts, and exploratory third-party asset packs are intentionally excluded from the repository. Keep durable decisions as short docs, tests, and curated fixtures rather than raw local artifacts.
+- A local kiosk UI for a small HDMI/USB-C display.
+- A character-style runtime that reacts to assistant state.
+- Display-safe status packets instead of raw conversation transcripts.
+- Local-only service templates for preview and kiosk operation.
+- Tests and fixtures for state normalization, event validation, and privacy boundaries.
 
-## Current review pack
+## What it shows
 
-Canonical Brian-review references for the accepted retro-robot path:
+The display is intentionally not a second chat client. It is an ambient instrument panel.
 
-- Runtime URL: `http://127.0.0.1:8770/src/character-runtime-v2.html`
-- Debug/contact-sheet URL: `http://127.0.0.1:8770/src/mascot-v2-debug.html`
-- Runtime screenshot artifact: `docs/review-artifacts/mascot-v2-runtime-review.png`
-- Contact-sheet screenshot artifact: `docs/review-artifacts/mascot-v2-contact-sheet-review.png` (stitched full-sheet review image covering all 9 stills)
-- Provenance note: `src/mascot-v2/SOURCE-LICENSE.md`
+Current capabilities include:
 
-The debug/contact sheet is the acceptance artifact for the current 9 stills:
+- Assistant state: idle, active, waiting, finalizing, complete, blocked, degraded.
+- Tool activity hints: shell, Python, file reads, search, patch/write, browser, web, planning.
+- Provider/model route rail for quick visibility into active backend routing.
+- Health rails for display feed freshness, local service state, and degraded conditions.
+- A character runtime with gaze, blink, mouth, status badges, touch effects, and motion states.
+- Local touch/entertainment hooks for physical-display experiments.
+- A loopback-first avatar event bus contract for safe lifecycle events.
 
-- neutral
-- look-left
-- look-right
-- side-eye-left
-- side-eye-right
-- thinking
-- healthy
-- blocked
-- night
+## Why Hermes Agent users may care
 
-## Current visual direction
+If you are using Hermes as a persistent local agent, this repo gives you patterns for:
 
-- Classic robot / old AI terminal face inspiration.
-- Simple expressive eyes and mouth on a dark face screen.
-- Winged helmet retained as the Hermes identity cue.
-- No teeth.
-- No hands.
-- No brown cheek/satchel blob.
-- No obvious eyebrow strokes.
+- Turning agent activity into display-safe state.
+- Separating UX signals from private conversation content.
+- Running a kiosk UI from a local systemd user service.
+- Building trust cues around tool use and degraded states.
+- Testing that fixtures, state packets, and event streams do not carry secrets.
+- Designing a physical presence for a home-lab or office AI assistant.
 
-## Serve locally
+The most reusable pieces are not the mascot art. They are the boundaries: loopback by default, allowlisted display intents, bounded event payloads, deterministic rendering, and tests that reject credential-shaped strings.
 
-From this directory:
+## Architecture
 
-```bash
-python3 -m http.server 8770 --bind 127.0.0.1
+```text
+Hermes Agent runtime / local monitors
+        |
+        | display-safe state, lifecycle hints, health signals
+        v
+scripts/hermes_display_server.py
+        |
+        | /api/hermes-state and optional avatar event stream
+        v
+Browser kiosk runtime
+        |
+        | deterministic reducer + SVG/DOM renderer
+        v
+Small physical display
 ```
 
-Local review URLs:
+Core paths:
 
-- `http://127.0.0.1:8770/src/character-runtime-v2.html`
-- `http://127.0.0.1:8770/src/mascot-v2-debug.html`
+- `src/character-runtime-v2.html` - current kiosk/runtime page.
+- `src/mascot-v2/` - character runtime, behavior machine, touch effects, audio hooks, sanitization.
+- `src/state.js` - state resolver and display packet handling.
+- `scripts/hermes_display_server.py` - local static server plus display-state API.
+- `scripts/avatar_event_bus.py` - avatar event validation and SSE helpers.
+- `deploy/systemd-user/` - preview/kiosk user service templates.
+- `docs/avatar-event-bus-contract-2026-05-21.md` - privacy and event contract.
+- `docs/systemd-user-units.md` - systemd user service notes.
+- `docs/project-manifest.md` - current source map and retained prototypes.
 
-If Brian is off-subnet, send screenshots instead of URLs.
+## Privacy model
 
-## Pre-monitor development goals
+The display should show what the agent is doing, not what the human said.
 
-Before the USB display arrives, we can still finish:
+Design rules used in this repo:
 
-1. Canonical runtime cleanup.
-2. Kiosk launch script/template.
-3. Health/verification script.
-4. Asset and docs organization.
-5. State/persona packet contract hardening.
-6. Screenshot/contact-sheet workflow for remote review.
-7. Monitor-ready env discovery and systemd-user scaffolding.
+- Bind local services to loopback by default.
+- Treat browser-facing state as display-safe data, not raw logs.
+- Use allowlisted lifecycle events and compact labels.
+- Reject credential-shaped strings in event fixtures and validators.
+- Keep environment-specific values in local env files, not Git.
+- Keep raw screenshots, review dumps, transcripts, and bulky asset packs out of the repo.
 
-That review workflow now has stable committed artifact paths under `docs/review-artifacts/`.
+This is still an experimental local-display project. Review the code and defaults before exposing anything beyond localhost.
 
-## Monitor-ready kiosk prep
+## Quick start
 
-Checked-in prep assets now include:
+Requirements:
 
-- `scripts/detect-display-env.sh` — captures `DISPLAY` / `WAYLAND_DISPLAY`, browser path candidates, and `xrandr` / `wlr-randr` output.
-- `scripts/install-user-units.sh` — installs the checked-in unit files into `~/.config/systemd/user/` and seeds the env file.
-- `deploy/systemd-user/hermes-personal-display-preview.service`
-- `deploy/systemd-user/hermes-personal-display-kiosk.service`
-- `deploy/systemd-user/hermes-personal-display.env.example`
-- `docs/minix-sf10t-bringup.md` — Tuesday bring-up plan for the MINIX SF10T 10.5" USB-C/HDMI monitor.
-- `scripts/bring-up-minix-sf10t.sh` — dry-run-first helper for detecting the display, stopping the old USB panel renderer, and starting the browser kiosk after env values are confirmed.
+- Node.js 20+
+- npm
+- Python 3.11+
+- Chromium or Chrome for kiosk mode
 
-The runtime page supports `?kiosk=1`, which hides the control panel and renders only the display surface for the physical monitor.
+Install dependencies:
 
-Current host prep notes:
+```bash
+npm ci
+```
 
-- `chromium-browser` is installed locally
-- `wlr-randr` is installed locally
-- Preview defaults to loopback at `127.0.0.1:8770`; override `PERSONAL_DISPLAY_BIND` locally if LAN preview is needed.
-- Keep live display/session values in `~/.config/hermes-personal-display.env`, not in the repo.
+Run the Vite dev server:
 
-Do **not** make irreversible hardware/display-driver assumptions until the monitor is physically attached and inspected.
+```bash
+npm run dev
+```
+
+Open:
+
+```text
+http://127.0.0.1:8770/src/character-runtime-v2.html
+```
+
+For kiosk mode:
+
+```text
+http://127.0.0.1:8770/src/character-runtime-v2.html?kiosk=1
+```
+
+The Python display server is also available for local state API work:
+
+```bash
+python3 scripts/hermes_display_server.py --host 127.0.0.1 --port 8770
+```
+
+## Tests
+
+Run the main test suite:
+
+```bash
+npm test
+```
+
+Additional checks:
+
+```bash
+npm run check:client-events
+npm run check:kiosk
+npm run check:augury-feed
+npm run build
+```
+
+Full local gate, including Playwright projects:
+
+```bash
+npm run test:all
+```
+
+## Kiosk deployment
+
+The repo includes systemd user unit templates under `deploy/systemd-user/`.
+
+Typical flow:
+
+```bash
+scripts/detect-display-env.sh
+scripts/install-user-units.sh
+systemctl --user daemon-reload
+systemctl --user start hermes-personal-display-preview.service
+systemctl --user start hermes-personal-display-kiosk.service
+```
+
+Keep machine-specific values in your local environment file. Start from:
+
+```text
+deploy/systemd-user/hermes-personal-display.env.example
+```
+
+Do not commit live display paths, session values, API keys, or machine-specific secrets.
+
+## Project status
+
+This is a working personal-display runtime extracted from a private home-lab setup and scrubbed for public release. It is not a polished product or a generic Hermes plugin yet.
+
+Good fit today:
+
+- Hermes Agent users building a local physical dashboard.
+- Home-lab operators experimenting with ambient agent presence.
+- Developers looking for patterns around display-safe agent state.
+- People interested in browser kiosk UIs for local AI systems.
+
+Not a good fit yet:
+
+- Hosted multi-user dashboards.
+- Cloud-first telemetry.
+- Remote monitoring over the public internet.
+- A drop-in package with one-command Hermes integration.
+
+## Roadmap ideas
+
+Useful next steps for contributors:
+
+- Document a minimal Hermes Agent integration path.
+- Add a small sample state publisher that does not depend on a specific home setup.
+- Split reusable event-bus/state contracts into a cleaner package boundary.
+- Add screenshots or short clips for major display states.
+- Add GitHub Actions for tests and secret scanning.
+- Add a documented theme/character customization path.
+
+## Keywords
+
+Hermes Agent, local AI assistant, AI agent dashboard, personal display, ambient agent UI, home-lab AI, browser kiosk, SVG character runtime, local-first automation, systemd user service, display-safe telemetry, avatar event bus, AI operator UX.
+
+## License
+
+No repository-level license has been selected yet. Check third-party asset provenance files under `src/**/SOURCE-LICENSE.md` before reusing visual assets.

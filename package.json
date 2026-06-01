@@ -3,7 +3,29 @@
   "version": "0.1.0",
   "private": true,
   "type": "module",
-  "description": "Local SVG-first Hermes personal display kiosk runtime.",
+  "description": "Local browser kiosk and ambient status display for Hermes Agent.",
+  "keywords": [
+    "hermes-agent",
+    "ai-agent",
+    "local-ai",
+    "personal-display",
+    "ambient-display",
+    "browser-kiosk",
+    "home-lab",
+    "agent-dashboard",
+    "svg-runtime",
+    "systemd",
+    "local-first",
+    "avatar-event-bus"
+  ],
+  "homepage": "https://github.com/bgrablin/hermes-personal-display#readme",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/bgrablin/hermes-personal-display.git"
+  },
+  "bugs": {
+    "url": "https://github.com/bgrablin/hermes-personal-display/issues"
+  },
   "scripts": {
     "dev": "vite --host 0.0.0.0 --port 8770",
     "build": "vite build",
