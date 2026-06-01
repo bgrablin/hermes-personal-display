@@ -152,6 +152,19 @@ Full local gate, including Playwright projects:
 npm run test:all
 ```
 
+## Reference hardware
+
+This project does not require a specific display or mini PC. The public screenshot and reference deployment use commodity hardware:
+
+- **Display:** [MINIX SF10T portable monitor](https://www.amazon.com/dp/B0G3PBK4LG), a 10.5-inch IPS touchscreen panel.
+- **Native panel mode:** 1920 x 1280, 3:2 aspect ratio, 60 Hz.
+- **Display connectivity:** USB-C with DP Alt Mode or Mini HDMI, with separate USB touch/power wiring depending on host support.
+- **Reference host:** Intel NUC7i5BNH mini PC.
+- **CPU/GPU:** Intel Core i5-7260U with Intel Iris Plus Graphics 640.
+- **Software stack used here:** Linux, Xorg/Openbox, Chromium kiosk, Python display-state server, and systemd user services.
+
+Those details are included so other Hermes Agent users can reproduce the physical setup with similar small-panel hardware. Treat them as a known-good reference, not a bill of materials.
+
 ## Kiosk deployment
 
 The repo includes systemd user unit templates under `deploy/systemd-user/`.
