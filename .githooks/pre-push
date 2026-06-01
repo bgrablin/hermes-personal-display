@@ -1,0 +1,45 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+# Local safety guard for the public OSS repo.
+# Allow normal pushes to bgrablin/hermes-personal-display only from clean main.
+# Block old private-history branches, tags, and non-main refs from being pushed by accident.
+
+remote_name="${1:-}"
+remote_url="${2:-}"
+
+if [[ "$remote_url" != *"github.com/bgrablin/hermes-personal-display"* ]]; then
+  exit 0
+fi
+
+public_main="$(git ls-remote "$remote_url" refs/heads/main | awk '{print $1}')"
+if [[ -z "$public_main" ]]; then
+  echo "pre-push: unable to resolve public main on $remote_url" >&2
+  exit 1
+fi
+
+while read -r local_ref local_oid remote_ref remote_oid; do
+  [[ -z "${local_ref:-}" ]] && continue
+
+  if [[ "$remote_ref" != "refs/heads/main" ]]; then
+    echo "pre-push: blocked push to $remote_ref on public repo; only refs/heads/main is allowed" >&2
+    exit 1
+  fi
+
+  if [[ "$local_ref" != "refs/heads/main" ]]; then
+    echo "pre-push: blocked push from $local_ref; only local main may push to public main" >&2
+    exit 1
+  fi
+
+  if [[ "$local_oid" == 0000000000000000000000000000000000000000 ]]; then
+    echo "pre-push: blocked deletion of public main" >&2
+    exit 1
+  fi
+
+  # Local main must contain the clean public root. This prevents accidentally
+  # pushing the old private history line, which has no ancestry relationship to it.
+  if ! git merge-base --is-ancestor "$public_main" "$local_oid"; then
+    echo "pre-push: blocked because local main does not descend from current public main" >&2
+    exit 1
+  fi
+done
