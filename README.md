@@ -209,4 +209,6 @@ Hermes Agent, local AI assistant, AI agent dashboard, personal display, ambient 
 
 ## License
 
-No repository-level license has been selected yet. Check third-party asset provenance files under `src/**/SOURCE-LICENSE.md` before reusing visual assets.
+MIT for the project-authored code and documentation. See [`LICENSE`](LICENSE).
+
+Third-party or prototype assets keep their original provenance and license notes under `src/**/SOURCE-LICENSE.md`. The retained prototype asset packs currently documented there are CC0, but check those files before reusing visual assets outside this repo.

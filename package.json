@@ -2,6 +2,7 @@
   "name": "hermes-personal-display",
   "version": "0.1.0",
   "private": true,
+  "license": "MIT",
   "type": "module",
   "description": "Local browser kiosk and ambient status display for Hermes Agent.",
   "keywords": [
