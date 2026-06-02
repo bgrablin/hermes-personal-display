@@ -46,6 +46,16 @@
     edgeRimGain: 0.24,
     gazeMaxHypot: 34,
   });
+  const CONCEPT_B_FEEL = Object.freeze({
+    loadPulseMinSeconds: 1.2,
+    loadPulseMaxSeconds: 2.2,
+    loadGlowMin: 0.20,
+    loadGlowMax: 0.45,
+    tokenBurstThreshold: 16,
+    tokenCaretSlowSeconds: 1.15,
+    tokenCaretFastSeconds: 0.42,
+    offlineBackoffLabel: 'RETRYING WITH BACKOFF',
+  });
   window.__HERMES_DISPLAY_BUILD_ID = DISPLAY_BUILD_ID;
   document.documentElement.dataset.hermesDisplayBuildId = DISPLAY_BUILD_ID;
   const CURRENT_WORK_MAX_AGE_SECONDS = 4 * 60;
@@ -1482,6 +1492,8 @@
           </clipPath>
         </defs>
         <g class="cb-outer-field">
+          <circle class="cb-load-glow" cx="550" cy="550" r="430" />
+          <circle class="cb-listening-ripple" cx="550" cy="550" r="302" />
           <circle class="cb-glow" cx="550" cy="550" r="370" />
           <g class="cb-status-rings">
             <g class="cb-orbit-spin"><circle class="cb-orbit cb-orbit-main" cx="550" cy="550" r="410" /></g>
@@ -1554,8 +1566,13 @@
       </svg>
       <div class="cb-activity">
         <div class="cb-state"><span data-cb-state-dot></span><strong data-cb-state>QUIET WATCH</strong></div>
-        <div class="cb-line" data-cb-activity>Watching local systems quietly.</div>
+        <div class="cb-line"><span data-cb-activity>Watching local systems quietly.</span><span class="cb-cadence-caret" data-cb-caret aria-hidden="true">▍</span></div>
         <div class="cb-source" data-cb-source>LOCAL · READY</div>
+      </div>
+      <div class="cb-offline-bubble quiet" data-cb-offline-bubble aria-live="polite">
+        <span class="cb-offline-runner" aria-hidden="true"></span>
+        <strong>I’m offline — trying again</strong>
+        <em>${CONCEPT_B_FEEL.offlineBackoffLabel}</em>
       </div>
     `;
 
@@ -1601,6 +1618,7 @@
     installConceptBFieldInstrumentation(hud);
     ensureConceptBEyeMotion(hud);
     const trends = { cpu: [], temp: [] };
+    const feelState = { tokenBuffer: 0, rms: 0, forcedLoad: null, network: 'online', lastEventAt: 0 };
 
     // XState is the source of truth for high-level display state. The behavior region mirrors the
     // optic mode; the parallel health/quiet/privacy_display regions are orthogonal overlays the
@@ -1642,6 +1660,8 @@
       state: hud.querySelector('[data-cb-state]'),
       stateDot: hud.querySelector('[data-cb-state-dot]'),
       activity: hud.querySelector('[data-cb-activity]'),
+      caret: hud.querySelector('[data-cb-caret]'),
+      offlineBubble: hud.querySelector('[data-cb-offline-bubble]'),
       source: hud.querySelector('[data-cb-source]'),
       gateway: rail.querySelector('[data-cb-gateway]'),
       gatewayDot: rail.querySelector('[data-cb-gateway-dot]'),
@@ -1691,6 +1711,77 @@
       }
     };
 
+    const applyConceptBFeel = (live, activity, freshnessTier) => {
+      const sys = live.system || {};
+      const cpu = clamp01(Number(feelState.forcedLoad ?? measurementValue(sys, 'cpu') ?? 0));
+      const activeWork = Boolean(live.current_work?.active) || ['reasoning', 'planning', 'shell', 'writing', 'searching'].includes(String(activity.kind || activity.visual_kind || live.current_work?.visual_kind || '').toLowerCase());
+      const displayLoad = Math.max(cpu, activeWork ? 0.36 : 0.10, freshnessTier === 'lost' ? 0.04 : 0);
+      const pulseDuration = CONCEPT_B_FEEL.loadPulseMaxSeconds - (CONCEPT_B_FEEL.loadPulseMaxSeconds - CONCEPT_B_FEEL.loadPulseMinSeconds) * displayLoad;
+      const glowOpacity = CONCEPT_B_FEEL.loadGlowMin + (CONCEPT_B_FEEL.loadGlowMax - CONCEPT_B_FEEL.loadGlowMin) * displayLoad;
+      setConceptBStyleProperty(refs.root, '--cb-load-pulse-duration', `${pulseDuration.toFixed(2)}s`);
+      setConceptBStyleProperty(refs.root, '--cb-load-glow-opacity', glowOpacity.toFixed(3));
+      setConceptBStyleProperty(refs.root, '--cb-listen-rms', clamp01(feelState.rms).toFixed(3));
+      setConceptBStyleProperty(refs.root, '--cb-caret-duration', `${(feelState.tokenBuffer >= CONCEPT_B_FEEL.tokenBurstThreshold ? CONCEPT_B_FEEL.tokenCaretFastSeconds : CONCEPT_B_FEEL.tokenCaretSlowSeconds).toFixed(2)}s`);
+      setConceptBDataset(refs.body, 'cbListening', feelState.rms > 0.02 || activity.kind === 'listening' ? 'true' : 'false');
+      setConceptBDataset(refs.body, 'cbGenerating', activeWork || feelState.tokenBuffer > 0 ? 'true' : 'false');
+      setConceptBDataset(refs.body, 'cbOffline', freshnessTier === 'lost' || live.gateway_ok === false || feelState.network !== 'online' ? 'true' : 'false');
+      refs.offlineBubble?.classList.toggle('quiet', refs.body.dataset.cbOffline !== 'true');
+      refs.caret?.classList.toggle('active', refs.body.dataset.cbGenerating === 'true');
+    };
+
+    const installConceptBFeelApi = () => {
+      window.HermesDisplayEvents = {
+        onThinking(active = true, meta = {}) {
+          feelState.forcedLoad = active ? clamp01(Number(meta.load ?? 0.68)) : null;
+          feelState.tokenBuffer = active ? Number(meta.tokenBuffer || feelState.tokenBuffer || 0) : 0;
+          feelState.lastEventAt = Date.now();
+          if (active) renderer.triggerIntent?.('tiny_perk');
+          window.dispatchEvent(new CustomEvent('hermes-live-packet', { detail: currentPacket }));
+        },
+        onIncomingMessage(meta = {}) {
+          const text = `${meta.text || ''} ${meta.kind || ''}`.toLowerCase();
+          const urgent = /\b(error|failed|urgent|down|blocked)\b/.test(text);
+          feelState.forcedLoad = urgent ? 0.24 : 0.18;
+          feelState.lastEventAt = Date.now();
+          renderer.triggerIntent?.(urgent ? 'skeptical_squint' : 'brow_pop');
+          window.__HERMES_CONCEPT_B_EYE_MOTION?.pulse?.(urgent ? 'blocked' : 'notice');
+          window.dispatchEvent(new CustomEvent('hermes-live-packet', { detail: currentPacket }));
+        },
+        onTokenBuffer(size = 0) {
+          feelState.tokenBuffer = Math.max(0, Number(size) || 0);
+          feelState.forcedLoad = Math.min(0.75, 0.28 + feelState.tokenBuffer / 80);
+          feelState.lastEventAt = Date.now();
+          window.dispatchEvent(new CustomEvent('hermes-live-packet', { detail: currentPacket }));
+        },
+        onAudioRms(rms = 0) {
+          feelState.rms = clamp01(Number(rms) || 0);
+          feelState.lastEventAt = Date.now();
+          window.dispatchEvent(new CustomEvent('hermes-live-packet', { detail: currentPacket }));
+        },
+        onError(code = 'error') {
+          feelState.network = code === 'offline' ? 'retrying' : feelState.network;
+          feelState.forcedLoad = 0.08;
+          feelState.lastEventAt = Date.now();
+          renderer.triggerIntent?.('skeptical_squint');
+          window.dispatchEvent(new CustomEvent('hermes-live-packet', { detail: currentPacket }));
+        },
+        onNetwork(state = 'online') {
+          feelState.network = state;
+          feelState.forcedLoad = state === 'online' ? null : 0.04;
+          feelState.lastEventAt = Date.now();
+          if (state === 'online') renderer.triggerIntent?.('smug_nod');
+          window.dispatchEvent(new CustomEvent('hermes-live-packet', { detail: currentPacket }));
+        },
+        reset() {
+          feelState.tokenBuffer = 0;
+          feelState.rms = 0;
+          feelState.forcedLoad = null;
+          feelState.network = 'online';
+          window.dispatchEvent(new CustomEvent('hermes-live-packet', { detail: currentPacket }));
+        },
+      };
+    };
+
     const updatePanelFromPacket = () => {
       const live = currentPacket.live || {};
       const sys = live.system || {};
@@ -1737,6 +1828,7 @@
       if (refs.stateDot && refs.stateDot.style.background !== instrumentAccent) refs.stateDot.style.background = instrumentAccent;
       setConceptBText(refs.activity, familyAudience ? familySafeStatusPhrase(label, freshnessTier, live.gateway_ok) : displaySentence(activity.summary));
       setConceptBText(refs.source, familyAudience ? 'SPARKLE MODE' : safeDisplayText(source, 32).toUpperCase());
+      applyConceptBFeel(live, activity, freshnessTier);
 
       const gatewayText = live.gateway_ok ? 'GATEWAY OK' : 'GATEWAY WATCH';
       setConceptBText(refs.gateway, gatewayText);
@@ -1762,6 +1854,7 @@
       updateStatusAges();
     };
     updatePanelFromPacket();
+    installConceptBFeelApi();
     scheduleClockMinuteBoundary();
     window.setInterval(updateStatusAges, 5000);
     window.addEventListener('hermes-live-packet', updatePanelFromPacket);

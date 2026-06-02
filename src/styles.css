@@ -1421,6 +1421,10 @@ body.kiosk-mode.kiosk-landscape[data-display-preset="night_watch"] .display-fram
   --cb-rust: rgb(200, 119, 90);
   --cb-amber: rgb(229, 178, 90);
   --cb-steel: rgb(128, 151, 158);
+  --cb-load-pulse-duration: 2.2s;
+  --cb-load-glow-opacity: 0.22;
+  --cb-listen-rms: 0;
+  --cb-caret-duration: 1.15s;
 }
 
 body.kiosk-mode.kiosk-landscape.claude-concept-b {
@@ -1585,6 +1589,32 @@ body.kiosk-mode.kiosk-landscape.claude-concept-b .cb-glow {
   opacity: 0.9;
 }
 
+body.kiosk-mode.kiosk-landscape.claude-concept-b .cb-load-glow {
+  fill: none;
+  stroke: var(--cb-accent);
+  stroke-width: 18;
+  opacity: var(--cb-load-glow-opacity);
+  filter: blur(5px) drop-shadow(0 0 22px color-mix(in srgb, var(--cb-accent) 30%, transparent));
+  transform-origin: 550px 550px;
+  animation: cb-load-breath var(--cb-load-pulse-duration) ease-in-out infinite;
+  will-change: transform, opacity, filter;
+}
+
+body.kiosk-mode.kiosk-landscape.claude-concept-b .cb-listening-ripple {
+  display: none;
+  fill: none;
+  stroke: var(--cb-accent);
+  stroke-width: calc(3px + 5px * var(--cb-listen-rms));
+  opacity: calc(0.10 + 0.34 * var(--cb-listen-rms));
+  transform-origin: 550px 550px;
+  animation: cb-listen-ripple 1.25s ease-out infinite;
+  will-change: transform, opacity;
+}
+
+body.kiosk-mode.kiosk-landscape.claude-concept-b[data-cb-listening="true"] .cb-listening-ripple {
+  display: block;
+}
+
 body.kiosk-mode.kiosk-landscape.claude-concept-b .cb-orbit {
   fill: none;
   stroke: var(--cb-line);
@@ -1714,6 +1744,69 @@ body.kiosk-mode.kiosk-landscape.claude-concept-b .cb-line {
   font: 430 30px/1.1 system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
   letter-spacing: -0.01em;
   text-wrap: balance;
+}
+
+body.kiosk-mode.kiosk-landscape.claude-concept-b .cb-cadence-caret {
+  display: none;
+  margin-left: 8px;
+  color: var(--cb-accent);
+  transform-origin: center;
+  animation: cb-caret-cadence var(--cb-caret-duration) ease-in-out infinite;
+}
+
+body.kiosk-mode.kiosk-landscape.claude-concept-b[data-cb-generating="true"] .cb-cadence-caret,
+body.kiosk-mode.kiosk-landscape.claude-concept-b .cb-cadence-caret.active {
+  display: inline-block;
+}
+
+body.kiosk-mode.kiosk-landscape.claude-concept-b .cb-offline-bubble {
+  position: absolute;
+  left: 50%;
+  top: 148px;
+  z-index: 7;
+  width: 500px;
+  min-height: 96px;
+  padding: 18px 24px;
+  transform: translateX(-50%);
+  border: 1.5px dotted color-mix(in srgb, var(--cb-steel) 72%, transparent);
+  border-radius: 18px;
+  background: rgba(4, 7, 12, 0.72);
+  box-shadow: 0 0 28px rgba(128, 151, 158, 0.14), inset 0 0 24px rgba(128, 151, 158, 0.045);
+  text-align: center;
+  pointer-events: none;
+  backdrop-filter: blur(5px);
+}
+
+body.kiosk-mode.kiosk-landscape.claude-concept-b .cb-offline-bubble.quiet {
+  display: none;
+}
+
+body.kiosk-mode.kiosk-landscape.claude-concept-b .cb-offline-bubble strong {
+  display: block;
+  color: var(--cb-fg-0);
+  font: 520 22px/1.2 system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+}
+
+body.kiosk-mode.kiosk-landscape.claude-concept-b .cb-offline-bubble em {
+  display: block;
+  margin-top: 6px;
+  color: var(--cb-fg-2);
+  font: 600 12px/1 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-style: normal;
+  letter-spacing: 0.12em;
+}
+
+body.kiosk-mode.kiosk-landscape.claude-concept-b .cb-offline-runner {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--cb-steel);
+  box-shadow: 0 0 14px var(--cb-steel);
+  offset-path: path('M 0 0 H 500 V 96 H 0 Z');
+  animation: cb-offline-outline-dot 2.4s linear infinite;
 }
 
 body.kiosk-mode.kiosk-landscape.claude-concept-b .cb-source {
@@ -2112,10 +2205,36 @@ body.kiosk-mode.kiosk-landscape.claude-concept-b .cb-touch-center { left: 49.3vw
   50% { opacity: 0.72; transform: scale(1.06); }
 }
 
+@keyframes cb-load-breath {
+  0%, 100% { transform: scale(0.985); opacity: calc(var(--cb-load-glow-opacity) * 0.72); filter: blur(2px); }
+  50% { transform: scale(1.028); opacity: var(--cb-load-glow-opacity); filter: blur(8px); }
+}
+
+@keyframes cb-listen-ripple {
+  0% { transform: scale(0.96); opacity: calc(0.12 + var(--cb-listen-rms) * 0.22); }
+  70% { transform: scale(calc(1.04 + var(--cb-listen-rms) * 0.14)); opacity: calc(0.08 + var(--cb-listen-rms) * 0.20); }
+  100% { transform: scale(calc(1.08 + var(--cb-listen-rms) * 0.18)); opacity: 0; }
+}
+
+@keyframes cb-caret-cadence {
+  0%, 100% { opacity: 0.42; transform: scaleY(0.82); }
+  46% { opacity: 1; transform: scaleY(1.10); }
+}
+
+@keyframes cb-offline-outline-dot {
+  0% { offset-distance: 0%; opacity: 0.22; }
+  20%, 82% { opacity: 1; }
+  100% { offset-distance: 100%; opacity: 0.22; }
+}
+
 @media (prefers-reduced-motion: reduce) {
   body.kiosk-mode.kiosk-landscape.claude-concept-b .cb-orbit-spin,
   body.kiosk-mode.kiosk-landscape.claude-concept-b .cb-orbit-main,
-  body.kiosk-mode.kiosk-landscape.claude-concept-b .cb-attention i {
+  body.kiosk-mode.kiosk-landscape.claude-concept-b .cb-attention i,
+  body.kiosk-mode.kiosk-landscape.claude-concept-b .cb-load-glow,
+  body.kiosk-mode.kiosk-landscape.claude-concept-b .cb-listening-ripple,
+  body.kiosk-mode.kiosk-landscape.claude-concept-b .cb-cadence-caret,
+  body.kiosk-mode.kiosk-landscape.claude-concept-b .cb-offline-runner {
     animation: none !important;
   }
 }
