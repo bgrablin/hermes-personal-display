@@ -49,8 +49,6 @@
   const CONCEPT_B_FEEL = Object.freeze({
     loadPulseMinSeconds: 1.2,
     loadPulseMaxSeconds: 2.2,
-    loadGlowMin: 0.20,
-    loadGlowMax: 0.45,
     tokenBurstThreshold: 16,
     tokenCaretSlowSeconds: 1.15,
     tokenCaretFastSeconds: 0.42,
@@ -1492,7 +1490,6 @@
           </clipPath>
         </defs>
         <g class="cb-outer-field">
-          <circle class="cb-load-glow" cx="550" cy="550" r="430" />
           <circle class="cb-listening-ripple" cx="550" cy="550" r="302" />
           <circle class="cb-glow" cx="550" cy="550" r="370" />
           <g class="cb-status-rings">
@@ -1717,9 +1714,7 @@
       const activeWork = Boolean(live.current_work?.active) || ['reasoning', 'planning', 'shell', 'writing', 'searching'].includes(String(activity.kind || activity.visual_kind || live.current_work?.visual_kind || '').toLowerCase());
       const displayLoad = Math.max(cpu, activeWork ? 0.36 : 0.10, freshnessTier === 'lost' ? 0.04 : 0);
       const pulseDuration = CONCEPT_B_FEEL.loadPulseMaxSeconds - (CONCEPT_B_FEEL.loadPulseMaxSeconds - CONCEPT_B_FEEL.loadPulseMinSeconds) * displayLoad;
-      const glowOpacity = CONCEPT_B_FEEL.loadGlowMin + (CONCEPT_B_FEEL.loadGlowMax - CONCEPT_B_FEEL.loadGlowMin) * displayLoad;
       setConceptBStyleProperty(refs.root, '--cb-load-pulse-duration', `${pulseDuration.toFixed(2)}s`);
-      setConceptBStyleProperty(refs.root, '--cb-load-glow-opacity', glowOpacity.toFixed(3));
       setConceptBStyleProperty(refs.root, '--cb-listen-rms', clamp01(feelState.rms).toFixed(3));
       setConceptBStyleProperty(refs.root, '--cb-caret-duration', `${(feelState.tokenBuffer >= CONCEPT_B_FEEL.tokenBurstThreshold ? CONCEPT_B_FEEL.tokenCaretFastSeconds : CONCEPT_B_FEEL.tokenCaretSlowSeconds).toFixed(2)}s`);
       setConceptBDataset(refs.body, 'cbListening', feelState.rms > 0.02 || activity.kind === 'listening' ? 'true' : 'false');

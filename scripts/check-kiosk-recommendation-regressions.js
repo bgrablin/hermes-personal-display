@@ -119,7 +119,6 @@ requireAll(appSource, [
 ], 'Concept B eye rig must implement the touchPulse hook that touch-fx calls so touches physically steer the optic.');
 requireAll(appSource, [
   'CONCEPT_B_FEEL',
-  'cb-load-glow',
   'cb-listening-ripple',
   'cb-cadence-caret',
   'cb-offline-bubble',
@@ -134,18 +133,19 @@ requireAll(appSource, [
   "setConceptBDataset(refs.body, 'cbListening'",
   "setConceptBDataset(refs.body, 'cbGenerating'",
   "setConceptBDataset(refs.body, 'cbOffline'",
-], 'Concept B living UI feel functions must expose load glow, listening ripple, cadence caret, offline fallback, and public event hooks.');
+], 'Concept B living UI feel functions must expose listening ripple, cadence caret, offline fallback, and public event hooks.');
 requireAll(cssSource, [
   '--cb-load-pulse-duration',
-  '--cb-load-glow-opacity',
   '--cb-listen-rms',
   '--cb-caret-duration',
-  '@keyframes cb-load-breath',
   '@keyframes cb-listen-ripple',
   '@keyframes cb-caret-cadence',
   '@keyframes cb-offline-outline-dot',
   'prefers-reduced-motion',
 ], 'Concept B living UI feel CSS must keep tunable load/listening/caret/offline animations and reduced-motion gates.');
+if (appSource.includes('cb-load-glow') || cssSource.includes('.cb-load-glow') || cssSource.includes('@keyframes cb-load-breath')) {
+  fail('Large pulsing load-glow circle around the optic is banned; keep activity cues inside the existing optic/ring field.');
+}
 requireAll(entertainmentSource, [
   'window.HermesEntertainment = Object.freeze(api)',
   "fetch('./mascot-v2/sequences.json'",

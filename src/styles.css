@@ -1422,7 +1422,6 @@ body.kiosk-mode.kiosk-landscape[data-display-preset="night_watch"] .display-fram
   --cb-amber: rgb(229, 178, 90);
   --cb-steel: rgb(128, 151, 158);
   --cb-load-pulse-duration: 2.2s;
-  --cb-load-glow-opacity: 0.22;
   --cb-listen-rms: 0;
   --cb-caret-duration: 1.15s;
 }
@@ -1587,17 +1586,6 @@ body.kiosk-mode.kiosk-landscape.claude-concept-b .cb-radial-svg {
 body.kiosk-mode.kiosk-landscape.claude-concept-b .cb-glow {
   fill: url(#cb-core-glow);
   opacity: 0.9;
-}
-
-body.kiosk-mode.kiosk-landscape.claude-concept-b .cb-load-glow {
-  fill: none;
-  stroke: var(--cb-accent);
-  stroke-width: 18;
-  opacity: var(--cb-load-glow-opacity);
-  filter: blur(5px) drop-shadow(0 0 22px color-mix(in srgb, var(--cb-accent) 30%, transparent));
-  transform-origin: 550px 550px;
-  animation: cb-load-breath var(--cb-load-pulse-duration) ease-in-out infinite;
-  will-change: transform, opacity, filter;
 }
 
 body.kiosk-mode.kiosk-landscape.claude-concept-b .cb-listening-ripple {
@@ -2205,11 +2193,6 @@ body.kiosk-mode.kiosk-landscape.claude-concept-b .cb-touch-center { left: 49.3vw
   50% { opacity: 0.72; transform: scale(1.06); }
 }
 
-@keyframes cb-load-breath {
-  0%, 100% { transform: scale(0.985); opacity: calc(var(--cb-load-glow-opacity) * 0.72); filter: blur(2px); }
-  50% { transform: scale(1.028); opacity: var(--cb-load-glow-opacity); filter: blur(8px); }
-}
-
 @keyframes cb-listen-ripple {
   0% { transform: scale(0.96); opacity: calc(0.12 + var(--cb-listen-rms) * 0.22); }
   70% { transform: scale(calc(1.04 + var(--cb-listen-rms) * 0.14)); opacity: calc(0.08 + var(--cb-listen-rms) * 0.20); }
@@ -2231,7 +2214,6 @@ body.kiosk-mode.kiosk-landscape.claude-concept-b .cb-touch-center { left: 49.3vw
   body.kiosk-mode.kiosk-landscape.claude-concept-b .cb-orbit-spin,
   body.kiosk-mode.kiosk-landscape.claude-concept-b .cb-orbit-main,
   body.kiosk-mode.kiosk-landscape.claude-concept-b .cb-attention i,
-  body.kiosk-mode.kiosk-landscape.claude-concept-b .cb-load-glow,
   body.kiosk-mode.kiosk-landscape.claude-concept-b .cb-listening-ripple,
   body.kiosk-mode.kiosk-landscape.claude-concept-b .cb-cadence-caret,
   body.kiosk-mode.kiosk-landscape.claude-concept-b .cb-offline-runner {
