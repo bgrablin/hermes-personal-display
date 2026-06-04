@@ -25,7 +25,10 @@ function runScripts(files, windowExtras = {}) {
     Error,
     window: windowExtras,
   });
-  for (const file of files) {
+  const expandedFiles = files.includes('src/state.js') && !files.includes('src/generated/display-contract.js')
+    ? ['src/generated/display-contract.js', ...files]
+    : files;
+  for (const file of expandedFiles) {
     vm.runInContext(fs.readFileSync(path.join(root, file), 'utf8'), context, { filename: file });
   }
   return context.window;

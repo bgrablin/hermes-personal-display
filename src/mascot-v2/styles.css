@@ -38,7 +38,9 @@
 }
 
 .mascot-v2-stage .puppet-host {
-  animation: hermes-stage-breathe var(--hermes-float-duration, 8200ms) ease-in-out infinite;
+  /* JS owns character/body motion through poseChannel. Keep CSS positional
+     animation disabled so it cannot compound with the renderer's breath/drift. */
+  animation: none;
   transform-box: fill-box;
   transform-origin: center;
 }

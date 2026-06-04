@@ -1,0 +1,68 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "properties": {
+    "caption": {
+      "type": "object"
+    },
+    "generated_at": {
+      "type": "string"
+    },
+    "mood": {
+      "type": "string"
+    },
+    "motion": {
+      "type": "object"
+    },
+    "safety": {
+      "properties": {
+        "boundary": {
+          "const": "local_trusted_display"
+        },
+        "contains_credentials": {
+          "const": false
+        },
+        "redaction_level": {
+          "enum": [
+            "display_safe",
+            "public_status"
+          ]
+        }
+      },
+      "required": [
+        "boundary",
+        "redaction_level",
+        "contains_credentials"
+      ],
+      "type": "object"
+    },
+    "schema_version": {
+      "type": "string"
+    },
+    "skin": {
+      "type": "string"
+    },
+    "snippet": {
+      "type": [
+        "object",
+        "null"
+      ]
+    },
+    "state_preset": {
+      "type": "string"
+    },
+    "valid_for_seconds": {
+      "type": "number"
+    }
+  },
+  "required": [
+    "schema_version",
+    "generated_at",
+    "mood",
+    "skin",
+    "state_preset",
+    "caption",
+    "safety"
+  ],
+  "title": "Hermes Display State Packet",
+  "type": "object"
+}

@@ -362,34 +362,15 @@ def build_augury_feed(
         "items": items,
     }
 
-OPTIC_MODE_BY_PRESET = {
-    "quiet_watch": "idle_watch",
-    "reasoning": "reasoning",
-    "planning": "reasoning",
-    "working": "tool_shell",
-    "completed": "complete",
-    "waiting_input": "waiting_user",
-    "blocked": "blocked",
-    "feed_stale": "degraded_offline",
-    "night_watch": "degraded_offline",
-    "critical": "blocked",
-}
-
-OPTIC_STATE_BY_MODE = {
-    "idle_watch": {"gaze": {"target": "center", "offset_x": 0.0, "offset_y": 0.0, "pace": 0.18, "jitter": 0.0}, "eyes": {"lid": 0.0, "lid_open": 1.0, "pupil_scale": 1.0, "iris_scale": 1.0, "catchlight_opacity": 0.72}, "mouth": {"shape": "neutral", "brightness": 0.0}, "head": {"tilt_deg": 0, "y_px": 0}, "helmet": {"rim_tilt_deg": 0, "wing_tension": 0.0}, "glow": {"face": 0.42, "halo": 0.32, "pulse_rate": 0.02}, "halo": {"color": "amber", "opacity": 0.34}, "ring": {"period_s": 80, "opacity": 0.34}, "breath": {"period_s": 5.2, "scale": 1.018}, "blink": {"interval_ms": 5200}, "special": "none"},
-    "notice": {"gaze": {"target": "notice", "offset_x": 0.30, "offset_y": -0.20, "pace": 0.30, "jitter": 0.0}, "eyes": {"lid": 0.0, "lid_open": 1.0, "pupil_scale": 1.10, "iris_scale": 1.12, "catchlight_opacity": 0.78}, "mouth": {"shape": "neutral", "brightness": 0.0}, "head": {"tilt_deg": 0, "y_px": 0}, "helmet": {"rim_tilt_deg": 0, "wing_tension": 0.0}, "glow": {"face": 0.58, "halo": 0.56, "pulse_rate": 0.04}, "halo": {"color": "hot_amber", "opacity": 0.56}, "ring": {"period_s": 26, "opacity": 0.50}, "breath": {"period_s": 3.0, "scale": 1.018}, "blink": {"interval_ms": 1800}, "special": "none"},
-    "listening": {"gaze": {"target": "center_low", "offset_x": 0.0, "offset_y": 0.05, "pace": 0.22, "jitter": 0.0}, "eyes": {"lid": 0.0, "lid_open": 1.0, "pupil_scale": 1.15, "iris_scale": 1.18, "catchlight_opacity": 0.82}, "mouth": {"shape": "neutral", "brightness": 0.0}, "head": {"tilt_deg": 0, "y_px": 0}, "helmet": {"rim_tilt_deg": 0, "wing_tension": 0.0}, "glow": {"face": 0.54, "halo": 0.44, "pulse_rate": 0.03}, "halo": {"color": "amber", "opacity": 0.44}, "ring": {"period_s": 40, "opacity": 0.44}, "breath": {"period_s": 4.0, "scale": 1.018}, "blink": {"interval_ms": 3400}, "special": "none"},
-    "reading": {"gaze": {"target": "down_left", "offset_x": -0.35, "offset_y": 0.15, "pace": 0.22, "jitter": 0.0}, "eyes": {"lid": 0.18, "lid_open": 0.82, "pupil_scale": 0.92, "iris_scale": 0.96, "catchlight_opacity": 0.68}, "mouth": {"shape": "neutral", "brightness": 0.0}, "head": {"tilt_deg": 0, "y_px": 0}, "helmet": {"rim_tilt_deg": 0, "wing_tension": 0.0}, "glow": {"face": 0.42, "halo": 0.36, "pulse_rate": 0.02}, "halo": {"color": "amber", "opacity": 0.36}, "ring": {"period_s": 60, "opacity": 0.36}, "breath": {"period_s": 4.6, "scale": 1.018}, "blink": {"interval_ms": 4800}, "special": "none"},
-    "reasoning": {"gaze": {"target": "focus", "offset_x": 0.10, "offset_y": -0.10, "pace": 0.16, "jitter": 0.0}, "eyes": {"lid": 0.30, "lid_open": 0.70, "pupil_scale": 0.86, "iris_scale": 0.90, "catchlight_opacity": 0.58}, "mouth": {"shape": "neutral", "brightness": 0.0}, "head": {"tilt_deg": 0, "y_px": 0}, "helmet": {"rim_tilt_deg": 0, "wing_tension": 0.0}, "glow": {"face": 0.48, "halo": 0.40, "pulse_rate": 0.02}, "halo": {"color": "amber", "opacity": 0.40}, "ring": {"period_s": 14, "opacity": 0.52}, "breath": {"period_s": 4.2, "scale": 1.018}, "blink": {"interval_ms": 6500}, "special": "none"},
-    "searching": {"gaze": {"target": "center", "offset_x": 0.0, "offset_y": 0.0, "pace": 0.34, "jitter": 0.0}, "eyes": {"lid": 0.0, "lid_open": 1.0, "pupil_scale": 1.05, "iris_scale": 1.08, "catchlight_opacity": 0.78}, "mouth": {"shape": "neutral", "brightness": 0.0}, "head": {"tilt_deg": 0, "y_px": 0}, "helmet": {"rim_tilt_deg": 0, "wing_tension": 0.0}, "glow": {"face": 0.56, "halo": 0.48, "pulse_rate": 0.04}, "halo": {"color": "amber", "opacity": 0.48}, "ring": {"period_s": 8, "opacity": 0.58}, "breath": {"period_s": 3.4, "scale": 1.018}, "blink": {"interval_ms": 2200}, "special": "scan_sweep"},
-    "tool_shell": {"gaze": {"target": "down", "offset_x": 0.0, "offset_y": 0.10, "pace": 0.20, "jitter": 0.0}, "eyes": {"lid": 0.10, "lid_open": 0.90, "pupil_scale": 0.92, "iris_scale": 1.0, "catchlight_opacity": 0.70}, "mouth": {"shape": "neutral", "brightness": 0.0}, "head": {"tilt_deg": 0, "y_px": 0}, "helmet": {"rim_tilt_deg": 0, "wing_tension": 0.0}, "glow": {"face": 0.50, "halo": 0.42, "pulse_rate": 0.03}, "halo": {"color": "amber", "opacity": 0.42}, "ring": {"period_s": 22, "opacity": 0.50}, "breath": {"period_s": 4.4, "scale": 1.018}, "blink": {"interval_ms": 5800}, "special": "grid_8x8"},
-    "writing": {"gaze": {"target": "down_left", "offset_x": -0.10, "offset_y": 0.20, "pace": 0.24, "jitter": 0.0}, "eyes": {"lid": 0.08, "lid_open": 0.92, "pupil_scale": 1.00, "iris_scale": 1.02, "catchlight_opacity": 0.72}, "mouth": {"shape": "neutral", "brightness": 0.0}, "head": {"tilt_deg": 0, "y_px": 0}, "helmet": {"rim_tilt_deg": 0, "wing_tension": 0.0}, "glow": {"face": 0.48, "halo": 0.40, "pulse_rate": 0.03}, "halo": {"color": "amber", "opacity": 0.40}, "ring": {"period_s": 36, "opacity": 0.44}, "breath": {"period_s": 4.0, "scale": 1.018}, "blink": {"interval_ms": 4200}, "special": "none"},
-    "waiting_user": {"gaze": {"target": "center", "offset_x": 0.0, "offset_y": 0.0, "pace": 0.16, "jitter": 0.0}, "eyes": {"lid": 0.0, "lid_open": 1.0, "pupil_scale": 1.20, "iris_scale": 1.24, "catchlight_opacity": 0.86}, "mouth": {"shape": "neutral", "brightness": 0.0}, "head": {"tilt_deg": 0, "y_px": 0}, "helmet": {"rim_tilt_deg": 0, "wing_tension": 0.0}, "glow": {"face": 0.50, "halo": 0.44, "pulse_rate": 0.02}, "halo": {"color": "ochre", "opacity": 0.44}, "ring": {"period_s": 110, "opacity": 0.34}, "breath": {"period_s": 5.6, "scale": 1.018}, "blink": {"interval_ms": 5600}, "special": "none"},
-    "blocked": {"gaze": {"target": "center_up", "offset_x": 0.0, "offset_y": -0.20, "pace": 0.12, "jitter": 0.0}, "eyes": {"lid": 0.42, "lid_open": 0.58, "pupil_scale": 0.78, "iris_scale": 0.82, "catchlight_opacity": 0.46}, "mouth": {"shape": "neutral", "brightness": 0.0}, "head": {"tilt_deg": 0, "y_px": 0}, "helmet": {"rim_tilt_deg": 0, "wing_tension": 0.0}, "glow": {"face": 0.36, "halo": 0.32, "pulse_rate": 0.01}, "halo": {"color": "rust", "opacity": 0.34}, "ring": {"period_s": 200, "opacity": 0.30}, "breath": {"period_s": 6.0, "scale": 1.018}, "blink": {"interval_ms": 7200}, "special": "none"},
-    "complete": {"gaze": {"target": "center_low", "offset_x": 0.0, "offset_y": 0.05, "pace": 0.14, "jitter": 0.0}, "eyes": {"lid": 0.20, "lid_open": 0.80, "pupil_scale": 0.94, "iris_scale": 0.96, "catchlight_opacity": 0.66}, "mouth": {"shape": "neutral", "brightness": 0.0}, "head": {"tilt_deg": 0, "y_px": 0}, "helmet": {"rim_tilt_deg": 0, "wing_tension": 0.0}, "glow": {"face": 0.42, "halo": 0.38, "pulse_rate": 0.01}, "halo": {"color": "moss", "opacity": 0.42}, "ring": {"period_s": 70, "opacity": 0.36}, "breath": {"period_s": 5.4, "scale": 1.018}, "blink": {"interval_ms": 6800}, "special": "none"},
-    "degraded_offline": {"gaze": {"target": "center_low", "offset_x": 0.0, "offset_y": 0.20, "pace": 0.08, "jitter": 0.0}, "eyes": {"lid": 0.55, "lid_open": 0.45, "pupil_scale": 0.80, "iris_scale": 0.82, "catchlight_opacity": 0.28}, "mouth": {"shape": "neutral", "brightness": 0.0}, "head": {"tilt_deg": 0, "y_px": 0}, "helmet": {"rim_tilt_deg": 0, "wing_tension": 0.0}, "glow": {"face": 0.22, "halo": 0.20, "pulse_rate": 0.0}, "halo": {"color": "steel", "opacity": 0.24}, "ring": {"period_s": 400, "opacity": 0.22}, "breath": {"period_s": 7.0, "scale": 1.010}, "blink": {"interval_ms": 8000}, "special": "offline_horizon"},
-}
-
+# Public display contract constants are generated from schemas/*.json.
+from display_state.contract import (
+    DISPLAY_CONTRACT_SCHEMAS,
+    DISPLAY_PRESETS,
+    DISPLAY_PRESET_LABELS,
+    DISPLAY_PRESET_MOTION,
+    OPTIC_MODE_BY_PRESET,
+    OPTIC_STATE_BY_MODE,
+)
 
 def atomic_json_write(path: Path, payload: dict) -> None:
     try:
@@ -1239,32 +1220,7 @@ def display_preset_for(display_state: str, work: dict, freshness: dict) -> str:
     return "quiet_watch"
 
 
-DISPLAY_PRESET_LABELS = {
-    "quiet_watch": "QUIET WATCH",
-    "reasoning": "REASONING",
-    "planning": "PLANNING",
-    "working": "WORKING",
-    "completed": "COMPLETED",
-    "waiting_input": "WAITING INPUT",
-    "blocked": "BLOCKED",
-    "feed_stale": "FEED STALE",
-    "night_watch": "NIGHT WATCH",
-    "critical": "CRITICAL",
-}
-
-DISPLAY_PRESET_MOTION = {
-    "quiet_watch": {"float_duration_ms": 7600, "blink_interval_ms": 5200, "eye_glow": 0.46, "accent_intensity": 0.34, "alert_pulse": 0.00, "breath": 0.34, "breath_hz": 0.34, "wing_flap": 0.12, "wing_hz": 0.36, "root_y_max": 0.90, "gaze_jitter_px": 0.06},
-    "reasoning": {"float_duration_ms": 6200, "blink_interval_ms": 3600, "eye_glow": 0.68, "accent_intensity": 0.58, "alert_pulse": 0.06, "breath": 0.42, "breath_hz": 0.52, "wing_flap": 0.24, "wing_hz": 0.72, "root_y_max": 1.15, "gaze_jitter_px": 0.08},
-    "planning": {"float_duration_ms": 6000, "blink_interval_ms": 3800, "eye_glow": 0.64, "accent_intensity": 0.56, "alert_pulse": 0.08, "breath": 0.40, "breath_hz": 0.50, "wing_flap": 0.20, "wing_hz": 0.68, "root_y_max": 1.10, "gaze_jitter_px": 0.08},
-    "working": {"float_duration_ms": 5400, "blink_interval_ms": 3300, "eye_glow": 0.72, "accent_intensity": 0.64, "alert_pulse": 0.10, "breath": 0.46, "breath_hz": 0.58, "wing_flap": 0.26, "wing_hz": 0.82, "root_y_max": 1.25, "gaze_jitter_px": 0.09},
-    "completed": {"float_duration_ms": 7000, "blink_interval_ms": 5600, "eye_glow": 0.52, "accent_intensity": 0.46, "alert_pulse": 0.12, "breath": 0.30, "breath_hz": 0.34, "wing_flap": 0.14, "wing_hz": 0.40, "root_y_max": 0.95, "gaze_jitter_px": 0.05},
-    "waiting_input": {"float_duration_ms": 6400, "blink_interval_ms": 4200, "eye_glow": 0.58, "accent_intensity": 0.50, "alert_pulse": 0.18, "breath": 0.36, "breath_hz": 0.42, "wing_flap": 0.18, "wing_hz": 0.50, "root_y_max": 1.00, "gaze_jitter_px": 0.07},
-    "blocked": {"float_duration_ms": 8200, "blink_interval_ms": 2700, "eye_glow": 0.66, "accent_intensity": 0.72, "alert_pulse": 0.34, "breath": 0.22, "breath_hz": 0.30, "wing_flap": 0.12, "wing_hz": 0.34, "root_y_max": 0.85, "gaze_jitter_px": 0.04},
-    "feed_stale": {"float_duration_ms": 7800, "blink_interval_ms": 4700, "eye_glow": 0.44, "accent_intensity": 0.42, "alert_pulse": 0.20, "breath": 0.28, "breath_hz": 0.32, "wing_flap": 0.10, "wing_hz": 0.32, "root_y_max": 0.85, "gaze_jitter_px": 0.05},
-    "night_watch": {"float_duration_ms": 11200, "blink_interval_ms": 7800, "eye_glow": 0.22, "accent_intensity": 0.18, "alert_pulse": 0.00, "breath": 0.16, "breath_hz": 0.18, "wing_flap": 0.05, "wing_hz": 0.18, "root_y_max": 0.65, "gaze_jitter_px": 0.03},
-    "critical": {"float_duration_ms": 9000, "blink_interval_ms": 2200, "eye_glow": 0.82, "accent_intensity": 0.88, "alert_pulse": 0.72, "breath": 0.18, "breath_hz": 0.24, "wing_flap": 0.08, "wing_hz": 0.25, "root_y_max": 0.70, "gaze_jitter_px": 0.03},
-}
-
+# DISPLAY_PRESET_LABELS and DISPLAY_PRESET_MOTION are imported from the generated display contract above.
 
 def load_manual_override(now: datetime | None = None) -> dict:
     """Read a small local-only override file without allowing arbitrary display text."""

@@ -1,0 +1,214 @@
+{
+  "presets": {
+    "blocked": {
+      "label": "BLOCKED",
+      "mood": "blocked_annoyed",
+      "motion": {
+        "accent_intensity": 0.72,
+        "alert_pulse": 0.34,
+        "blink_interval_ms": 2700,
+        "breath": 0.22,
+        "breath_hz": 0.3,
+        "eye_glow": 0.66,
+        "float_duration_ms": 8200,
+        "gaze_jitter_px": 0.04,
+        "root_y_max": 0.85,
+        "wing_flap": 0.12,
+        "wing_hz": 0.34
+      },
+      "silhouette": "contained side-eye, amber/rust, low motion",
+      "skin": "retro-amber-watch"
+    },
+    "completed": {
+      "label": "COMPLETED",
+      "mood": "healthy_smug",
+      "motion": {
+        "accent_intensity": 0.46,
+        "alert_pulse": 0.12,
+        "blink_interval_ms": 5600,
+        "breath": 0.3,
+        "breath_hz": 0.34,
+        "eye_glow": 0.52,
+        "float_duration_ms": 7000,
+        "gaze_jitter_px": 0.05,
+        "root_y_max": 0.95,
+        "wing_flap": 0.14,
+        "wing_hz": 0.4
+      },
+      "silhouette": "centered, relaxed smile, one short settle animation",
+      "skin": "retro-robot-core"
+    },
+    "critical": {
+      "label": "CRITICAL",
+      "mood": "blocked_annoyed",
+      "motion": {
+        "accent_intensity": 0.88,
+        "alert_pulse": 0.72,
+        "blink_interval_ms": 2200,
+        "breath": 0.18,
+        "breath_hz": 0.24,
+        "eye_glow": 0.82,
+        "float_duration_ms": 9000,
+        "gaze_jitter_px": 0.03,
+        "root_y_max": 0.7,
+        "wing_flap": 0.08,
+        "wing_hz": 0.25
+      },
+      "silhouette": "high contrast, minimal animation, unmistakable attention",
+      "skin": "retro-amber-watch"
+    },
+    "degraded_offline": {
+      "label": "DEGRADED OFFLINE",
+      "mood": "degraded_offline",
+      "motion": {
+        "accent_intensity": 0.2,
+        "alert_pulse": 0.12,
+        "blink_interval_ms": 6800,
+        "breath": 0.16,
+        "breath_hz": 0.18,
+        "eye_glow": 0.24,
+        "float_duration_ms": 9800,
+        "gaze_jitter_px": 0.03,
+        "root_y_max": 0.55,
+        "wing_flap": 0.04,
+        "wing_hz": 0.16
+      },
+      "silhouette": "dim offline posture, held last safe view",
+      "skin": "retro-night-watch"
+    },
+    "feed_stale": {
+      "label": "FEED STALE",
+      "mood": "idle_watchful",
+      "motion": {
+        "accent_intensity": 0.42,
+        "alert_pulse": 0.2,
+        "blink_interval_ms": 4700,
+        "breath": 0.28,
+        "breath_hz": 0.32,
+        "eye_glow": 0.44,
+        "float_duration_ms": 7800,
+        "gaze_jitter_px": 0.05,
+        "root_y_max": 0.85,
+        "wing_flap": 0.1,
+        "wing_hz": 0.32
+      },
+      "silhouette": "dimmed telemetry, held last-good posture",
+      "skin": "retro-robot-core"
+    },
+    "night_watch": {
+      "label": "NIGHT WATCH",
+      "mood": "night_sleepy",
+      "motion": {
+        "accent_intensity": 0.18,
+        "alert_pulse": 0.0,
+        "blink_interval_ms": 7800,
+        "breath": 0.16,
+        "breath_hz": 0.18,
+        "eye_glow": 0.22,
+        "float_duration_ms": 11200,
+        "gaze_jitter_px": 0.03,
+        "root_y_max": 0.65,
+        "wing_flap": 0.05,
+        "wing_hz": 0.18
+      },
+      "silhouette": "low luminance, long blinks, almost no chrome",
+      "skin": "retro-night-watch"
+    },
+    "planning": {
+      "label": "PLANNING",
+      "mood": "thinking_focused",
+      "motion": {
+        "accent_intensity": 0.56,
+        "alert_pulse": 0.08,
+        "blink_interval_ms": 3800,
+        "breath": 0.4,
+        "breath_hz": 0.5,
+        "eye_glow": 0.64,
+        "float_duration_ms": 6000,
+        "gaze_jitter_px": 0.08,
+        "root_y_max": 1.1,
+        "wing_flap": 0.2,
+        "wing_hz": 0.68
+      },
+      "silhouette": "organized/grid-like focus with restrained motion",
+      "skin": "retro-robot-core"
+    },
+    "quiet_watch": {
+      "label": "QUIET WATCH",
+      "mood": "idle_watchful",
+      "motion": {
+        "accent_intensity": 0.34,
+        "alert_pulse": 0.0,
+        "blink_interval_ms": 5200,
+        "breath": 0.34,
+        "breath_hz": 0.34,
+        "eye_glow": 0.46,
+        "float_duration_ms": 7600,
+        "gaze_jitter_px": 0.06,
+        "root_y_max": 0.9,
+        "wing_flap": 0.12,
+        "wing_hz": 0.36
+      },
+      "silhouette": "centered, still, soft eyes, low orbit",
+      "skin": "retro-robot-core"
+    },
+    "reasoning": {
+      "label": "REASONING",
+      "mood": "thinking_focused",
+      "motion": {
+        "accent_intensity": 0.58,
+        "alert_pulse": 0.06,
+        "blink_interval_ms": 3600,
+        "breath": 0.42,
+        "breath_hz": 0.52,
+        "eye_glow": 0.68,
+        "float_duration_ms": 6200,
+        "gaze_jitter_px": 0.08,
+        "root_y_max": 1.15,
+        "wing_flap": 0.24,
+        "wing_hz": 0.72
+      },
+      "silhouette": "narrowed eyes, slight upward/internal focus, slow precise ring",
+      "skin": "retro-terminal-focus"
+    },
+    "waiting_input": {
+      "label": "WAITING INPUT",
+      "mood": "idle_watchful",
+      "motion": {
+        "accent_intensity": 0.5,
+        "alert_pulse": 0.18,
+        "blink_interval_ms": 4200,
+        "breath": 0.36,
+        "breath_hz": 0.42,
+        "eye_glow": 0.58,
+        "float_duration_ms": 6400,
+        "gaze_jitter_px": 0.07,
+        "root_y_max": 1.0,
+        "wing_flap": 0.18,
+        "wing_hz": 0.5
+      },
+      "silhouette": "direct forward gaze, patient glow, minimal motion",
+      "skin": "retro-robot-core"
+    },
+    "working": {
+      "label": "WORKING",
+      "mood": "thinking_focused",
+      "motion": {
+        "accent_intensity": 0.64,
+        "alert_pulse": 0.1,
+        "blink_interval_ms": 3300,
+        "breath": 0.46,
+        "breath_hz": 0.58,
+        "eye_glow": 0.72,
+        "float_duration_ms": 5400,
+        "gaze_jitter_px": 0.09,
+        "root_y_max": 1.25,
+        "wing_flap": 0.26,
+        "wing_hz": 0.82
+      },
+      "silhouette": "tool-facing gaze, active rail, controlled scan",
+      "skin": "retro-terminal-focus"
+    }
+  },
+  "schema_version": "0.1.0"
+}

@@ -1,0 +1,47 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "properties": {
+    "eyes": {
+      "type": "object"
+    },
+    "gaze": {
+      "type": "object"
+    },
+    "generated_at": {
+      "type": "string"
+    },
+    "halo": {
+      "type": "object"
+    },
+    "mode": {
+      "enum": [
+        "idle_watch",
+        "notice",
+        "listening",
+        "reading",
+        "reasoning",
+        "searching",
+        "tool_shell",
+        "writing",
+        "waiting_user",
+        "blocked",
+        "complete",
+        "degraded_offline"
+      ]
+    },
+    "ring": {
+      "type": "object"
+    },
+    "schema_version": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "schema_version",
+    "mode",
+    "gaze",
+    "eyes"
+  ],
+  "title": "Hermes Optic State",
+  "type": "object"
+}

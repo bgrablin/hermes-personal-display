@@ -60,7 +60,7 @@
     side_eye_left:  { x: -9.4, y:  1.3 },
     side_eye_right: { x:  9.4, y:  1.3 },
     forward_focus:  { x:  0.0, y: -0.8 },
-    smug:           { x:  3.8, y: -1.4 },
+    smug:           { x:  1.8, y: -1.1 },
     sleepy:         { x:  0.0, y:  2.0 }
   };
 
@@ -198,8 +198,8 @@
       browLeft: 'smug_arch_left',
       browRight: 'smug_arch_right',
       mouth: 'smile_smug',
-      gazeTargets: ['smug','right','center','center','left','up_right','forward_focus'],
-      gazeWeights: [3, 3, 3, 2, 2, 1, 2],
+      gazeTargets: ['center','forward_focus','center','left','smug','right'],
+      gazeWeights: [5, 4, 3, 2, 1, 1],
       gazeDwellMs: [2800, 5600],
       gazeProfile: { saccadeMs: [110, 165], dwellMs: [2800, 5600], holdJitterPx: 0.07 },
       breath: 0.32,

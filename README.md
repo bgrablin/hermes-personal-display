@@ -52,6 +52,10 @@ Hermes Agent runtime / local monitors
         |
         | display-safe state, lifecycle hints, health signals
         v
+schemas/*.json display contract
+        |
+        | generated JS/Python constants
+        v
 scripts/hermes_display_server.py
         |
         | /api/hermes-state and optional avatar event stream
@@ -67,8 +71,12 @@ Core paths:
 
 - `src/character-runtime-v2.html` - current kiosk/runtime page.
 - `src/mascot-v2/` - character runtime, behavior machine, touch effects, audio hooks, sanitization.
-- `src/state.js` - state resolver and display packet handling.
-- `scripts/hermes_display_server.py` - local static server plus display-state API.
+- `schemas/` - public display-state/avatar-event/optic-state contract sources plus shared presets/postures.
+- `src/generated/display-contract.js` - generated browser contract constants.
+- `scripts/generated/display_contract.py` - generated Python contract constants.
+- `src/state.js` - display packet handling that consumes the generated contract.
+- `scripts/hermes_display_server.py` - compatibility HTTP route boundary for the local static server plus display-state API.
+- `scripts/display_state/` - focused module boundary for collector, resolver, contract, privacy, persistence, route rail, remote memory, entertainment, and fixtures.
 - `scripts/avatar_event_bus.py` - avatar event validation and SSE helpers.
 - `deploy/systemd-user/` - preview/kiosk user service templates.
 - `docs/avatar-event-bus-contract-2026-05-21.md` - privacy and event contract.
@@ -89,6 +97,41 @@ Design rules used in this repo:
 - Keep raw screenshots, review dumps, transcripts, and bulky asset packs out of the repo.
 
 This is still an experimental local-display project. Review the code and defaults before exposing anything beyond localhost.
+
+### Display contract boundary
+
+The product boundary is the generated display contract, not the current mascot implementation:
+
+```text
+Hermes Agent or local monitor
+  -> emits display-safe state/event packets
+  -> schemas/ contract validates packet shape and privacy boundary
+  -> kiosk renders without knowing raw prompts, raw logs, tool output, file paths, or secrets
+```
+
+Authoritative sources:
+
+- `schemas/hermes-display-state.schema.json`
+- `schemas/hermes-avatar-event.schema.json`
+- `schemas/hermes-optic-state.schema.json`
+- `schemas/hermes-display-presets.json`
+- `schemas/hermes-optic-postures.json`
+
+After changing those files, regenerate both runtimes:
+
+```bash
+python3 scripts/generate_display_contract.py
+```
+
+Do not hand-edit `src/generated/display-contract.js` or `scripts/generated/display_contract.py`.
+
+### Display operating modes
+
+Safe Display Mode is the default. It may show health, lifecycle, coarse work state, labels, and bounded motion. It must not show prompts, raw logs, answers, secrets, file paths, URLs, tool I/O, transcripts, traceback dumps, CUI/customer/government terms, or credential-like strings.
+
+Private Diagnostic Mode is explicit opt-in. It may show redacted local diagnostics for troubleshooting. It is never enabled by default and should remain local/private.
+
+Family/Entertainment Mode is explicit opt-in. It uses local/browser TTS fallback or bounded server-side generation. It does not receive work data or personal data. Entertainment request validation blocks prompt/log/message/system/developer/context/tool-output fields, file paths, URLs, credential-like strings, CUI/customer/government terms, and traceback-like content.
 
 ## Quick start
 

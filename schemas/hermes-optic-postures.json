@@ -1,0 +1,605 @@
+{
+  "optic_mode_by_preset": {
+    "blocked": "blocked",
+    "completed": "complete",
+    "critical": "blocked",
+    "feed_stale": "degraded_offline",
+    "night_watch": "degraded_offline",
+    "planning": "reasoning",
+    "quiet_watch": "idle_watch",
+    "reasoning": "reasoning",
+    "waiting_input": "waiting_user",
+    "working": "tool_shell"
+  },
+  "optic_state_by_mode": {
+    "blocked": {
+      "blink": {
+        "interval_ms": 7200
+      },
+      "breath": {
+        "period_s": 6.0,
+        "scale": 1.018
+      },
+      "eyes": {
+        "catchlight_opacity": 0.46,
+        "iris_scale": 0.82,
+        "lid": 0.42,
+        "lid_open": 0.58,
+        "pupil_scale": 0.78
+      },
+      "gaze": {
+        "jitter": 0.0,
+        "offset_x": 0.0,
+        "offset_y": -0.2,
+        "pace": 0.12,
+        "target": "center_up"
+      },
+      "glow": {
+        "face": 0.36,
+        "halo": 0.32,
+        "pulse_rate": 0.01
+      },
+      "halo": {
+        "color": "rust",
+        "opacity": 0.34
+      },
+      "head": {
+        "tilt_deg": 0,
+        "y_px": 0
+      },
+      "helmet": {
+        "rim_tilt_deg": 0,
+        "wing_tension": 0.0
+      },
+      "mouth": {
+        "brightness": 0.0,
+        "shape": "neutral"
+      },
+      "ring": {
+        "opacity": 0.3,
+        "period_s": 200
+      },
+      "special": "none"
+    },
+    "complete": {
+      "blink": {
+        "interval_ms": 6800
+      },
+      "breath": {
+        "period_s": 5.4,
+        "scale": 1.018
+      },
+      "eyes": {
+        "catchlight_opacity": 0.66,
+        "iris_scale": 0.96,
+        "lid": 0.2,
+        "lid_open": 0.8,
+        "pupil_scale": 0.94
+      },
+      "gaze": {
+        "jitter": 0.0,
+        "offset_x": 0.0,
+        "offset_y": 0.05,
+        "pace": 0.14,
+        "target": "center_low"
+      },
+      "glow": {
+        "face": 0.42,
+        "halo": 0.38,
+        "pulse_rate": 0.01
+      },
+      "halo": {
+        "color": "moss",
+        "opacity": 0.42
+      },
+      "head": {
+        "tilt_deg": 0,
+        "y_px": 0
+      },
+      "helmet": {
+        "rim_tilt_deg": 0,
+        "wing_tension": 0.0
+      },
+      "mouth": {
+        "brightness": 0.0,
+        "shape": "neutral"
+      },
+      "ring": {
+        "opacity": 0.36,
+        "period_s": 70
+      },
+      "special": "none"
+    },
+    "degraded_offline": {
+      "blink": {
+        "interval_ms": 8000
+      },
+      "breath": {
+        "period_s": 7.0,
+        "scale": 1.01
+      },
+      "eyes": {
+        "catchlight_opacity": 0.28,
+        "iris_scale": 0.82,
+        "lid": 0.55,
+        "lid_open": 0.45,
+        "pupil_scale": 0.8
+      },
+      "gaze": {
+        "jitter": 0.0,
+        "offset_x": 0.0,
+        "offset_y": 0.2,
+        "pace": 0.08,
+        "target": "center_low"
+      },
+      "glow": {
+        "face": 0.22,
+        "halo": 0.2,
+        "pulse_rate": 0.0
+      },
+      "halo": {
+        "color": "steel",
+        "opacity": 0.24
+      },
+      "head": {
+        "tilt_deg": 0,
+        "y_px": 0
+      },
+      "helmet": {
+        "rim_tilt_deg": 0,
+        "wing_tension": 0.0
+      },
+      "mouth": {
+        "brightness": 0.0,
+        "shape": "neutral"
+      },
+      "ring": {
+        "opacity": 0.22,
+        "period_s": 400
+      },
+      "special": "offline_horizon"
+    },
+    "idle_watch": {
+      "blink": {
+        "interval_ms": 5200
+      },
+      "breath": {
+        "period_s": 5.2,
+        "scale": 1.018
+      },
+      "eyes": {
+        "catchlight_opacity": 0.72,
+        "iris_scale": 1.0,
+        "lid": 0.0,
+        "lid_open": 1.0,
+        "pupil_scale": 1.0
+      },
+      "gaze": {
+        "jitter": 0.0,
+        "offset_x": 0.0,
+        "offset_y": 0.0,
+        "pace": 0.18,
+        "target": "center"
+      },
+      "glow": {
+        "face": 0.42,
+        "halo": 0.32,
+        "pulse_rate": 0.02
+      },
+      "halo": {
+        "color": "amber",
+        "opacity": 0.34
+      },
+      "head": {
+        "tilt_deg": 0,
+        "y_px": 0
+      },
+      "helmet": {
+        "rim_tilt_deg": 0,
+        "wing_tension": 0.0
+      },
+      "mouth": {
+        "brightness": 0.0,
+        "shape": "neutral"
+      },
+      "ring": {
+        "opacity": 0.34,
+        "period_s": 80
+      },
+      "special": "none"
+    },
+    "listening": {
+      "blink": {
+        "interval_ms": 3400
+      },
+      "breath": {
+        "period_s": 4.0,
+        "scale": 1.018
+      },
+      "eyes": {
+        "catchlight_opacity": 0.82,
+        "iris_scale": 1.18,
+        "lid": 0.0,
+        "lid_open": 1.0,
+        "pupil_scale": 1.15
+      },
+      "gaze": {
+        "jitter": 0.0,
+        "offset_x": 0.0,
+        "offset_y": 0.05,
+        "pace": 0.22,
+        "target": "center_low"
+      },
+      "glow": {
+        "face": 0.54,
+        "halo": 0.44,
+        "pulse_rate": 0.03
+      },
+      "halo": {
+        "color": "amber",
+        "opacity": 0.44
+      },
+      "head": {
+        "tilt_deg": 0,
+        "y_px": 0
+      },
+      "helmet": {
+        "rim_tilt_deg": 0,
+        "wing_tension": 0.0
+      },
+      "mouth": {
+        "brightness": 0.0,
+        "shape": "neutral"
+      },
+      "ring": {
+        "opacity": 0.44,
+        "period_s": 40
+      },
+      "special": "none"
+    },
+    "notice": {
+      "blink": {
+        "interval_ms": 1800
+      },
+      "breath": {
+        "period_s": 3.0,
+        "scale": 1.018
+      },
+      "eyes": {
+        "catchlight_opacity": 0.78,
+        "iris_scale": 1.12,
+        "lid": 0.0,
+        "lid_open": 1.0,
+        "pupil_scale": 1.1
+      },
+      "gaze": {
+        "jitter": 0.0,
+        "offset_x": 0.3,
+        "offset_y": -0.2,
+        "pace": 0.3,
+        "target": "notice"
+      },
+      "glow": {
+        "face": 0.58,
+        "halo": 0.56,
+        "pulse_rate": 0.04
+      },
+      "halo": {
+        "color": "hot_amber",
+        "opacity": 0.56
+      },
+      "head": {
+        "tilt_deg": 0,
+        "y_px": 0
+      },
+      "helmet": {
+        "rim_tilt_deg": 0,
+        "wing_tension": 0.0
+      },
+      "mouth": {
+        "brightness": 0.0,
+        "shape": "neutral"
+      },
+      "ring": {
+        "opacity": 0.5,
+        "period_s": 26
+      },
+      "special": "none"
+    },
+    "reading": {
+      "blink": {
+        "interval_ms": 4800
+      },
+      "breath": {
+        "period_s": 4.6,
+        "scale": 1.018
+      },
+      "eyes": {
+        "catchlight_opacity": 0.68,
+        "iris_scale": 0.96,
+        "lid": 0.18,
+        "lid_open": 0.82,
+        "pupil_scale": 0.92
+      },
+      "gaze": {
+        "jitter": 0.0,
+        "offset_x": -0.35,
+        "offset_y": 0.15,
+        "pace": 0.22,
+        "target": "down_left"
+      },
+      "glow": {
+        "face": 0.42,
+        "halo": 0.36,
+        "pulse_rate": 0.02
+      },
+      "halo": {
+        "color": "amber",
+        "opacity": 0.36
+      },
+      "head": {
+        "tilt_deg": 0,
+        "y_px": 0
+      },
+      "helmet": {
+        "rim_tilt_deg": 0,
+        "wing_tension": 0.0
+      },
+      "mouth": {
+        "brightness": 0.0,
+        "shape": "neutral"
+      },
+      "ring": {
+        "opacity": 0.36,
+        "period_s": 60
+      },
+      "special": "none"
+    },
+    "reasoning": {
+      "blink": {
+        "interval_ms": 6500
+      },
+      "breath": {
+        "period_s": 4.2,
+        "scale": 1.018
+      },
+      "eyes": {
+        "catchlight_opacity": 0.58,
+        "iris_scale": 0.9,
+        "lid": 0.3,
+        "lid_open": 0.7,
+        "pupil_scale": 0.86
+      },
+      "gaze": {
+        "jitter": 0.0,
+        "offset_x": 0.1,
+        "offset_y": -0.1,
+        "pace": 0.16,
+        "target": "focus"
+      },
+      "glow": {
+        "face": 0.48,
+        "halo": 0.4,
+        "pulse_rate": 0.02
+      },
+      "halo": {
+        "color": "amber",
+        "opacity": 0.4
+      },
+      "head": {
+        "tilt_deg": 0,
+        "y_px": 0
+      },
+      "helmet": {
+        "rim_tilt_deg": 0,
+        "wing_tension": 0.0
+      },
+      "mouth": {
+        "brightness": 0.0,
+        "shape": "neutral"
+      },
+      "ring": {
+        "opacity": 0.52,
+        "period_s": 14
+      },
+      "special": "none"
+    },
+    "searching": {
+      "blink": {
+        "interval_ms": 2200
+      },
+      "breath": {
+        "period_s": 3.4,
+        "scale": 1.018
+      },
+      "eyes": {
+        "catchlight_opacity": 0.78,
+        "iris_scale": 1.08,
+        "lid": 0.0,
+        "lid_open": 1.0,
+        "pupil_scale": 1.05
+      },
+      "gaze": {
+        "jitter": 0.0,
+        "offset_x": 0.0,
+        "offset_y": 0.0,
+        "pace": 0.34,
+        "target": "center"
+      },
+      "glow": {
+        "face": 0.56,
+        "halo": 0.48,
+        "pulse_rate": 0.04
+      },
+      "halo": {
+        "color": "amber",
+        "opacity": 0.48
+      },
+      "head": {
+        "tilt_deg": 0,
+        "y_px": 0
+      },
+      "helmet": {
+        "rim_tilt_deg": 0,
+        "wing_tension": 0.0
+      },
+      "mouth": {
+        "brightness": 0.0,
+        "shape": "neutral"
+      },
+      "ring": {
+        "opacity": 0.58,
+        "period_s": 8
+      },
+      "special": "scan_sweep"
+    },
+    "tool_shell": {
+      "blink": {
+        "interval_ms": 5800
+      },
+      "breath": {
+        "period_s": 4.4,
+        "scale": 1.018
+      },
+      "eyes": {
+        "catchlight_opacity": 0.7,
+        "iris_scale": 1.0,
+        "lid": 0.1,
+        "lid_open": 0.9,
+        "pupil_scale": 0.92
+      },
+      "gaze": {
+        "jitter": 0.0,
+        "offset_x": 0.0,
+        "offset_y": 0.1,
+        "pace": 0.2,
+        "target": "down"
+      },
+      "glow": {
+        "face": 0.5,
+        "halo": 0.42,
+        "pulse_rate": 0.03
+      },
+      "halo": {
+        "color": "amber",
+        "opacity": 0.42
+      },
+      "head": {
+        "tilt_deg": 0,
+        "y_px": 0
+      },
+      "helmet": {
+        "rim_tilt_deg": 0,
+        "wing_tension": 0.0
+      },
+      "mouth": {
+        "brightness": 0.0,
+        "shape": "neutral"
+      },
+      "ring": {
+        "opacity": 0.5,
+        "period_s": 22
+      },
+      "special": "grid_8x8"
+    },
+    "waiting_user": {
+      "blink": {
+        "interval_ms": 5600
+      },
+      "breath": {
+        "period_s": 5.6,
+        "scale": 1.018
+      },
+      "eyes": {
+        "catchlight_opacity": 0.86,
+        "iris_scale": 1.24,
+        "lid": 0.0,
+        "lid_open": 1.0,
+        "pupil_scale": 1.2
+      },
+      "gaze": {
+        "jitter": 0.0,
+        "offset_x": 0.0,
+        "offset_y": 0.0,
+        "pace": 0.16,
+        "target": "center"
+      },
+      "glow": {
+        "face": 0.5,
+        "halo": 0.44,
+        "pulse_rate": 0.02
+      },
+      "halo": {
+        "color": "ochre",
+        "opacity": 0.44
+      },
+      "head": {
+        "tilt_deg": 0,
+        "y_px": 0
+      },
+      "helmet": {
+        "rim_tilt_deg": 0,
+        "wing_tension": 0.0
+      },
+      "mouth": {
+        "brightness": 0.0,
+        "shape": "neutral"
+      },
+      "ring": {
+        "opacity": 0.34,
+        "period_s": 110
+      },
+      "special": "none"
+    },
+    "writing": {
+      "blink": {
+        "interval_ms": 4200
+      },
+      "breath": {
+        "period_s": 4.0,
+        "scale": 1.018
+      },
+      "eyes": {
+        "catchlight_opacity": 0.72,
+        "iris_scale": 1.02,
+        "lid": 0.08,
+        "lid_open": 0.92,
+        "pupil_scale": 1.0
+      },
+      "gaze": {
+        "jitter": 0.0,
+        "offset_x": -0.1,
+        "offset_y": 0.2,
+        "pace": 0.24,
+        "target": "down_left"
+      },
+      "glow": {
+        "face": 0.48,
+        "halo": 0.4,
+        "pulse_rate": 0.03
+      },
+      "halo": {
+        "color": "amber",
+        "opacity": 0.4
+      },
+      "head": {
+        "tilt_deg": 0,
+        "y_px": 0
+      },
+      "helmet": {
+        "rim_tilt_deg": 0,
+        "wing_tension": 0.0
+      },
+      "mouth": {
+        "brightness": 0.0,
+        "shape": "neutral"
+      },
+      "ring": {
+        "opacity": 0.44,
+        "period_s": 36
+      },
+      "special": "none"
+    }
+  },
+  "schema_version": "0.1.0"
+}

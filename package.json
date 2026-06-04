@@ -29,11 +29,12 @@
   },
   "scripts": {
     "dev": "vite --host 0.0.0.0 --port 8770",
+    "generate:contract": "python3 scripts/generate_display_contract.py",
     "build": "vite build",
     "preview": "vite preview --host 0.0.0.0 --port 8770",
     "test": "npm run test:unit && npm run check:stack && npm run test:server",
     "test:unit": "vitest run",
-    "test:server": "python3 scripts/check-kanban-snapshot.py && python3 scripts/check-entertainment-server.py && python3 -m py_compile scripts/hermes_display_server.py",
+    "test:server": "python3 scripts/generate_display_contract.py && python3 scripts/check-kanban-snapshot.py && python3 scripts/check-entertainment-server.py && python3 -m py_compile scripts/hermes_display_server.py scripts/display_state/*.py scripts/generated/display_contract.py",
     "test:e2e": "playwright test",
     "check:stack": "node scripts/check-adopted-stack.js",
     "check:client-events": "node scripts/check-client-avatar-event-validator.js",
