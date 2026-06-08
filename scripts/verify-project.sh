@@ -26,12 +26,8 @@ check_file src/mascot-debug.html
 check_file src/styles.css
 check_file src/state.js
 check_file src/generated/display-contract.js
-check_file src/mascot/hermes-puppet.svg
 check_file src/mascot/states.js
-check_file src/mascot/runtime.js
 check_file src/mascot/app.js
-check_file src/mascot/approval.js
-check_file src/mascot/styles.css
 check_file src/mascot/SOURCE-LICENSE.md
 check_file scripts/hermes-display
 check_file scripts/hermes_display_server.py
@@ -44,16 +40,9 @@ check_file docs/systemd-user-units.md
 check_file docs/minix-sf10t-bringup.md
 
 say '== syntax =='
-python3 - <<'PY'
-import xml.etree.ElementTree as ET
-ET.parse('src/mascot/hermes-puppet.svg')
-print('OK svg xml src/mascot/hermes-puppet.svg')
-PY
 node --check src/state.js
 node --check src/mascot/states.js
-node --check src/mascot/runtime.js
 node --check src/mascot/app.js
-node --check src/mascot/approval.js
 node --check scripts/check-adopted-stack.js
 node --check scripts/check-client-avatar-event-validator.js
 node --check scripts/check-kiosk-recommendation-regressions.js
@@ -81,8 +70,6 @@ paths=[
   'src/character-runtime.html?health=1',
   'src/character-runtime.html?kiosk=1&orientation=landscape',
   'src/mascot-debug.html?health=1',
-  'src/mascot/hermes-puppet.svg',
-  'src/mascot/runtime.js',
   'src/mascot/states.js',
   'src/mascot/app.js',
 ]
@@ -102,7 +89,6 @@ opener = urllib.request.build_opener(NoRedirect)
 legacy_redirects = {
   'src/character-runtime-v2.html?kiosk=1&legacy-check=1': 'src/character-runtime.html?kiosk=1&legacy-check=1',
   'src/mascot-v2-debug.html?health=1': 'src/mascot-debug.html?health=1',
-  'src/mascot-v2/app.js?v=legacy-check': 'src/mascot/app.js?v=legacy-check',
 }
 for old_path, new_path in legacy_redirects.items():
     try:

@@ -10,23 +10,20 @@
   const urlParams = new URLSearchParams(window.location.search);
   const requestedMode = urlParams.get('mode');
   const kioskMode = ['1', 'true', 'yes'].includes((urlParams.get('kiosk') || '').toLowerCase());
-  const landscapeMode = ['landscape', 'right', 'cw'].includes((urlParams.get('orientation') || '').toLowerCase());
+  const orientation = (urlParams.get('orientation') || '').toLowerCase();
   const familyAudience = ['family', 'theater'].includes((urlParams.get('audience') || '').toLowerCase()) || (urlParams.get('view') || '').toLowerCase() === 'theater';
-  const conceptBVisibleDashboard = kioskMode && landscapeMode;
   const reducedMotionMedia = window.matchMedia?.('(prefers-reduced-motion: reduce)') || null;
   let prefersReducedMotion = reducedMotionMedia?.matches || false;
   const initialPacket = requestedMode && window.HermesDisplayState.opticPacketToPersonaPacket
     ? window.HermesDisplayState.opticPacketToPersonaPacket({ mode: requestedMode }, PRESETS.idle_watchful)
     : PRESETS.idle_watchful;
-  const renderer = conceptBVisibleDashboard
-    ? createConceptBVisibleRendererAdapter(initialPacket)
-    : new window.HermesDisplayRenderer('display-root', initialPacket);
+  const renderer = createConceptBVisibleRendererAdapter(initialPacket);
   let currentPacket = clone(initialPacket);
   const presetOrder = ['idle_watchful', 'thinking_focused', 'healthy_smug', 'blocked_annoyed', 'night_sleepy'];
   const skinOrder = ['retro-robot-core', 'retro-terminal-focus', 'retro-night-watch', 'retro-amber-watch', 'retro-hermes-accent'];
   const liveStatus = { lastGoodAt: null, failures: 0, lastError: '', staleSince: null };
   const avatarEventStatus = { connected: false, accepted: 0, dropped: 0, lastError: '', lastEventAt: null, recent: [] };
-  const DISPLAY_BUILD_ID = 'concept-b-legibility1';
+  const DISPLAY_BUILD_ID = 'concept-b-optic-cleanup1';
   const CONCEPT_B_BIO_MOTION = Object.freeze({
     // Quiet watch should not read as a metronomic eye twitch. Keep micro-saccades rare
     // and tiny in standby, while preserving more visible eye life for active/search modes.
@@ -217,8 +214,8 @@
     if (!kiosk || !qaProof) return null;
     const strip = document.createElement('div');
     strip.className = 'mode-proof qa-visible';
-    strip.setAttribute('aria-label', 'Hermes puppet mode proof');
-    strip.innerHTML = '<span class="mode-proof-label">PUPPET</span><strong>IDLE WATCH</strong><em>presence first</em>';
+    strip.setAttribute('aria-label', 'Hermes optic mode proof');
+    strip.innerHTML = '<span class="mode-proof-label">OPTIC</span><strong>IDLE WATCH</strong><em>presence first</em>';
     document.body.appendChild(strip);
     return strip;
   }
@@ -481,7 +478,6 @@
     avatarEvents: () => avatarEventDebug(),
     publishAvatarEvent: (event) => applyAvatarEvent(event),
     resolverDebug: () => displaySafeResolverDebug(currentPacket, liveStatus),
-    sampleBudgets: () => window.HermesDisplayDebug.sampleStateBudgets()
   };
 
   function updateMotionDebug(debug) {
@@ -1452,8 +1448,7 @@
   function installLandscapePanels() {
     const params = new URLSearchParams(window.location.search);
     const kiosk = ['1', 'true', 'yes'].includes((params.get('kiosk') || '').toLowerCase());
-    const landscape = ['landscape', 'right', 'cw'].includes((params.get('orientation') || '').toLowerCase());
-    if (!kiosk || !landscape) return;
+    if (!kiosk) return;
 
     document.body.dataset.dashboard = 'claude-concept-b';
     document.body.dataset.audience = familyAudience ? 'family' : 'operator';
@@ -1796,7 +1791,7 @@
       const mode = window.HermesBehaviorMachine?.modeFromPacket?.(currentPacket, 'idle_watch')
         || safeDisplayText(puppet?.mode || 'idle_watch', 32);
       const puppetForRender = puppet?.mode ? puppet : { ...puppet, mode };
-      const instrumentAccent = applyConceptBPuppet(hud, puppetForRender, accent);
+      const instrumentAccent = applyConceptBOptic(hud, puppetForRender, accent);
       // Drive the XState machine and consume its parallel overlay regions.
       if (behaviorService) {
         if (window.HermesBehaviorMachine?.MODES?.includes?.(mode)) behaviorService.setMode(mode);
@@ -2876,7 +2871,7 @@
     return Math.max(min, Math.min(max, n));
   }
 
-  function applyConceptBPuppet(hud, puppet, fallbackAccent) {
+  function applyConceptBOptic(hud, puppet, fallbackAccent) {
     // Per-mode halo color is a primary state indicator. Normal active work must not
     // read as warning/caution on the physical display, so amber active modes are
     // rendered as calm cyan/blue. Reserve ochre/rust for actual waiting/blocked states.
@@ -3505,9 +3500,9 @@
     const family = ['family', 'theater'].includes((params.get('audience') || '').toLowerCase()) || (params.get('view') || '').toLowerCase() === 'theater';
     const tastePrototype = ['1', 'true', 'yes'].includes((params.get('taste') || '').toLowerCase());
     document.body.classList.toggle('kiosk-mode', kiosk);
-    document.body.classList.toggle('kiosk-landscape', kiosk && landscape);
+    document.body.classList.toggle('kiosk-landscape', kiosk && (landscape || !(params.get('orientation') || '').trim()));
     document.body.classList.toggle('family-theater', kiosk && family);
-    document.body.classList.toggle('taste-prototype', kiosk && landscape && tastePrototype);
+    document.body.classList.toggle('taste-prototype', kiosk && (landscape || !(params.get('orientation') || '').trim()) && tastePrototype);
     document.body.dataset.audience = family ? 'family' : 'operator';
     if (kiosk) {
       document.body.setAttribute('data-display-mode', 'kiosk');
@@ -3515,5 +3510,5 @@
     }
   }
 
-  writePacket(currentPacket, 'Ready. Hermes custom SVG puppet loaded. Use buttons or keys 1-5; press space/n for random intent.');
+  writePacket(currentPacket, 'Ready. Hermes optic runtime loaded.');
 })();

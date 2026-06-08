@@ -1,11 +1,11 @@
-# Mascot source/license notes
+# Runtime source provenance
 
-The accepted runtime uses a project-authored SVG puppet:
+The accepted runtime uses project-authored source for the Concept B central eye/orb display:
 
-- Runtime SVG: `src/mascot/hermes-puppet.svg`
 - Runtime page: `src/character-runtime.html`
-- Debug page: `src/mascot-debug.html`
+- Main renderer/behavior: `src/mascot/app.js`
+- State/motion/touch/entertainment modules under `src/mascot/`
 
-The puppet is authored as repository source under the project license. It does not depend on the removed historical Foozle, Gum Bot, RGS, p5, or static concept-art prototype assets.
-
-Historical prototype assets and review screenshots were removed from the working tree during cleanup to keep the repository focused on the current display runtime. They remain recoverable from Git history if needed.
+Retired prototype asset packs are no longer part of the working tree.
+Current runtime source is authored for this repository under the project license unless a file
+contains its own narrower license note.

@@ -10,7 +10,6 @@ const projectRoot = path.resolve(__dirname, '..');
 const appSource = fs.readFileSync(path.join(projectRoot, 'src', 'mascot', 'app.js'), 'utf8');
 const cssSource = fs.readFileSync(path.join(projectRoot, 'src', 'styles.css'), 'utf8');
 const stateSource = fs.readFileSync(path.join(projectRoot, 'src', 'state.js'), 'utf8');
-const mascotRuntimeSource = fs.readFileSync(path.join(projectRoot, 'src', 'mascot', 'runtime.js'), 'utf8');
 const serverSource = fs.readFileSync(path.join(projectRoot, 'scripts', 'hermes_display_server.py'), 'utf8');
 const runtimeHtml = fs.readFileSync(path.join(projectRoot, 'src', 'character-runtime.html'), 'utf8');
 const xsessionSource = fs.readFileSync(path.join(projectRoot, 'scripts', 'xsession-minix-kiosk.sh'), 'utf8');
@@ -56,7 +55,7 @@ requireAll(appSource, [
   'cb-eye-lid-top',
   'cb-eye-grid',
   'cb-eye-scan',
-  'applyConceptBPuppet',
+  'applyConceptBOptic',
   'installConceptBGrid',
   '☤',
   'cb-bottom-rail',
@@ -245,7 +244,7 @@ if (!appSource.includes('<g class="cb-orbit-spin"><circle class="cb-orbit cb-orb
   fail('The outer animated ring must have a dedicated rotating wrapper so the ring remains visibly animated while the eye assembly moves.');
 }
 if (!appSource.includes("setConceptBTransform(parts.gazeGroup, `translate(${x.toFixed(2)} ${y.toFixed(2)})`)")) {
-  fail('Puppet gaze must translate cb-eye-gaze through the RAF eye-motion rig, not only the iris or pupil.');
+  fail('Optic gaze must translate cb-eye-gaze through the RAF eye-motion rig, not only the iris or pupil.');
 }
 if (!appSource.includes("setConceptBTransform(parts.iris, `translate(550 550) scale(${state.iris.toFixed(3)}) translate(-550 -550)`)") || !appSource.includes('eyeMotion.setTarget')) {
   fail('Iris transform should be smooth dilation only; gaze target belongs to cb-eye-gaze.');
@@ -314,7 +313,7 @@ if (!serverSource.includes('actionable_warn_lines')) {
 }
 requireAll(serverSource, ["MCP server 'context7'", 'Honcho dialectic query failed', 'Error in post_writer', 'httpx\\.ConnectTimeout'], 'Transient Context7/Honcho/MCP reconnects must not drive CRITICAL LOCAL ISSUE on the physical display.');
 requireAll(serverSource, ['Only show BLOCKED when the current', 'if blocked and work_blocked:', 'blocked card queued'], 'Queued blocked Kanban cards must stay secondary context and must not make the idle display red/yellow BLOCKED.');
-if (/standing by/i.test([appSource, stateSource, mascotRuntimeSource].join('\n'))) {
+if (/standing by/i.test([appSource, stateSource].join('\n'))) {
   fail('Idle copy must avoid STANDING BY; use QUIET WATCH / SYSTEMS STEADY style wording.');
 }
 requireAll(appSource, ['safeDisplayText(value, maxLength = 64)', 'CUI', 'base64'], 'Frontend display-safe text scrubber must cover CUI and long encoded blobs');
@@ -365,7 +364,7 @@ requireAll(appSource, [
   'handleGlance',
 ], 'Touch handling must match the five-zone Concept B map: top diagnostics, left/right glance, center acknowledge, bottom safe reset');
 requireAll(appSource, ["setTouchPosture('listening'", "setTouchPosture(muted ? 'quiet' : 'listening'"], 'Touch presence needs listening/quiet postures');
-requireAll(cssSource, ['body.kiosk-mode[data-touch-posture="listening"]', 'body.kiosk-mode[data-touch-posture="quiet"]', '.cb-touch-top', '.cb-touch-bottom', 'top: 48.2vh', 'left: 84.6vw', 'top: 92.2vh'], 'Touch posture CSS states or screenshot-aligned legacy developer rail flashes missing');
+requireAll(cssSource, ['body.kiosk-mode[data-touch-posture="listening"]', 'body.kiosk-mode[data-touch-posture="quiet"]', '.cb-touch-top', '.cb-touch-bottom', 'top: 48.2vh', 'left: 84.6vw', 'top: 92.2vh'], 'Touch posture CSS states or screenshot-aligned developer rail flashes missing');
 requireAll(audioSource, ['installTapClick()', "document.addEventListener('pointerdown'", 'playClick()', 'lastClickAt < 60', "(params.get('touch') || '').toLowerCase() === 'off'"], 'Touch pointerdown must produce a short muted-aware audible click unless touch=off explicitly disables touch');
 if (appSource.includes("showOverlayAfterReaction('work', 'Checking current work'")) {
   fail('Single avatar taps should enter listening/ready without immediately covering the character with a work overlay.');
@@ -387,13 +386,12 @@ requireAll(serverSource, [
   'puppet_state_packet',
   'tempfile.mkstemp',
 ], 'Server must implement the local display file bus, manual override, optic_state_packet contract, and backwards-compatible puppet_state_packet alias from the MINIX plan');
-requireAll(mascotRuntimeSource, [
-  'applyPuppetStatePacket',
-  'normalizePuppetGazeTarget',
-  'packet?.optic_state_packet || packet?.puppet_state_packet',
-  'behaviorMode',
-  'MOUTH_PATHS[puppet.mouth?.shape]',
-], 'Renderer must consume the renderer-ready optic_state_packet while preserving the puppet_state_packet alias during migration');
+requireAll(appSource, [
+  'currentPacket.optic_state_packet || currentPacket.puppet_state_packet',
+  'function applyConceptBOptic',
+  "setConceptBDataset(hud, 'opticMode'",
+  "setConceptBDataset(hud, 'opticSpecial'",
+], 'Concept B renderer must consume optic_state_packet while preserving the puppet_state_packet alias during migration');
 
 
 // Single-eye optic-core contract from ChatGPT recommendation pass.
@@ -416,17 +414,8 @@ requireAll(cssSource, [
 ], 'Optic core CSS must include aperture/winglet identity cues and clean clipped lens contents.');
 
 // FPS/motion policy: production dashboard must not silently cap FPS from URL, kiosk default, or thermal telemetry.
-if (/fps[=')\"]|FPS_LIMIT|applyExplicitFrameCap/.test(mascotRuntimeSource + '\n' + runtimeHtml + '\n' + xsessionSource)) {
+if (/fps[=')\"]|FPS_LIMIT|applyExplicitFrameCap/.test(runtimeHtml + '\n' + xsessionSource)) {
   fail('Production dashboard must not contain fps= URL caps, FPS_LIMIT parsing, or applyExplicitFrameCap.');
-}
-if (!mascotRuntimeSource.includes("const PERF_MODE = (URL_PARAMS.get('perf') || 'full').toLowerCase()")) {
-  fail('Kiosk runtime must default to full perf mode, not adaptive thermal throttling.');
-}
-if (mascotRuntimeSource.includes("return KIOSK_MODE ? 'warm' : 'full'") || mascotRuntimeSource.includes('temp >= 80') || mascotRuntimeSource.includes('temp >= 72')) {
-  fail('Thermal telemetry must not silently downgrade the dashboard perf tier.');
-}
-if (!mascotRuntimeSource.includes('frameIntervalMs: 0')) {
-  fail('Runtime perf profiles must render with uncapped requestAnimationFrame timing.');
 }
 
 // Cache bust coupling is mandatory for physical DP-2 refresh. The runtime owns the
@@ -441,7 +430,7 @@ if (!runtimeHtml.includes(`?v=${expectedAssetVersion}`) || !appSource.includes(`
 requireAll(xsessionSource, ['BUILD_ID="${PERSONAL_DISPLAY_BUILD_ID:-$($SCRIPT_DIR/hermes-display build-id)}"', 'query.append((\'v\', build))'], 'Physical xsession launcher must derive the kiosk URL build id from the runtime');
 requireAll(displayCliSource, ['verify)', 'fix)', 'systemctl is-active --quiet "$SYSTEM_SERVICE"', 'sudo -n systemctl restart "$SYSTEM_SERVICE"', 'DISPLAY_BUILD_ID'], 'hermes-display CLI must verify/fix the real service-owned physical kiosk');
 if (!appSource.includes('createConceptBVisibleRendererAdapter') || !appSource.includes('hiddenRendererSkipped: true') || !appSource.includes("document.querySelector('.shell')?.remove()")) {
-  fail('Landscape Concept B kiosk must skip the hidden legacy mascot renderer and remove the hidden shell DOM.');
+  fail('Concept B kiosk must skip the retired SVG renderer and remove the fallback shell DOM.');
 }
 // The vendored Zod global must load before state.js so optic-packet validation uses real Zod.
 if (!runtimeHtml.includes('vendor/zod.global.js')) {

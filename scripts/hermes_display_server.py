@@ -2171,16 +2171,16 @@ class Handler(SimpleHTTPRequestHandler):
     directory = str(ROOT)
 
     # Temporary compatibility shim. Pre-rename kiosks still request the historical
-    # "v2" runtime URLs from a stale PERSONAL_DISPLAY_URL / systemd env override, so
-    # redirect them to the canonical paths (query string preserved) instead of 404ing.
+    # "v2" runtime pages from a stale PERSONAL_DISPLAY_URL / systemd env override, so
+    # redirect those entry points to canonical pages (query string preserved) instead of
+    # 404ing. Do not alias the retired mascot-v2 asset directory: those old prototype
+    # assets were removed and should not be redirected to unrelated current modules.
     # Remove once every deployed device is reconfigured to the canonical URLs.
     # See docs/project-manifest.md (display URL rename).
     LEGACY_PATH_REDIRECTS = {
         "/src/character-runtime-v2.html": "/src/character-runtime.html",
         "/src/mascot-v2-debug.html": "/src/mascot-debug.html",
     }
-    LEGACY_DIR_PREFIX = "/src/mascot-v2/"
-    CANONICAL_DIR_PREFIX = "/src/mascot/"
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, directory=str(ROOT), **kwargs)
@@ -2195,8 +2195,6 @@ class Handler(SimpleHTTPRequestHandler):
         """Map a pre-rename v2 runtime path to its canonical path, preserving the
         query string. Returns None when the request path is already canonical."""
         target = self.LEGACY_PATH_REDIRECTS.get(parsed.path)
-        if target is None and parsed.path.startswith(self.LEGACY_DIR_PREFIX):
-            target = self.CANONICAL_DIR_PREFIX + parsed.path[len(self.LEGACY_DIR_PREFIX):]
         if target is None:
             return None
         return f"{target}?{parsed.query}" if parsed.query else target

@@ -44,6 +44,7 @@ class FakeElement {
   constructor(selector = 'div') {
     this.selector = selector;
     this.children = [];
+    this.childNodes = this.children;
     this.dataset = {};
     this.style = { setProperty: (name, value) => { this.style[name] = value; } };
     this.classList = new FakeClassList();
@@ -89,6 +90,7 @@ function createDocument() {
     body,
     documentElement,
     createElement: (tag) => new FakeElement(tag),
+    createElementNS: (_ns, tag) => new FakeElement(tag),
     querySelector: (selector) => get(selector),
     querySelectorAll: () => [],
   };
@@ -138,8 +140,25 @@ class FakeRenderer {
   }
 }
 
+class FakeEventTarget {
+  constructor() { this.listeners = new Map(); }
+  addEventListener(type, handler) {
+    if (!this.listeners.has(type)) this.listeners.set(type, []);
+    this.listeners.get(type).push(handler);
+  }
+  removeEventListener(type, handler) {
+    const listeners = this.listeners.get(type) || [];
+    this.listeners.set(type, listeners.filter((item) => item !== handler));
+  }
+  dispatchEvent(event) {
+    for (const handler of this.listeners.get(event.type) || []) handler(event);
+    return true;
+  }
+}
+
 function makeContext() {
   const document = createDocument();
+  const performance = { now: () => Date.now() };
   const eventListeners = new Map();
   const window = {
     document,
@@ -147,9 +166,7 @@ function makeContext() {
     innerWidth: 320,
     innerHeight: 480,
     EventSource: FakeEventSource,
-    HermesDisplayRenderer: FakeRenderer,
     HermesDisplayStates: { NUDGES: {} },
-    HermesDisplayDebug: { sampleStateBudgets: () => ({}) },
     HermesAudio: { isMuted: () => false },
     HermesDisplayState: {
       PRESETS: {
@@ -180,6 +197,8 @@ function makeContext() {
     clearTimeout: () => {},
     setInterval: () => 1,
     clearInterval: () => {},
+    requestAnimationFrame: () => 1,
+    cancelAnimationFrame: () => {},
     addEventListener: (type, handler) => {
       if (!eventListeners.has(type)) eventListeners.set(type, []);
       eventListeners.get(type).push(handler);
@@ -208,11 +227,15 @@ function makeContext() {
     Array,
     Object,
     JSON,
+    performance,
+    requestAnimationFrame: () => 1,
+    cancelAnimationFrame: () => {},
     Set,
     Map,
     RegExp,
     Error,
     CustomEvent,
+    EventTarget: FakeEventTarget,
     EventSource: FakeEventSource,
     fetch: () => Promise.reject(new Error('fetch disabled in validator harness')),
     AbortController: class { constructor() { this.signal = {}; } abort() {} },

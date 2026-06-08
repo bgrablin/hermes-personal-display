@@ -5,8 +5,8 @@ This repository is intentionally trimmed to the files needed to run, test, and o
 ## Current runtime
 
 - `src/character-runtime.html` — canonical browser/kiosk entrypoint.
-- `src/mascot/` — current SVG puppet runtime, behavior machine, touch effects, audio hooks, and entertainment/watch logic.
-- `src/styles.css` and `src/mascot/styles.css` — current runtime styling.
+- `src/mascot/` — current optic/orb runtime, behavior machine, touch effects, audio hooks, and entertainment/watch logic.
+- `src/styles.css` — current runtime styling.
 - `src/state.js` — display-state normalization and contract consumption.
 - `src/vendor/` — vendored browser libraries used directly by the runtime.
 - `src/generated/display-contract.js` — generated browser contract constants.
@@ -37,7 +37,7 @@ This repository is intentionally trimmed to the files needed to run, test, and o
 
 ## Removed from the source tree
 
-Historical Foozle, Gum Bot, RGS, p5, static concept-art, old design-review, raw screenshot, USB-panel, and one-off thermal/prototype artifacts were removed from the working tree. Deleted `docs/` content was archived in Obsidian at:
+Historical design-review, raw screenshot, USB-panel, and one-off thermal/prototype artifacts were removed from the working tree. Deleted `docs/` content was archived in Obsidian at:
 
 - `Personal/AI/Hermes/Personal Display/Archive/repo-docs-archived-2026-06-08/Personal Display Repo Docs Archive - 2026-06-08.md`
 
@@ -51,13 +51,10 @@ version suffix:
 - Page: `src/character-runtime.html` (was `src/character-runtime-v2.html`).
 - Debug page: `src/mascot-debug.html` (was `src/mascot-v2-debug.html`).
 - Runtime assets: `src/mascot/` (was `src/mascot-v2/`).
-- Globals: `window.HermesDisplayRuntime`, `window.HermesDisplayRenderer`,
-  `window.HermesDisplayStates`, `window.HermesDisplayDebug`, `window.HermesTouch`,
-  and `window.HermesTouchFxController` (the installed instance of the existing
-  `window.HermesTouchFx` factory). These replace the former `hermesMascotV2*` /
-  `HermesMascotV2*` names.
-- CSS classes: `.mascot-stage` / `.mascot-puppet` (were `.mascot-v2-stage` /
-  `.mascot-v2-puppet`).
+- Globals: `window.HermesDisplayRuntime`, `window.HermesDisplayStates`,
+  `window.HermesTouch`, and `window.HermesTouchFxController` (the installed instance
+  of the existing `window.HermesTouchFx` factory). These replace the former
+  `hermesMascotV2*` / `HermesMascotV2*` names.
 
 ### Temporary v2 compatibility shim
 
@@ -66,8 +63,10 @@ stale `PERSONAL_DISPLAY_URL` / systemd env override. Until every device is recon
 compatibility is preserved by:
 
 - `scripts/hermes_display_server.py` issuing a `302` redirect from the legacy
-  `/src/character-runtime-v2.html`, `/src/mascot-v2-debug.html`, and `/src/mascot-v2/*`
-  paths to their canonical equivalents (query string preserved).
+  `/src/character-runtime-v2.html` and `/src/mascot-v2-debug.html` entrypoint pages
+  to their canonical equivalents (query string preserved). The retired
+  `/src/mascot-v2/*` asset directory is not aliased; old direct asset URLs should fail
+  rather than silently loading unrelated current modules.
 - `scripts/hermes-display` and `scripts/xsession-minix-kiosk.sh` matching the bare
   `character-runtime` substring so live-process detection and cache-busting work for both
   the old and new URLs.

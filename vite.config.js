@@ -11,15 +11,12 @@ function copyClassicRuntimeAssets() {
     ['src/mascot/behavior-machine.js', 'dist/src/mascot/behavior-machine.js'],
     ['src/mascot/states.js', 'dist/src/mascot/states.js'],
     ['src/mascot/motion-adapter.js', 'dist/src/mascot/motion-adapter.js'],
-    ['src/mascot/runtime.js', 'dist/src/mascot/runtime.js'],
     ['src/mascot/audio.js', 'dist/src/mascot/audio.js'],
     ['src/mascot/touch-fx.js', 'dist/src/mascot/touch-fx.js'],
     ['src/mascot/entertainment.js', 'dist/src/mascot/entertainment.js'],
     ['src/mascot/watch-sequences.js', 'dist/src/mascot/watch-sequences.js'],
     ['src/mascot/sequences.json', 'dist/src/mascot/sequences.json'],
     ['src/mascot/app.js', 'dist/src/mascot/app.js'],
-    ['src/mascot/approval.js', 'dist/src/mascot/approval.js'],
-    ['src/mascot/hermes-puppet.svg', 'dist/src/mascot/hermes-puppet.svg'],
     ['src/state.js', 'dist/src/state.js'],
   ];
   for (const [from, to] of copies) {

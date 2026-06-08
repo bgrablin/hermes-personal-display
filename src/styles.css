@@ -643,34 +643,18 @@ body.kiosk-mode .touch-fx-layer[data-fx-theme="celebrate"] { --touch-fx-hue: 138
 body.kiosk-mode .touch-fx-layer[data-fx-theme="shield"] { --touch-fx-hue: 45deg; }
 body.kiosk-mode .touch-fx-layer[data-fx-theme="dim"] { filter: saturate(0.55) brightness(0.72); }
 
-body.kiosk-mode[data-touch-posture="listening"] .mascot-stage {
-  --hermes-eye-glow: 0.86;
-  --hermes-accent-intensity: 0.82;
-  --hermes-blink-interval: 2600ms;
+body.kiosk-mode[data-touch-posture="listening"] .cb-radial-stage {
+  --cb-ring-opacity: 0.58;
+  --cb-halo-opacity: 0.52;
 }
 
-body.kiosk-mode[data-touch-posture="listening"] .mascot-puppet .eye-glow,
-body.kiosk-mode[data-touch-posture="listening"] .mascot-puppet #scan-beam {
-  filter: drop-shadow(0 0 9px rgba(101, 243, 255, 0.62));
+body.kiosk-mode[data-touch-posture="quiet"] .cb-radial-stage {
+  --cb-ring-opacity: 0.22;
+  --cb-halo-opacity: 0.18;
 }
 
-body.kiosk-mode[data-touch-posture="quiet"] .mascot-stage {
-  --hermes-eye-glow: 0.14;
-  --hermes-accent-intensity: 0.18;
-  --hermes-alert-pulse: 0;
-  --hermes-blink-interval: 8200ms;
-  --hermes-motion-scale: 0.45;
-}
 
-body.kiosk-mode[data-touch-posture="quiet"] .mascot-puppet .eye-glow,
-body.kiosk-mode[data-touch-posture="quiet"] .mascot-puppet #scan-beam,
-body.kiosk-mode[data-touch-posture="quiet"] .mascot-puppet #helmet-band,
-body.kiosk-mode[data-touch-posture="quiet"] .mascot-puppet #helmet-ridge,
-body.kiosk-mode[data-touch-posture="quiet"] .mascot-puppet #rune-a,
-body.kiosk-mode[data-touch-posture="quiet"] .mascot-puppet #rune-b {
-  opacity: 0.22;
-  filter: none;
-}
+
 
 @keyframes hermes-ripple-pop {
   0% { opacity: 0.9; transform: translate(-50%, -50%) scale(0.35); }
@@ -1278,14 +1262,6 @@ body.kiosk-mode.kiosk-landscape .touch-help {
   display: none;
 }
 
-body.kiosk-mode .perf-lite-puppet .eye-glow,
-body.kiosk-mode .perf-lite-puppet #mouth-glow {
-  opacity: 0.16;
-}
-
-body.kiosk-mode .perf-lite-puppet #aura {
-  opacity: 0.08;
-}
 
 @media (prefers-reduced-motion: reduce) {
   :root {
@@ -1311,16 +1287,10 @@ html[data-hermes-user-reduced-motion="true"] *::after {
   transition-duration: 0.001ms !important;
 }
 
-body[data-display-thermal="warm"] .mascot-stage,
-body[data-display-thermal="hot"] .mascot-stage,
-body[data-display-thermal="critical"] .mascot-stage {
-  filter: saturate(0.92);
-}
-
 
 /* ChatGPT Pro execution: visible, character-first mode proof.  This is intentionally
    small enough not to become a dashboard, but obvious enough that physical QA can
-   tell whether the current runtime and puppet behavior mode actually changed. */
+   tell whether the current runtime and optic behavior mode actually changed. */
 body.kiosk-mode.kiosk-landscape .mode-proof {
   position: fixed;
   left: 50%;

@@ -3,70 +3,31 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Hermes Mascot — Debug Contact Sheet</title>
+  <title>Hermes Personal Display — Optic Debug Notes</title>
   <link rel="stylesheet" href="./styles.css">
-  <link rel="stylesheet" href="./mascot/styles.css">
 </head>
-<body style="background-color:#05070d;color:#e8f7ff;">
+<body style="background-color:#05070d;color:#e8f7ff;font-family:Inter,system-ui,sans-serif;">
   <main class="debug-shell">
     <header>
-      <h1>Hermes mascot debug contact sheet</h1>
+      <h1>Hermes optic debug notes</h1>
       <p class="note">
-        Static stills of every required pose. Each card freezes its renderer around 700ms after
-        load so the result reads as a printed contact sheet. Use this page to compare gaze,
-        intent, and expression states before checking the landscape kiosk.
+        The retired contact-sheet path has been removed. The current character is the
+        central eye/orb dashboard rendered by <code>src/mascot/app.js</code>.
       </p>
       <p class="note">
-        <a href="./character-runtime.html?kiosk=1&amp;orientation=landscape">Landscape kiosk</a> ·
-        <a href="./character-runtime.html">Animated runtime</a>
+        <a href="./character-runtime.html?kiosk=1&amp;orientation=landscape">Open landscape kiosk runtime</a>
       </p>
     </header>
 
-    <div class="toolbar" role="group" aria-label="Debug toolbar">
-      <button id="sample-all">Sample intent on every card</button>
-      <button id="refreeze-all">Re-freeze all to baseline</button>
-      <button id="play-all">Play all (unfreeze)</button>
-      <button id="freeze-all">Freeze all immediately</button>
-      <button id="budget-check">Log motion/gaze budgets</button>
-      <button id="resolver-check">Log resolver diagnostics</button>
-    </div>
-
-    <output id="debug-status" role="status">Booting…</output>
-
-    <details class="qa-panel" open>
-      <summary>Kiosk QA checks for this pass</summary>
+    <section class="qa-panel" aria-label="Current optic QA checks">
+      <h2>Current QA focus</h2>
       <ul>
-        <li>Verify the landscape kiosk status text is readable from the 10.5 inch display distance.</li>
-        <li>Verify route rail provider names, headroom values, and secondary labels are legible.</li>
-        <li>Verify bottom rail secondary values are readable and not crowded by the bezel safe area.</li>
-        <li>Verify the central orb/eye graphics remain visually unchanged.</li>
+        <li>Central orb/eye remains the primary character.</li>
+        <li>Status rings, route rail, and bottom rail stay readable at the physical display distance.</li>
+        <li>Touch effects steer the optic without revealing legacy operational overlays.</li>
+        <li>No retired prototype asset packs are part of the active runtime.</li>
       </ul>
-    </details>
-
-    <section id="contact-sheet" class="contact-sheet" aria-label="Hermes mascot still sheet"></section>
-
-    <details open style="margin-top:20px">
-      <summary>What each card is verifying</summary>
-      <ul>
-        <li><strong>quiet watch</strong>: gaze centered, brows skeptical-neutral. Verifies the puppet does <em>not</em> always look right.</li>
-        <li><strong>look left</strong> and <strong>look right</strong>: plain non-side-eye gaze cards, so reviewer can compare center vs left vs right directly.</li>
-        <li><strong>side-eye left</strong> and <strong>side-eye right</strong>: must read as distinctly different stills, not just label changes.</li>
-        <li><strong>reasoning</strong>: focused calm squint, neutral mouth, scan beam visible, not sad/distressed.</li>
-        <li><strong>planning</strong> and <strong>working</strong>: bounded active states with restrained float/wing knobs and gold active accent.</li>
-        <li><strong>warm load</strong>: adaptive CPU/load throttling slows blink, float, wing and frame budgets without making the character look broken.</li>
-        <li><strong>completed</strong>: smug arch brow, asymmetric smirk, gaze centered/forward rather than off-right.</li>
-        <li><strong>blocked</strong>: patient serious side-eye, not panic.</li>
-        <li><strong>feed stale</strong>: calm diagnostic look toward telemetry without incident drama.</li>
-        <li><strong>night watch</strong>: heavy lids, sleepy mouth, dim aura, gaze down.</li>
-        <li><strong>critical</strong>: red/serious preset reserved for true local issues.</li>
-      </ul>
-    </details>
+    </section>
   </main>
-
-  <script src="./generated/display-contract.js"></script>
-  <script src="./state.js"></script>
-  <script src="./mascot/states.js"></script>
-  <script src="./mascot/runtime.js"></script>
-  <script src="./mascot/approval.js"></script>
 </body>
 </html>

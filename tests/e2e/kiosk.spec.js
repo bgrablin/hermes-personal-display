@@ -36,16 +36,11 @@ test.describe('Hermes kiosk smoke and visual regression anchors', () => {
     test(`${mode} renders without console errors`, async ({ page }, testInfo) => {
       await expectNoPageErrors(page, async () => {
         await page.goto(runtimeUrl(mode, testInfo));
-        if (testInfo.project.name === 'minix-sf10t-landscape') {
-          await expect(page.locator('body.kiosk-mode.kiosk-landscape.claude-concept-b')).toBeVisible();
-          await expect(page.locator('.cb-radial-stage')).toBeVisible();
-          await expect(page.locator('.cb-state')).toBeVisible();
-          await expect(page.locator('.shell')).toHaveCount(0);
-          await expect(page.locator('#display-root > svg.mascot-stage')).toHaveCount(0);
-        } else {
-          await expect(page.locator('#display-root > svg.mascot-stage')).toBeVisible();
-          await expect(page.locator('.state-label')).toBeVisible();
-        }
+        await expect(page.locator('body.kiosk-mode.kiosk-landscape.claude-concept-b')).toBeVisible();
+        await expect(page.locator('.cb-radial-stage')).toBeVisible();
+        await expect(page.locator('.cb-state')).toBeVisible();
+        await expect(page.locator('.shell')).toHaveCount(0);
+        await expect(page.locator('#display-root > svg.mascot-stage')).toHaveCount(0);
       });
     });
   }
@@ -299,7 +294,6 @@ test.describe('Hermes kiosk smoke and visual regression anchors', () => {
   });
 
   test('legacy mood-only preset JSON normalizes before rich behavior enrichment', async ({ page }, testInfo) => {
-    test.skip(testInfo.project.name === 'minix-sf10t-landscape', 'Classic controls are hidden in MINIX Concept B');
     await page.goto(runtimeUrl('idle_watch', testInfo));
     const packet = await page.evaluate(() => {
       const preset = { ...window.HermesDisplayState.PRESETS.thinking_focused };
@@ -307,9 +301,8 @@ test.describe('Hermes kiosk smoke and visual regression anchors', () => {
       delete preset.state_preset;
       delete preset.optic_state_packet;
       delete preset.puppet_state_packet;
-      document.querySelector('#state-json').value = JSON.stringify(preset);
-      document.querySelector('#apply-json').click();
-      return JSON.parse(document.querySelector('#state-json').value);
+      const normalized = window.HermesDisplayState.normalizePersonaPacket(preset);
+      return window.HermesDisplayState.opticPacketToPersonaPacket({ mode: normalized.state_preset }, normalized);
     });
     expect(packet.mood).toBe('thinking_focused');
     expect(packet.state_preset).toBe('reasoning');
