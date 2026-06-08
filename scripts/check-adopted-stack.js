@@ -16,13 +16,13 @@ import * as Zod from 'zod';
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const ROOT = path.resolve(__dirname, '..');
 const PACKAGE_JSON = path.join(ROOT, 'package.json');
-const RUNTIME_HTML = path.join(ROOT, 'src', 'character-runtime-v2.html');
+const RUNTIME_HTML = path.join(ROOT, 'src', 'character-runtime.html');
 const STATE_JS = path.join(ROOT, 'src', 'state.js');
 const DISPLAY_CONTRACT_JS = path.join(ROOT, 'src', 'generated', 'display-contract.js');
-const BEHAVIOR_JS = path.join(ROOT, 'src', 'mascot-v2', 'behavior-machine.js');
-const MOTION_JS = path.join(ROOT, 'src', 'mascot-v2', 'motion-adapter.js');
-const SANITIZER_JS = path.join(ROOT, 'src', 'mascot-v2', 'sanitize.js');
-const APP_JS = path.join(ROOT, 'src', 'mascot-v2', 'app.js');
+const BEHAVIOR_JS = path.join(ROOT, 'src', 'mascot', 'behavior-machine.js');
+const MOTION_JS = path.join(ROOT, 'src', 'mascot', 'motion-adapter.js');
+const SANITIZER_JS = path.join(ROOT, 'src', 'mascot', 'sanitize.js');
+const APP_JS = path.join(ROOT, 'src', 'mascot', 'app.js');
 
 function assert(condition, message) {
   if (!condition) throw new Error(message);
@@ -77,7 +77,7 @@ function checkPackagePosture() {
 
 function checkRuntimeLoadsAdapters() {
   const html = read(RUNTIME_HTML);
-  for (const script of ['vendor/anime.iife.min.js', 'vendor/xstate.iife.min.js', 'vendor/purify.min.js', 'vendor/zod.global.js', 'mascot-v2/sanitize.js', 'mascot-v2/behavior-machine.js', 'generated/display-contract.js', 'mascot-v2/motion-adapter.js']) {
+  for (const script of ['vendor/anime.iife.min.js', 'vendor/xstate.iife.min.js', 'vendor/purify.min.js', 'vendor/zod.global.js', 'mascot/sanitize.js', 'mascot/behavior-machine.js', 'generated/display-contract.js', 'mascot/motion-adapter.js']) {
     assert(html.includes(script), `character runtime does not load ${script}`);
   }
 }

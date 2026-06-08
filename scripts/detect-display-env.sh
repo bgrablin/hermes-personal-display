@@ -73,7 +73,7 @@ else
 fi
 
 section "preview + kiosk prerequisites"
-say "preview_url=${PERSONAL_DISPLAY_URL:-http://127.0.0.1:8770/src/character-runtime-v2.html?kiosk=1}"
+say "preview_url=${PERSONAL_DISPLAY_URL:-http://127.0.0.1:8770/src/character-runtime.html?kiosk=1}"
 say "has_display_env=$([[ -n "${DISPLAY:-}" || -n "${WAYLAND_DISPLAY:-}" ]] && echo yes || echo no)"
 say "has_browser=$([[ "$(cmd_or_missing chromium-browser)" != missing || "$(cmd_or_missing chromium)" != missing || "$(cmd_or_missing google-chrome)" != missing || "$(cmd_or_missing google-chrome-stable)" != missing ]] && echo yes || echo no)"
 

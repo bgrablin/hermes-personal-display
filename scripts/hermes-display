@@ -6,7 +6,7 @@ DISPLAY_NUM="${HERMES_DISPLAY_NUM:-:0}"
 SYSTEM_SERVICE="${HERMES_DISPLAY_SYSTEM_SERVICE:-hermes-personal-display-minix.service}"
 PREVIEW_SERVICE="${HERMES_DISPLAY_PREVIEW_SERVICE:-hermes-personal-display-preview.service}"
 STATE_URL="${HERMES_DISPLAY_STATE_URL:-http://127.0.0.1:8770/api/hermes-state}"
-RUNTIME_PATH="/src/character-runtime-v2.html"
+RUNTIME_PATH="/src/character-runtime.html"
 LOG_DIR="${HERMES_DISPLAY_LOG_DIR:-$HOME/.hermes/logs}"
 LOG_FILE="$LOG_DIR/hermes-display.log"
 AUDIO_SINK="${HERMES_DISPLAY_AUDIO_SINK:-alsa_output.pci-0000_00_1f.3.hdmi-stereo}"
@@ -28,7 +28,7 @@ Commands:
   restart     Force a full preview + system kiosk restart, then verify.
   status      Show service, process, URL, and DP-2 status.
   screenshot  Capture a DP-2 screenshot under docs/review-artifacts/.
-  build-id    Print the expected display build id from src/mascot-v2/app.js.
+  build-id    Print the expected display build id from src/mascot/app.js.
   url         Print the canonical kiosk URL using the current build id.
 
 This command is intentionally service-aware. It uses hermes-personal-display-minix.service
@@ -37,7 +37,7 @@ EOF
 }
 
 build_id() {
-  python3 - "$PROJECT/src/mascot-v2/app.js" <<'PY'
+  python3 - "$PROJECT/src/mascot/app.js" <<'PY'
 import re, sys
 path = sys.argv[1]
 text = open(path, encoding='utf-8').read()
@@ -69,7 +69,11 @@ xrun() {
 }
 
 live_chromium_line() {
-  pgrep -af '[c]hromium.*character-runtime-v2.html.*kiosk=1' || true
+  # Match the canonical character-runtime.html as well as the legacy
+  # character-runtime-v2.html that installed kiosks may still launch from a
+  # stale PERSONAL_DISPLAY_URL override. The bare "character-runtime" substring
+  # covers both until the live env is reconfigured.
+  pgrep -af '[c]hromium.*character-runtime.*kiosk=1' || true
 }
 
 state_api_ok() {

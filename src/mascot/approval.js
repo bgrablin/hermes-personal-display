@@ -172,7 +172,7 @@
     setStatus('All cards frozen at current frame.');
   });
   document.querySelector('#budget-check')?.addEventListener('click', () => {
-    const budgets = window.HermesMascotV2Debug.sampleStateBudgets();
+    const budgets = window.HermesDisplayDebug.sampleStateBudgets();
     console.table(Object.entries(budgets).map(([state, data]) => ({
       state,
       rootY: data.rootYEstimatedPeak,
@@ -274,7 +274,7 @@
 
     sheet.appendChild(article);
 
-    const renderer = new window.HermesMascotV2Renderer(mountId, normalizePersonaPacket(still.packet));
+    const renderer = new window.HermesDisplayRenderer(mountId, normalizePersonaPacket(still.packet));
     renderer.on('debug', (event) => {
       const debug = event.detail;
       if (!debug) return;
@@ -300,12 +300,12 @@
     });
 
     function sampleIntent() {
-      const state = window.HermesMascotV2States.STATES[still.packet.mood]
-        || window.HermesMascotV2States.STATES.idle_watchful;
+      const state = window.HermesDisplayStates.STATES[still.packet.mood]
+        || window.HermesDisplayStates.STATES.idle_watchful;
       const pool = state.intentPool;
       const weights = state.intentWeights;
-      const name = window.HermesMascotV2States.pickWeighted(pool, weights, Math.random);
-      const def = window.HermesMascotV2States.NUDGES[name];
+      const name = window.HermesDisplayStates.pickWeighted(pool, weights, Math.random);
+      const def = window.HermesDisplayStates.NUDGES[name];
       if (!def) return;
       article.classList.remove('frozen');
       renderer.clearStillOverride();

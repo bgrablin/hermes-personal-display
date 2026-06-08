@@ -55,7 +55,7 @@ describe('adopted stack contracts', () => {
   });
 
   it('uses Zod-backed optic packet validation when available', () => {
-    const window = runScripts(['src/mascot-v2/sanitize.js', 'src/state.js'], { Zod });
+    const window = runScripts(['src/mascot/sanitize.js', 'src/state.js'], { Zod });
     const result = window.HermesDisplayState.validateOpticStatePacket({
       mode: 'searching',
       attention: { target: 'activity' },
@@ -77,7 +77,7 @@ describe('adopted stack contracts', () => {
   });
 
   it('maps optic behavior modes to display presets before rendering', () => {
-    const window = runScripts(['src/mascot-v2/behavior-machine.js', 'src/state.js']);
+    const window = runScripts(['src/mascot/behavior-machine.js', 'src/state.js']);
 
     expect(window.HermesDisplayState.opticPacketToPersonaPacket({ mode: 'tool_shell' })).toMatchObject({
       behavior_mode: 'tool_shell',
@@ -97,7 +97,7 @@ describe('adopted stack contracts', () => {
   });
 
   it('runs deterministic behavior transitions', () => {
-    const window = runScripts(['src/mascot-v2/behavior-machine.js']);
+    const window = runScripts(['src/mascot/behavior-machine.js']);
     let service = window.HermesBehaviorMachine.createBehaviorService('idle_watch');
     service = service.send({ type: 'ASSISTANT_NOTICE' });
     service = service.send({ type: 'TOOL_STARTED' });
@@ -107,7 +107,7 @@ describe('adopted stack contracts', () => {
   });
 
   it('backs behavior service with an XState actor when available', () => {
-    const window = runScripts(['src/mascot-v2/behavior-machine.js'], { XState });
+    const window = runScripts(['src/mascot/behavior-machine.js'], { XState });
     const service = window.HermesBehaviorMachine.createBehaviorService('idle_watch');
 
     expect(service.actor).toBeTruthy();
@@ -119,7 +119,7 @@ describe('adopted stack contracts', () => {
   });
 
   it('models display state as parallel regions (behavior + health + quiet + privacy) via XState', () => {
-    const window = runScripts(['src/mascot-v2/behavior-machine.js'], { XState });
+    const window = runScripts(['src/mascot/behavior-machine.js'], { XState });
     const machine = window.HermesBehaviorMachine.createXStateMachine('idle_watch');
     expect(machine.config.type).toBe('parallel');
     expect(Object.keys(machine.config.states).sort()).toEqual(['behavior', 'health', 'privacy_display', 'quiet']);
@@ -139,7 +139,7 @@ describe('adopted stack contracts', () => {
   });
 
   it('keeps XState and fallback behavior services in parity across behavior and overlay events', () => {
-    const window = runScripts(['src/mascot-v2/behavior-machine.js'], { XState });
+    const window = runScripts(['src/mascot/behavior-machine.js'], { XState });
     const fallback = window.HermesBehaviorMachine.createFallbackBehaviorService('idle_watch');
     const actor = window.HermesBehaviorMachine.createBehaviorService('idle_watch');
     const sequence = [
@@ -167,7 +167,7 @@ describe('adopted stack contracts', () => {
   });
 
   it('resolves behavior modes from explicit packet modes and display presets', () => {
-    const window = runScripts(['src/mascot-v2/behavior-machine.js']);
+    const window = runScripts(['src/mascot/behavior-machine.js']);
     const behavior = window.HermesBehaviorMachine;
 
     expect(behavior.modeFromPacket({ behavior_mode: 'blocked', optic_state_packet: { mode: 'tool_shell' } })).toBe('blocked');
@@ -179,7 +179,7 @@ describe('adopted stack contracts', () => {
   });
 
   it('routes high-level avatar events through behavior-machine events', () => {
-    const window = runScripts(['src/mascot-v2/behavior-machine.js']);
+    const window = runScripts(['src/mascot/behavior-machine.js']);
     const behavior = window.HermesBehaviorMachine;
 
     expect(behavior.behaviorEventsForAvatarEvent({ event: 'assistant.started' })).toEqual(['ASSISTANT_NOTICE']);
@@ -194,7 +194,7 @@ describe('adopted stack contracts', () => {
   });
 
   it('applies feed avatar events to behavior and overlay regions together', () => {
-    const window = runScripts(['src/mascot-v2/behavior-machine.js'], { XState });
+    const window = runScripts(['src/mascot/behavior-machine.js'], { XState });
     const service = window.HermesBehaviorMachine.createBehaviorService('idle_watch');
 
     service.sendAll(window.HermesBehaviorMachine.behaviorEventsForAvatarEvent({ event: 'feed.lost' }));
@@ -208,7 +208,7 @@ describe('adopted stack contracts', () => {
   });
 
   it('derives rich render packets from behavior state without stale mood or optic posture', () => {
-    const window = runScripts(['src/mascot-v2/behavior-machine.js', 'src/state.js']);
+    const window = runScripts(['src/mascot/behavior-machine.js', 'src/state.js']);
     const packet = window.HermesBehaviorMachine.renderPacketForBehaviorMode('tool_shell', {
       mood: 'idle_watchful',
       state_preset: 'quiet_watch',
@@ -225,7 +225,7 @@ describe('adopted stack contracts', () => {
   });
 
   it('derives render packets from avatar-event machine state without losing overlay truth', () => {
-    const window = runScripts(['src/mascot-v2/behavior-machine.js', 'src/state.js']);
+    const window = runScripts(['src/mascot/behavior-machine.js', 'src/state.js']);
     const behavior = window.HermesBehaviorMachine;
     const service = behavior.createFallbackBehaviorService('idle_watch');
     const event = { event: 'feed.lost' };
@@ -243,7 +243,7 @@ describe('adopted stack contracts', () => {
   });
 
   it('applies packet-derived overlays independently from behavior-mode resolution', () => {
-    const window = runScripts(['src/mascot-v2/behavior-machine.js'], { XState });
+    const window = runScripts(['src/mascot/behavior-machine.js'], { XState });
     const service = window.HermesBehaviorMachine.createBehaviorService('tool_shell');
     const events = window.HermesBehaviorMachine.regionEventsForPacket({
       motion: { severity: 'critical' },
@@ -259,7 +259,7 @@ describe('adopted stack contracts', () => {
   });
 
   it('derives overlay-region events from a packet (health/quiet/privacy)', () => {
-    const window = runScripts(['src/mascot-v2/behavior-machine.js']);
+    const window = runScripts(['src/mascot/behavior-machine.js']);
     const events = window.HermesBehaviorMachine.regionEventsForPacket({
       motion: { severity: 'critical' },
       state_preset: 'night_watch',
@@ -276,7 +276,7 @@ describe('adopted stack contracts', () => {
 
   it('supports Anime.js v4 animate(targets, params) and older function-style anime', () => {
     const v4Calls = [];
-    let window = runScripts(['src/mascot-v2/motion-adapter.js'], {
+    let window = runScripts(['src/mascot/motion-adapter.js'], {
       anime: {
         animate: (targets, params) => {
           v4Calls.push({ targets, params });
@@ -303,7 +303,7 @@ describe('adopted stack contracts', () => {
     expect(v4Calls[1].params).toMatchObject({ opacity: [0.5, 1], ease: 'inOutSine', alternate: true });
 
     const legacyCalls = [];
-    window = runScripts(['src/mascot-v2/motion-adapter.js'], {
+    window = runScripts(['src/mascot/motion-adapter.js'], {
       anime: (options) => {
         legacyCalls.push(options);
         return { pause() {}, restart() {} };
@@ -316,7 +316,7 @@ describe('adopted stack contracts', () => {
   });
 
   it('strips unsafe caption text', () => {
-    const window = runScripts(['src/mascot-v2/sanitize.js'], {
+    const window = runScripts(['src/mascot/sanitize.js'], {
       DOMPurify: { sanitize: (value) => String(value).replace(/<script[\s\S]*?<\/script>/gi, '') },
     });
     expect(window.HermesSanitize.captionText('<b>Hello</b><script>x</script>')).toBe('Hello');

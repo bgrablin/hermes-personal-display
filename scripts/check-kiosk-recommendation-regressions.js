@@ -7,19 +7,19 @@ import { fileURLToPath } from 'node:url';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const projectRoot = path.resolve(__dirname, '..');
-const appSource = fs.readFileSync(path.join(projectRoot, 'src', 'mascot-v2', 'app.js'), 'utf8');
+const appSource = fs.readFileSync(path.join(projectRoot, 'src', 'mascot', 'app.js'), 'utf8');
 const cssSource = fs.readFileSync(path.join(projectRoot, 'src', 'styles.css'), 'utf8');
 const stateSource = fs.readFileSync(path.join(projectRoot, 'src', 'state.js'), 'utf8');
-const mascotRuntimeSource = fs.readFileSync(path.join(projectRoot, 'src', 'mascot-v2', 'runtime.js'), 'utf8');
+const mascotRuntimeSource = fs.readFileSync(path.join(projectRoot, 'src', 'mascot', 'runtime.js'), 'utf8');
 const serverSource = fs.readFileSync(path.join(projectRoot, 'scripts', 'hermes_display_server.py'), 'utf8');
-const runtimeHtml = fs.readFileSync(path.join(projectRoot, 'src', 'character-runtime-v2.html'), 'utf8');
+const runtimeHtml = fs.readFileSync(path.join(projectRoot, 'src', 'character-runtime.html'), 'utf8');
 const xsessionSource = fs.readFileSync(path.join(projectRoot, 'scripts', 'xsession-minix-kiosk.sh'), 'utf8');
 const displayCliSource = fs.readFileSync(path.join(projectRoot, 'scripts', 'hermes-display'), 'utf8');
-const audioSource = fs.readFileSync(path.join(projectRoot, 'src', 'mascot-v2', 'audio.js'), 'utf8');
-const touchFxSource = fs.readFileSync(path.join(projectRoot, 'src', 'mascot-v2', 'touch-fx.js'), 'utf8');
-const entertainmentSource = fs.readFileSync(path.join(projectRoot, 'src', 'mascot-v2', 'entertainment.js'), 'utf8');
-const watchSequencesSource = fs.readFileSync(path.join(projectRoot, 'src', 'mascot-v2', 'watch-sequences.js'), 'utf8');
-const sequencesJson = JSON.parse(fs.readFileSync(path.join(projectRoot, 'src', 'mascot-v2', 'sequences.json'), 'utf8'));
+const audioSource = fs.readFileSync(path.join(projectRoot, 'src', 'mascot', 'audio.js'), 'utf8');
+const touchFxSource = fs.readFileSync(path.join(projectRoot, 'src', 'mascot', 'touch-fx.js'), 'utf8');
+const entertainmentSource = fs.readFileSync(path.join(projectRoot, 'src', 'mascot', 'entertainment.js'), 'utf8');
+const watchSequencesSource = fs.readFileSync(path.join(projectRoot, 'src', 'mascot', 'watch-sequences.js'), 'utf8');
+const sequencesJson = JSON.parse(fs.readFileSync(path.join(projectRoot, 'src', 'mascot', 'sequences.json'), 'utf8'));
 
 function fail(message) {
   throw new Error(message);
@@ -87,10 +87,10 @@ requireAll(cssSource, [
   'prefers-reduced-motion',
 ], 'Concept B CSS must be present');
 requireAll(runtimeHtml, [
-  './mascot-v2/touch-fx.js?v=',
-  './mascot-v2/entertainment.js?v=',
-  './mascot-v2/watch-sequences.js?v=',
-  './mascot-v2/app.js?v=',
+  './mascot/touch-fx.js?v=',
+  './mascot/entertainment.js?v=',
+  './mascot/watch-sequences.js?v=',
+  './mascot/app.js?v=',
 ], 'Concept B runtime must load touch FX, entertainment, watch sequence shim, and app scripts together');
 requireAll(touchFxSource, [
   'window.HermesTouchFx = { install }',
@@ -148,7 +148,7 @@ if (appSource.includes('cb-load-glow') || cssSource.includes('.cb-load-glow') ||
 }
 requireAll(entertainmentSource, [
   'window.HermesEntertainment = Object.freeze(api)',
-  "fetch('./mascot-v2/sequences.json'",
+  "fetch('./mascot/sequences.json'",
   'ALLOWED_STEP_TYPES',
   'async function speakLine',
   "fetch('/api/hermes-entertainment/tts'",

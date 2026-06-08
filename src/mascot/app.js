@@ -1,6 +1,6 @@
 (() => {
   const { PRESETS, clone, normalizePersonaPacket, deriveAdaptiveMotion } = window.HermesDisplayState;
-  const { NUDGES } = window.HermesMascotV2States;
+  const { NUDGES } = window.HermesDisplayStates;
   const textarea = document.querySelector('#state-json');
   const output = document.querySelector('#status-output');
   const motionDebug = document.querySelector('#motion-debug');
@@ -20,7 +20,7 @@
     : PRESETS.idle_watchful;
   const renderer = conceptBVisibleDashboard
     ? createConceptBVisibleRendererAdapter(initialPacket)
-    : new window.HermesMascotV2Renderer('display-root', initialPacket);
+    : new window.HermesDisplayRenderer('display-root', initialPacket);
   let currentPacket = clone(initialPacket);
   const presetOrder = ['idle_watchful', 'thinking_focused', 'healthy_smug', 'blocked_annoyed', 'night_sleepy'];
   const skinOrder = ['retro-robot-core', 'retro-terminal-focus', 'retro-night-watch', 'retro-amber-watch', 'retro-hermes-accent'];
@@ -474,14 +474,14 @@
     updateMotionDebug(event.detail);
   });
 
-  window.hermesMascotV2 = {
+  window.HermesDisplayRuntime = {
     renderer,
     debug: () => ({ ...renderer.getDebugState(), liveStatus: { ...liveStatus }, avatarEvents: avatarEventDebug() }),
     liveStatus: () => ({ ...liveStatus }),
     avatarEvents: () => avatarEventDebug(),
     publishAvatarEvent: (event) => applyAvatarEvent(event),
     resolverDebug: () => displaySafeResolverDebug(currentPacket, liveStatus),
-    sampleBudgets: () => window.HermesMascotV2Debug.sampleStateBudgets()
+    sampleBudgets: () => window.HermesDisplayDebug.sampleStateBudgets()
   };
 
   function updateMotionDebug(debug) {
@@ -509,7 +509,7 @@
       formatAge,
       updateAudioBadge: typeof updateAudioBadge === 'function' ? updateAudioBadge : null,
     });
-    if (touchFxController) window.hermesMascotV2TouchFx = touchFxController;
+    if (touchFxController) window.HermesTouchFxController = touchFxController;
 
     if (!(touchMode === 'legacy' && debugTouch)) {
       window.HermesEntertainment?.installTouchControls?.({
@@ -950,7 +950,7 @@
     });
     window.addEventListener('hermes-audio-muted', () => updateAudioBadge());
 
-    window.hermesMascotV2Touch = {
+    window.HermesTouch = {
       show: (mode = 'work') => showOverlayAfterReaction(['work', 'sensors', 'activity', 'status', 'debug'].includes(mode) ? mode : 'work', 'Touch preview', 0),
       hide: hideOverlay,
       reset: resetScreen,

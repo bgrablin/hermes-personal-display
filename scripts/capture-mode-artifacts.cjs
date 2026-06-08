@@ -19,9 +19,9 @@ const MODES = [
 
 const URL_BASE = process.env.PERSONAL_DISPLAY_URL_BASE || 'http://127.0.0.1:8770';
 function readDisplayBuildId() {
-  const appSource = fs.readFileSync(path.resolve(__dirname, '..', 'src', 'mascot-v2', 'app.js'), 'utf8');
+  const appSource = fs.readFileSync(path.resolve(__dirname, '..', 'src', 'mascot', 'app.js'), 'utf8');
   const match = appSource.match(/const DISPLAY_BUILD_ID = '([^']+)'/);
-  if (!match) throw new Error('DISPLAY_BUILD_ID not found in src/mascot-v2/app.js');
+  if (!match) throw new Error('DISPLAY_BUILD_ID not found in src/mascot/app.js');
   return match[1];
 }
 
@@ -36,7 +36,7 @@ function modeUrl(mode) {
     mode,
     v: BUILD,
   });
-  return `${URL_BASE}/src/character-runtime-v2.html?${params.toString()}`;
+  return `${URL_BASE}/src/character-runtime.html?${params.toString()}`;
 }
 
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));

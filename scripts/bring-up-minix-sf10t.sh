@@ -48,7 +48,7 @@ fi
 
 log "4) Suggested env additions for MINIX portrait mode:"
 cat <<'EOF'
-PERSONAL_DISPLAY_URL=http://127.0.0.1:8770/src/character-runtime-v2.html?kiosk=1
+PERSONAL_DISPLAY_URL=http://127.0.0.1:8770/src/character-runtime.html?kiosk=1
 PERSONAL_DISPLAY_WINDOW_SIZE=1280,1920
 EOF
 log

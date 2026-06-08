@@ -2,7 +2,7 @@
   const WIDTH = 320;
   const HEIGHT = 480;
   const SVG_NS = 'http://www.w3.org/2000/svg';
-  const PUPPET_URL = './mascot-v2/hermes-puppet.svg';
+  const PUPPET_URL = './mascot/hermes-puppet.svg';
   let puppetTemplatePromise = null;
 
   const PUPPET_X = 50;
@@ -21,7 +21,7 @@
   const WING_LEFT_PIVOT = { x: -51, y: -67 };
   const WING_RIGHT_PIVOT = { x: 51, y: -67 };
 
-  const { STATES, NUDGES, BROWS, MOUTH_PATHS, GAZE, BEHAVIOR_GAZE_GRAMMAR, BEHAVIOR_MOUTH_GRAMMAR, CONTEXTUAL_BLINK_GRAMMAR, pickWeighted } = window.HermesMascotV2States;
+  const { STATES, NUDGES, BROWS, MOUTH_PATHS, GAZE, BEHAVIOR_GAZE_GRAMMAR, BEHAVIOR_MOUTH_GRAMMAR, CONTEXTUAL_BLINK_GRAMMAR, pickWeighted } = window.HermesDisplayStates;
   const URL_PARAMS = new URLSearchParams(window.location.search);
   const KIOSK_MODE = ['1', 'true', 'yes'].includes((URL_PARAMS.get('kiosk') || '').toLowerCase());
   const PERF_MODE = (URL_PARAMS.get('perf') || 'full').toLowerCase();
@@ -68,7 +68,7 @@
     return puppetTemplatePromise;
   }
 
-  class HermesMascotV2Renderer {
+  class HermesDisplayRenderer {
     constructor(rootId, initialPacket) {
       this.root = document.getElementById(rootId);
       this.packet = window.HermesDisplayState.normalizePersonaPacket(initialPacket);
@@ -378,7 +378,7 @@
         height: HEIGHT,
         role: 'img',
         'aria-label': 'Hermes mascot SVG puppet runtime preview',
-        class: 'mascot-v2-stage'
+        class: 'mascot-stage'
       });
       const defs = el('defs');
       const bgGradient = el('radialGradient', { id: 'v2BgGlow', cx: '50%', cy: '36%', r: '78%' });
@@ -481,7 +481,7 @@
       imported.setAttribute('y', String(PUPPET_Y));
       imported.setAttribute('width', String(PUPPET_W));
       imported.setAttribute('height', String(PUPPET_H));
-      imported.classList.add('mascot-v2-puppet');
+      imported.classList.add('mascot-puppet');
       this.refs.puppetHost.appendChild(imported);
       this.puppetSvg = imported;
       if (KIOSK_MODE && PERF_MODE !== 'full') this.simplifyExpensiveSvgEffects();
@@ -586,7 +586,7 @@
         this.refs.loadError.setAttribute('opacity', '1');
         this.refs.loadError.textContent = `puppet load failed: ${String(err.message || err).slice(0, 64)}`;
       }
-      console.error('[mascot-v2] puppet load failed:', err);
+      console.error('[mascot] puppet load failed:', err);
     }
 
     triggerIntent(requestedName, automatic = false) {
@@ -1851,8 +1851,8 @@
     return [parseInt(safe.slice(0, 2), 16), parseInt(safe.slice(2, 4), 16), parseInt(safe.slice(4, 6), 16)];
   }
 
-  window.HermesMascotV2Renderer = HermesMascotV2Renderer;
-  window.HermesMascotV2Debug = {
+  window.HermesDisplayRenderer = HermesDisplayRenderer;
+  window.HermesDisplayDebug = {
     summarizeGazePool,
     isBodyMovingIntent,
     behaviorGrammar: () => ({

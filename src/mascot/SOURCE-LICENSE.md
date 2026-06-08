@@ -2,9 +2,9 @@
 
 The accepted runtime uses a project-authored SVG puppet:
 
-- Runtime SVG: `src/mascot-v2/hermes-puppet.svg`
-- Runtime page: `src/character-runtime-v2.html`
-- Debug page: `src/mascot-v2-debug.html`
+- Runtime SVG: `src/mascot/hermes-puppet.svg`
+- Runtime page: `src/character-runtime.html`
+- Debug page: `src/mascot-debug.html`
 
 The puppet is authored as repository source under the project license. It does not depend on the removed historical Foozle, Gum Bot, RGS, p5, or static concept-art prototype assets.
 

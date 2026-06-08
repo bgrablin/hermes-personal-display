@@ -41,7 +41,7 @@
     if (touchMode === 'legacy' && debugFlag && !allowMouseTouchTest) return null;
     if (touchMode === 'legacy' && debugTouch) {
       const legacy = { mode: () => 'legacy-debug-placeholder', debugEnabled: () => true };
-      window.hermesMascotV2TouchFx = legacy;
+      window.HermesTouchFxController = legacy;
       return legacy;
     }
 
@@ -679,7 +679,7 @@
       isDisposed: () => disposed,
     };
 
-    window.hermesMascotV2TouchFx = api;
+    window.HermesTouchFxController = api;
     window.setInterval(() => { updateTheme(); updateFeedBadge(); }, 1000);
     return api;
   }

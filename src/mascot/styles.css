@@ -1,4 +1,4 @@
-.mascot-v2-stage {
+.mascot-stage {
   --hermes-float-duration: 8200ms;
   --hermes-blink-interval: 4200ms;
   --hermes-eye-glow: 0.32;
@@ -14,30 +14,30 @@
   background: #05070b;
 }
 
-.mascot-v2-stage .scanlines {
+.mascot-stage .scanlines {
   opacity: calc(0.28 + (var(--hermes-accent-intensity, 0.7) * 0.34));
 }
 
-.mascot-v2-stage .spot {
+.mascot-stage .spot {
   opacity: calc(0.58 + (var(--hermes-eye-glow, 0.32) * 0.22));
 }
 
-.mascot-v2-stage .state-dot {
+.mascot-stage .state-dot {
   filter: drop-shadow(0 0 calc(2px + (var(--hermes-alert-pulse, 0) * 10px)) currentColor);
 }
 
-.mascot-v2-stage .status-inner {
+.mascot-stage .status-inner {
   filter: drop-shadow(0 0 calc(var(--hermes-accent-intensity, 0.7) * 9px) rgba(101, 243, 255, 0.18));
 }
 
 
-.mascot-v2-stage .ambient-lines,
-.mascot-v2-stage .top-ticks,
-.mascot-v2-stage .footer-ticks {
+.mascot-stage .ambient-lines,
+.mascot-stage .top-ticks,
+.mascot-stage .footer-ticks {
   opacity: calc(0.62 + (var(--hermes-accent-intensity, 0.7) * 0.30));
 }
 
-.mascot-v2-stage .puppet-host {
+.mascot-stage .puppet-host {
   /* JS owns character/body motion through poseChannel. Keep CSS positional
      animation disabled so it cannot compound with the renderer's breath/drift. */
   animation: none;
@@ -45,23 +45,23 @@
   transform-origin: center;
 }
 
-.mascot-v2-stage .mascot-v2-puppet .eye-glow {
+.mascot-stage .mascot-puppet .eye-glow {
   opacity: calc(0.10 + (var(--hermes-eye-glow, 0.32) * 0.44));
 }
 
-.mascot-v2-stage .mascot-v2-puppet #helmet-band,
-.mascot-v2-stage .mascot-v2-puppet #helmet-ridge,
-.mascot-v2-stage .mascot-v2-puppet #rune-a,
-.mascot-v2-stage .mascot-v2-puppet #rune-b {
+.mascot-stage .mascot-puppet #helmet-band,
+.mascot-stage .mascot-puppet #helmet-ridge,
+.mascot-stage .mascot-puppet #rune-a,
+.mascot-stage .mascot-puppet #rune-b {
   transition: opacity 180ms linear, filter 180ms linear;
   filter: drop-shadow(0 0 calc(var(--hermes-accent-intensity, 0.7) * 4px) rgba(247, 211, 107, 0.25));
 }
 
-.mascot-v2-stage .mascot-v2-puppet #scan-beam {
+.mascot-stage .mascot-puppet #scan-beam {
   filter: drop-shadow(0 0 calc(3px + (var(--hermes-accent-intensity, 0.7) * 5px)) rgba(101, 243, 255, 0.45));
 }
 
-.mascot-v2-stage .mascot-v2-puppet #body-main {
+.mascot-stage .mascot-puppet #body-main {
   filter: drop-shadow(0 0 calc(var(--hermes-highlight-opacity, 0) * 10px) rgba(101, 243, 255, 0.42));
 }
 
@@ -71,21 +71,21 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .mascot-v2-stage .puppet-host {
+  .mascot-stage .puppet-host {
     animation: none;
   }
 
-  .mascot-v2-stage .mascot-v2-puppet #helmet-band,
-  .mascot-v2-stage .mascot-v2-puppet #helmet-ridge,
-  .mascot-v2-stage .mascot-v2-puppet #rune-a,
-  .mascot-v2-stage .mascot-v2-puppet #rune-b,
-  .mascot-v2-stage .mascot-v2-puppet #scan-beam,
-  .mascot-v2-stage .mascot-v2-puppet #body-main {
+  .mascot-stage .mascot-puppet #helmet-band,
+  .mascot-stage .mascot-puppet #helmet-ridge,
+  .mascot-stage .mascot-puppet #rune-a,
+  .mascot-stage .mascot-puppet #rune-b,
+  .mascot-stage .mascot-puppet #scan-beam,
+  .mascot-stage .mascot-puppet #body-main {
     filter: none;
   }
 }
 
-.mascot-v2-puppet {
+.mascot-puppet {
   pointer-events: none;
 }
 

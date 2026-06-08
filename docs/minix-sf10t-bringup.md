@@ -12,7 +12,7 @@ Target mode for Hermes:
 
 - Physical orientation: **portrait** if the stand/cabling allows it
 - OS logical resolution: **1280×1920**
-- Browser runtime: `http://127.0.0.1:8770/src/character-runtime-v2.html?kiosk=1`
+- Browser runtime: `http://127.0.0.1:8770/src/character-runtime.html?kiosk=1`
 - Renderer: Chromium kiosk, not Python USB framebuffer
 
 ## Verified product facts
@@ -136,7 +136,7 @@ Edit:
 Minimum expected values:
 
 ```bash
-PERSONAL_DISPLAY_URL=http://127.0.0.1:8770/src/character-runtime-v2.html?kiosk=1
+PERSONAL_DISPLAY_URL=http://127.0.0.1:8770/src/character-runtime.html?kiosk=1
 PERSONAL_DISPLAY_WINDOW_SIZE=1280,1920
 # DISPLAY=:0
 # WAYLAND_DISPLAY=wayland-0

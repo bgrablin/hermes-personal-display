@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 /*
  * Deterministic executable gate for the browser/client avatar-event validator in
- * src/mascot-v2/app.js. This uses a tiny VM DOM/EventSource harness so the
+ * src/mascot/app.js. This uses a tiny VM DOM/EventSource harness so the
  * client validation path runs without adding a browser/runtime dependency.
  */
 'use strict';
@@ -13,7 +13,7 @@ import { fileURLToPath } from 'node:url';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const ROOT = path.resolve(__dirname, '..');
-const APP_JS = path.join(ROOT, 'src', 'mascot-v2', 'app.js');
+const APP_JS = path.join(ROOT, 'src', 'mascot', 'app.js');
 
 function assert(condition, message) {
   if (!condition) {
@@ -147,9 +147,9 @@ function makeContext() {
     innerWidth: 320,
     innerHeight: 480,
     EventSource: FakeEventSource,
-    HermesMascotV2Renderer: FakeRenderer,
-    HermesMascotV2States: { NUDGES: {} },
-    HermesMascotV2Debug: { sampleStateBudgets: () => ({}) },
+    HermesDisplayRenderer: FakeRenderer,
+    HermesDisplayStates: { NUDGES: {} },
+    HermesDisplayDebug: { sampleStateBudgets: () => ({}) },
     HermesAudio: { isMuted: () => false },
     HermesDisplayState: {
       PRESETS: {
@@ -271,7 +271,7 @@ function loadApp() {
   vm.runInContext(source, context, { filename: APP_JS });
   const eventSource = FakeEventSource.instances[0];
   assert(eventSource, 'app.js did not create the kiosk EventSource avatar-event bus');
-  assert(context.window.hermesMascotV2?.avatarEvents, 'app.js did not expose avatar event debug state');
+  assert(context.window.HermesDisplayRuntime?.avatarEvents, 'app.js did not expose avatar event debug state');
   return { context, eventSource };
 }
 
@@ -280,15 +280,15 @@ function main() {
   const base = validAvatarEvent();
 
   eventSource.emit(base.event, base);
-  let debug = context.window.hermesMascotV2.avatarEvents();
+  let debug = context.window.HermesDisplayRuntime.avatarEvents();
   assert(debug.accepted === 1, `valid client avatar event was not accepted: ${JSON.stringify(debug)}`);
   assert(debug.dropped === 0, `valid client avatar event was dropped: ${JSON.stringify(debug)}`);
   assert(debug.recent[0]?.label === base.display.label, 'accepted event label was not retained as display-safe recent state');
 
   for (const [label, event] of invalidCases(base)) {
-    const before = context.window.hermesMascotV2.avatarEvents();
+    const before = context.window.HermesDisplayRuntime.avatarEvents();
     eventSource.emit(event.event, event);
-    debug = context.window.hermesMascotV2.avatarEvents();
+    debug = context.window.HermesDisplayRuntime.avatarEvents();
     assert(debug.accepted === before.accepted, `${label} was accepted by client validator`);
     assert(debug.dropped === before.dropped + 1, `${label} did not increment client drop counter: ${JSON.stringify(debug)}`);
     assert(debug.lastError && debug.lastError !== 'event bus unavailable', `${label} did not record a validator rejection reason`);

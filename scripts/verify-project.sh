@@ -21,18 +21,18 @@ check_file() {
 say '== current runtime files =='
 check_file README.md
 check_file docs/project-manifest.md
-check_file src/character-runtime-v2.html
-check_file src/mascot-v2-debug.html
+check_file src/character-runtime.html
+check_file src/mascot-debug.html
 check_file src/styles.css
 check_file src/state.js
 check_file src/generated/display-contract.js
-check_file src/mascot-v2/hermes-puppet.svg
-check_file src/mascot-v2/states.js
-check_file src/mascot-v2/runtime.js
-check_file src/mascot-v2/app.js
-check_file src/mascot-v2/approval.js
-check_file src/mascot-v2/styles.css
-check_file src/mascot-v2/SOURCE-LICENSE.md
+check_file src/mascot/hermes-puppet.svg
+check_file src/mascot/states.js
+check_file src/mascot/runtime.js
+check_file src/mascot/app.js
+check_file src/mascot/approval.js
+check_file src/mascot/styles.css
+check_file src/mascot/SOURCE-LICENSE.md
 check_file scripts/hermes-display
 check_file scripts/hermes_display_server.py
 check_file scripts/xsession-minix-kiosk.sh
@@ -46,14 +46,14 @@ check_file docs/minix-sf10t-bringup.md
 say '== syntax =='
 python3 - <<'PY'
 import xml.etree.ElementTree as ET
-ET.parse('src/mascot-v2/hermes-puppet.svg')
-print('OK svg xml src/mascot-v2/hermes-puppet.svg')
+ET.parse('src/mascot/hermes-puppet.svg')
+print('OK svg xml src/mascot/hermes-puppet.svg')
 PY
 node --check src/state.js
-node --check src/mascot-v2/states.js
-node --check src/mascot-v2/runtime.js
-node --check src/mascot-v2/app.js
-node --check src/mascot-v2/approval.js
+node --check src/mascot/states.js
+node --check src/mascot/runtime.js
+node --check src/mascot/app.js
+node --check src/mascot/approval.js
 node --check scripts/check-adopted-stack.js
 node --check scripts/check-client-avatar-event-validator.js
 node --check scripts/check-kiosk-recommendation-regressions.js
@@ -78,13 +78,13 @@ import json, sys, urllib.request
 base=sys.argv[1].rstrip('/') + '/'
 paths=[
   'api/hermes-state',
-  'src/character-runtime-v2.html?health=1',
-  'src/character-runtime-v2.html?kiosk=1&orientation=landscape',
-  'src/mascot-v2-debug.html?health=1',
-  'src/mascot-v2/hermes-puppet.svg',
-  'src/mascot-v2/runtime.js',
-  'src/mascot-v2/states.js',
-  'src/mascot-v2/app.js',
+  'src/character-runtime.html?health=1',
+  'src/character-runtime.html?kiosk=1&orientation=landscape',
+  'src/mascot-debug.html?health=1',
+  'src/mascot/hermes-puppet.svg',
+  'src/mascot/runtime.js',
+  'src/mascot/states.js',
+  'src/mascot/app.js',
 ]
 for p in paths:
     try:
@@ -93,6 +93,30 @@ for p in paths:
         print('OK http', r.status, p, r.headers.get('content-length'))
     except Exception as exc:
         print('WARN http unavailable', p, exc)
+
+class NoRedirect(urllib.request.HTTPRedirectHandler):
+    def redirect_request(self, req, fp, code, msg, headers, newurl):
+        return None
+
+opener = urllib.request.build_opener(NoRedirect)
+legacy_redirects = {
+  'src/character-runtime-v2.html?kiosk=1&legacy-check=1': 'src/character-runtime.html?kiosk=1&legacy-check=1',
+  'src/mascot-v2-debug.html?health=1': 'src/mascot-debug.html?health=1',
+  'src/mascot-v2/app.js?v=legacy-check': 'src/mascot/app.js?v=legacy-check',
+}
+for old_path, new_path in legacy_redirects.items():
+    try:
+        opener.open(base + old_path, timeout=3)
+        print('WARN legacy redirect followed unexpectedly', old_path)
+    except urllib.error.HTTPError as exc:
+        location = exc.headers.get('Location') or ''
+        expected = '/' + new_path
+        if exc.code == 302 and location == expected:
+            print('OK legacy redirect', old_path, '->', location)
+        else:
+            print('WARN legacy redirect mismatch', old_path, exc.code, location, 'expected', expected)
+    except Exception as exc:
+        print('WARN legacy redirect unavailable', old_path, exc)
 PY
 
 exit "$fail"

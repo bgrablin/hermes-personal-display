@@ -69,8 +69,8 @@ Small physical display
 
 Core paths:
 
-- `src/character-runtime-v2.html` - current kiosk/runtime page.
-- `src/mascot-v2/` - character runtime, behavior machine, touch effects, audio hooks, sanitization.
+- `src/character-runtime.html` - current kiosk/runtime page.
+- `src/mascot/` - character runtime, behavior machine, touch effects, audio hooks, sanitization.
 - `schemas/` - public display-state/avatar-event/optic-state contract sources plus shared presets/postures.
 - `src/generated/display-contract.js` - generated browser contract constants.
 - `scripts/generated/display_contract.py` - generated Python contract constants.
@@ -156,13 +156,13 @@ npm run dev
 Open:
 
 ```text
-http://127.0.0.1:8770/src/character-runtime-v2.html
+http://127.0.0.1:8770/src/character-runtime.html
 ```
 
 For kiosk mode:
 
 ```text
-http://127.0.0.1:8770/src/character-runtime-v2.html?kiosk=1
+http://127.0.0.1:8770/src/character-runtime.html?kiosk=1
 ```
 
 The Python display server is also available for local state API work:

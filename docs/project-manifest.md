@@ -4,9 +4,9 @@ This repository is intentionally trimmed to the files needed to run, test, and o
 
 ## Current runtime
 
-- `src/character-runtime-v2.html` — canonical browser/kiosk entrypoint.
-- `src/mascot-v2/` — current SVG puppet runtime, behavior machine, touch effects, audio hooks, and entertainment/watch logic.
-- `src/styles.css` and `src/mascot-v2/styles.css` — current runtime styling.
+- `src/character-runtime.html` — canonical browser/kiosk entrypoint.
+- `src/mascot/` — current SVG puppet runtime, behavior machine, touch effects, audio hooks, and entertainment/watch logic.
+- `src/styles.css` and `src/mascot/styles.css` — current runtime styling.
 - `src/state.js` — display-state normalization and contract consumption.
 - `src/vendor/` — vendored browser libraries used directly by the runtime.
 - `src/generated/display-contract.js` — generated browser contract constants.
@@ -43,6 +43,34 @@ Historical Foozle, Gum Bot, RGS, p5, static concept-art, old design-review, raw 
 
 The removed repo files remain recoverable from Git history if needed, but they are no longer part of the current display runtime.
 
-## Known naming cleanup
+## Display URL/API naming
 
-The current runtime still uses historical path/API names such as `character-runtime-v2.html`, `mascot-v2/`, and `window.hermesMascotV2`. Those are implementation names, not product names. User-facing labels have been cleaned up, but a full path/API rename should be a separate migration with tests and live-kiosk verification.
+The runtime, paths, and browser globals use canonical names with no implementation
+version suffix:
+
+- Page: `src/character-runtime.html` (was `src/character-runtime-v2.html`).
+- Debug page: `src/mascot-debug.html` (was `src/mascot-v2-debug.html`).
+- Runtime assets: `src/mascot/` (was `src/mascot-v2/`).
+- Globals: `window.HermesDisplayRuntime`, `window.HermesDisplayRenderer`,
+  `window.HermesDisplayStates`, `window.HermesDisplayDebug`, `window.HermesTouch`,
+  and `window.HermesTouchFxController` (the installed instance of the existing
+  `window.HermesTouchFx` factory). These replace the former `hermesMascotV2*` /
+  `HermesMascotV2*` names.
+- CSS classes: `.mascot-stage` / `.mascot-puppet` (were `.mascot-v2-stage` /
+  `.mascot-v2-puppet`).
+
+### Temporary v2 compatibility shim
+
+Installed kiosks may still launch the old `/src/character-runtime-v2.html` URL from a
+stale `PERSONAL_DISPLAY_URL` / systemd env override. Until every device is reconfigured,
+compatibility is preserved by:
+
+- `scripts/hermes_display_server.py` issuing a `302` redirect from the legacy
+  `/src/character-runtime-v2.html`, `/src/mascot-v2-debug.html`, and `/src/mascot-v2/*`
+  paths to their canonical equivalents (query string preserved).
+- `scripts/hermes-display` and `scripts/xsession-minix-kiosk.sh` matching the bare
+  `character-runtime` substring so live-process detection and cache-busting work for both
+  the old and new URLs.
+
+Remove the shim and the broadened matches once all deployed devices launch the canonical
+URL (update `~/.config/hermes-personal-display.env` via `scripts/detect-display-env.sh`).

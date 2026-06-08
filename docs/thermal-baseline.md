@@ -109,7 +109,7 @@ cd <repo>
 ./scripts/hermes-display verify
 DISPLAY=:0 xrandr --listmonitors
 DISPLAY=:0 xrandr --query | grep -E '^(DP-1|DP-2|HDMI-1)'
-pgrep -af '[c]hrom.*character-runtime-v2' | head -n 1
+pgrep -af '[c]hrom.*character-runtime' | head -n 1
 ```
 
 Expected state:

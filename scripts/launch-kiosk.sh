@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-URL="${PERSONAL_DISPLAY_URL:-http://127.0.0.1:8770/src/character-runtime-v2.html?kiosk=1}"
+URL="${PERSONAL_DISPLAY_URL:-http://127.0.0.1:8770/src/character-runtime.html?kiosk=1}"
 CHROME="${PERSONAL_DISPLAY_CHROME:-}"
 WINDOW_SIZE="${PERSONAL_DISPLAY_WINDOW_SIZE:-1280,1920}"
 EXTRA_ARGS="${PERSONAL_DISPLAY_CHROME_ARGS:-}"

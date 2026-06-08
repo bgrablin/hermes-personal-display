@@ -643,18 +643,18 @@ body.kiosk-mode .touch-fx-layer[data-fx-theme="celebrate"] { --touch-fx-hue: 138
 body.kiosk-mode .touch-fx-layer[data-fx-theme="shield"] { --touch-fx-hue: 45deg; }
 body.kiosk-mode .touch-fx-layer[data-fx-theme="dim"] { filter: saturate(0.55) brightness(0.72); }
 
-body.kiosk-mode[data-touch-posture="listening"] .mascot-v2-stage {
+body.kiosk-mode[data-touch-posture="listening"] .mascot-stage {
   --hermes-eye-glow: 0.86;
   --hermes-accent-intensity: 0.82;
   --hermes-blink-interval: 2600ms;
 }
 
-body.kiosk-mode[data-touch-posture="listening"] .mascot-v2-puppet .eye-glow,
-body.kiosk-mode[data-touch-posture="listening"] .mascot-v2-puppet #scan-beam {
+body.kiosk-mode[data-touch-posture="listening"] .mascot-puppet .eye-glow,
+body.kiosk-mode[data-touch-posture="listening"] .mascot-puppet #scan-beam {
   filter: drop-shadow(0 0 9px rgba(101, 243, 255, 0.62));
 }
 
-body.kiosk-mode[data-touch-posture="quiet"] .mascot-v2-stage {
+body.kiosk-mode[data-touch-posture="quiet"] .mascot-stage {
   --hermes-eye-glow: 0.14;
   --hermes-accent-intensity: 0.18;
   --hermes-alert-pulse: 0;
@@ -662,12 +662,12 @@ body.kiosk-mode[data-touch-posture="quiet"] .mascot-v2-stage {
   --hermes-motion-scale: 0.45;
 }
 
-body.kiosk-mode[data-touch-posture="quiet"] .mascot-v2-puppet .eye-glow,
-body.kiosk-mode[data-touch-posture="quiet"] .mascot-v2-puppet #scan-beam,
-body.kiosk-mode[data-touch-posture="quiet"] .mascot-v2-puppet #helmet-band,
-body.kiosk-mode[data-touch-posture="quiet"] .mascot-v2-puppet #helmet-ridge,
-body.kiosk-mode[data-touch-posture="quiet"] .mascot-v2-puppet #rune-a,
-body.kiosk-mode[data-touch-posture="quiet"] .mascot-v2-puppet #rune-b {
+body.kiosk-mode[data-touch-posture="quiet"] .mascot-puppet .eye-glow,
+body.kiosk-mode[data-touch-posture="quiet"] .mascot-puppet #scan-beam,
+body.kiosk-mode[data-touch-posture="quiet"] .mascot-puppet #helmet-band,
+body.kiosk-mode[data-touch-posture="quiet"] .mascot-puppet #helmet-ridge,
+body.kiosk-mode[data-touch-posture="quiet"] .mascot-puppet #rune-a,
+body.kiosk-mode[data-touch-posture="quiet"] .mascot-puppet #rune-b {
   opacity: 0.22;
   filter: none;
 }
@@ -1311,9 +1311,9 @@ html[data-hermes-user-reduced-motion="true"] *::after {
   transition-duration: 0.001ms !important;
 }
 
-body[data-display-thermal="warm"] .mascot-v2-stage,
-body[data-display-thermal="hot"] .mascot-v2-stage,
-body[data-display-thermal="critical"] .mascot-v2-stage {
+body[data-display-thermal="warm"] .mascot-stage,
+body[data-display-thermal="hot"] .mascot-stage,
+body[data-display-thermal="critical"] .mascot-stage {
   filter: saturate(0.92);
 }
 

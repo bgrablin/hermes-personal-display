@@ -63,7 +63,7 @@ These are now checked-in templates. Do not enable the kiosk unit until the monit
 
 ### Kiosk launcher
 
-- Opens `http://127.0.0.1:8770/src/character-runtime-v2.html?kiosk=1`
+- Opens `http://127.0.0.1:8770/src/character-runtime.html?kiosk=1`
 - Requires a real graphical session with either `DISPLAY` or `WAYLAND_DISPLAY`
 - Uses Chromium/Chrome auto-detection unless `PERSONAL_DISPLAY_CHROME` is set
 

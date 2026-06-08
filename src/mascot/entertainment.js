@@ -323,7 +323,7 @@
   }
   async function loadCatalog() {
     if (state.loading) return state.loading;
-    state.loading = fetch('./mascot-v2/sequences.json', { cache: 'no-store' })
+    state.loading = fetch('./mascot/sequences.json', { cache: 'no-store' })
       .then((r) => r.json()).then((json) => {
         const catalog = validateCatalog(json);
         state.catalog = catalog; state.sequences = catalog.sequences; state.voicePacks = catalog.voicePacks;
@@ -373,9 +373,9 @@
     else if (step.event === 'GLOW') motion?.pulse?.(step.kind || 'complete');
     else if (step.event === 'ARMS') ensureLayer().querySelector('.watch-arms')?.classList.toggle('quiet', !step.visible);
     else if (step.event === 'CONSTELLATION') particle('star', 3, origin);
-    else if (step.event === 'RIPPLE') window.hermesMascotV2TouchFx?.spawnEffect?.({ type: 'ripple', zone: origin.zone || 'boop', x: origin.x, y: origin.y, intensity: origin.intensity }) || motion?.pulse?.('notice');
-    else if (step.event === 'COMET') window.hermesMascotV2TouchFx?.spawnEffect?.({ type: 'comet', side: origin.side || 'left', x: origin.x, y: origin.y, intensity: origin.intensity }) || motion?.pulse?.('notice');
-    else if (step.event === 'ORBIT') window.hermesMascotV2TouchFx?.spawnEffect?.({ type: 'orbit', zone: origin.zone || 'boop', x: origin.x, y: origin.y, intensity: origin.intensity }) || motion?.pulse?.('notice');
+    else if (step.event === 'RIPPLE') window.HermesTouchFxController?.spawnEffect?.({ type: 'ripple', zone: origin.zone || 'boop', x: origin.x, y: origin.y, intensity: origin.intensity }) || motion?.pulse?.('notice');
+    else if (step.event === 'COMET') window.HermesTouchFxController?.spawnEffect?.({ type: 'comet', side: origin.side || 'left', x: origin.x, y: origin.y, intensity: origin.intensity }) || motion?.pulse?.('notice');
+    else if (step.event === 'ORBIT') window.HermesTouchFxController?.spawnEffect?.({ type: 'orbit', zone: origin.zone || 'boop', x: origin.x, y: origin.y, intensity: origin.intensity }) || motion?.pulse?.('notice');
     else if (step.event === 'IDLE') settle();
   }
 
@@ -690,7 +690,7 @@
     const mode = currentMode();
     if (['blocked', 'critical', 'degraded_offline'].includes(mode)) return false;
     if (state.speaking || state.current || reducedMotion()) return false;
-    const budget = window.hermesMascotV2TouchFx?.entertainmentBudget?.() || 'high';
+    const budget = window.HermesTouchFxController?.entertainmentBudget?.() || 'high';
     return budget !== 'low';
   }
 

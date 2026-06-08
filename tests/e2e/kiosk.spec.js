@@ -8,16 +8,16 @@ const root = path.resolve(import.meta.dirname, '../..');
 const EXPECTED_BUILD_ID = readDisplayBuildId();
 
 function readDisplayBuildId() {
-  const appSource = fs.readFileSync(path.join(root, 'src/mascot-v2/app.js'), 'utf8');
+  const appSource = fs.readFileSync(path.join(root, 'src/mascot/app.js'), 'utf8');
   const match = appSource.match(/const DISPLAY_BUILD_ID = '([^']+)'/);
-  if (!match) throw new Error('DISPLAY_BUILD_ID not found in src/mascot-v2/app.js');
+  if (!match) throw new Error('DISPLAY_BUILD_ID not found in src/mascot/app.js');
   return match[1];
 }
 
 function runtimeUrl(mode, testInfo) {
   const params = new URLSearchParams({ kiosk: '1', mode, v: EXPECTED_BUILD_ID });
   if (testInfo.project.name === 'minix-sf10t-landscape') params.set('orientation', 'landscape');
-  return `/src/character-runtime-v2.html?${params.toString()}`;
+  return `/src/character-runtime.html?${params.toString()}`;
 }
 
 async function expectNoPageErrors(page, action) {
@@ -41,9 +41,9 @@ test.describe('Hermes kiosk smoke and visual regression anchors', () => {
           await expect(page.locator('.cb-radial-stage')).toBeVisible();
           await expect(page.locator('.cb-state')).toBeVisible();
           await expect(page.locator('.shell')).toHaveCount(0);
-          await expect(page.locator('#display-root > svg.mascot-v2-stage')).toHaveCount(0);
+          await expect(page.locator('#display-root > svg.mascot-stage')).toHaveCount(0);
         } else {
-          await expect(page.locator('#display-root > svg.mascot-v2-stage')).toBeVisible();
+          await expect(page.locator('#display-root > svg.mascot-stage')).toBeVisible();
           await expect(page.locator('.state-label')).toBeVisible();
         }
       });
@@ -127,7 +127,7 @@ test.describe('Hermes kiosk smoke and visual regression anchors', () => {
     const snapshot = await page.evaluate(() => {
       const w = window.innerWidth;
       const h = window.innerHeight;
-      window.hermesMascotV2TouchFx.testSpawnMultiTouch([
+      window.HermesTouchFxController.testSpawnMultiTouch([
         { x: w * 0.42, y: h * 0.50 },
         { x: w * 0.58, y: h * 0.50 },
         { x: w * 0.50, y: h * 0.40 },
@@ -135,7 +135,7 @@ test.describe('Hermes kiosk smoke and visual regression anchors', () => {
       const nodes = Array.from(document.querySelectorAll('.touch-fx-layer *'));
       return {
         orbitCount: document.querySelectorAll('.touch-fx-orbit').length,
-        fxCount: window.hermesMascotV2TouchFx.fxCount(),
+        fxCount: window.HermesTouchFxController.fxCount(),
         heavyMotionCount: document.querySelectorAll('.touch-fx-comet, .touch-fx-trail, .touch-fx-firefly, .touch-fx-vortex, .touch-fx-mote').length,
         maxDurationMs: Math.max(...nodes.map((node) => {
           const duration = getComputedStyle(node).animationDuration.trim();
@@ -155,7 +155,7 @@ test.describe('Hermes kiosk smoke and visual regression anchors', () => {
     await page.goto(`${runtimeUrl('idle_watch', testInfo)}&touch=off&touchtest=1`);
     await expect(page.locator('.touch-fx-layer')).toHaveCount(0);
     const audioState = await page.evaluate(() => ({
-      hasTouchFx: Boolean(window.hermesMascotV2TouchFx),
+      hasTouchFx: Boolean(window.HermesTouchFxController),
       tapClickInstalled: Boolean(window.HermesAudio?.tapClickInstalled),
     }));
     expect(audioState.hasTouchFx).toBe(false);
@@ -197,8 +197,8 @@ test.describe('Hermes kiosk smoke and visual regression anchors', () => {
       }
       const w = window.innerWidth;
       const h = window.innerHeight;
-      window.hermesMascotV2TouchFx.spawnForZone('boop', w * 0.78, h * 0.47);
-      window.hermesMascotV2TouchFx.testLongPressStar(w * 0.52, h * 0.52);
+      window.HermesTouchFxController.spawnForZone('boop', w * 0.78, h * 0.47);
+      window.HermesTouchFxController.testLongPressStar(w * 0.52, h * 0.52);
       const afterDebug = motion?.debug?.();
       const afterMode = window.__HERMES_DISPLAY_BEHAVIOR?.mode || null;
       return {
@@ -219,8 +219,8 @@ test.describe('Hermes kiosk smoke and visual regression anchors', () => {
         afterDebug,
         beforeMode,
         afterMode,
-        vectorDistance: window.hermesMascotV2TouchFx.touchVectorFromOptic(w * 0.78, h * 0.47).distance,
-        playMemory: window.hermesMascotV2TouchFx.playMemory(),
+        vectorDistance: window.HermesTouchFxController.touchVectorFromOptic(w * 0.78, h * 0.47).distance,
+        playMemory: window.HermesTouchFxController.playMemory(),
       };
     });
     expect(result.motes).toBeGreaterThan(0);
@@ -248,7 +248,7 @@ test.describe('Hermes kiosk smoke and visual regression anchors', () => {
     await page.goto(`${runtimeUrl('idle_watch', testInfo)}&touchtest=1`);
     const result = await page.evaluate(() => {
       document.documentElement.dataset.hermesReducedMotion = 'true';
-      const fx = window.hermesMascotV2TouchFx;
+      const fx = window.HermesTouchFxController;
       const w = window.innerWidth;
       const h = window.innerHeight;
       fx.spawnForZone('floor', w * 0.5, h * 0.93);
@@ -277,14 +277,14 @@ test.describe('Hermes kiosk smoke and visual regression anchors', () => {
     const state = await page.evaluate(() => {
       const layer = document.querySelector('.touch-fx-layer');
       const read = () => ({
-        fxState: window.hermesMascotV2TouchFx.touchFxState(),
+        fxState: window.HermesTouchFxController.touchFxState(),
         zIndex: getComputedStyle(layer).zIndex,
         attracted: document.querySelectorAll('.touch-fx-mote.attracted').length,
       });
       const before = read();
-      window.hermesMascotV2TouchFx.spawnForZone('boop', window.innerWidth * 0.5, window.innerHeight * 0.5);
+      window.HermesTouchFxController.spawnForZone('boop', window.innerWidth * 0.5, window.innerHeight * 0.5);
       const active = read();
-      window.hermesMascotV2TouchFx.testForceIdle();
+      window.HermesTouchFxController.testForceIdle();
       const idle = read();
       return { before, active, idle };
     });
@@ -576,9 +576,9 @@ test.describe('Hermes kiosk smoke and visual regression anchors', () => {
   test('Concept B avatar lifecycle event updates rendered mode from XState snapshot', async ({ page }, testInfo) => {
     test.skip(testInfo.project.name !== 'minix-sf10t-landscape', 'MINIX-only landscape project');
     await page.goto(runtimeUrl('idle_watch', testInfo));
-    await page.waitForFunction(() => Boolean(window.__HERMES_DISPLAY_BEHAVIOR && window.hermesMascotV2?.publishAvatarEvent), null, { timeout: 8000 });
+    await page.waitForFunction(() => Boolean(window.__HERMES_DISPLAY_BEHAVIOR && window.HermesDisplayRuntime?.publishAvatarEvent), null, { timeout: 8000 });
 
-    await page.evaluate(() => window.hermesMascotV2.publishAvatarEvent({
+    await page.evaluate(() => window.HermesDisplayRuntime.publishAvatarEvent({
       schema_version: '0.1.0',
       id: 'test-tool-started',
       event: 'assistant.tool_started',
@@ -601,9 +601,9 @@ test.describe('Hermes kiosk smoke and visual regression anchors', () => {
   test('Concept B feed avatar events update behavior and health overlays together', async ({ page }, testInfo) => {
     test.skip(testInfo.project.name !== 'minix-sf10t-landscape', 'MINIX-only landscape project');
     await page.goto(runtimeUrl('idle_watch', testInfo));
-    await page.waitForFunction(() => Boolean(window.__HERMES_DISPLAY_BEHAVIOR && window.hermesMascotV2?.publishAvatarEvent), null, { timeout: 8000 });
+    await page.waitForFunction(() => Boolean(window.__HERMES_DISPLAY_BEHAVIOR && window.HermesDisplayRuntime?.publishAvatarEvent), null, { timeout: 8000 });
 
-    await page.evaluate(() => window.hermesMascotV2.publishAvatarEvent({
+    await page.evaluate(() => window.HermesDisplayRuntime.publishAvatarEvent({
       schema_version: '0.1.0',
       id: 'test-feed-lost',
       event: 'feed.lost',
@@ -622,7 +622,7 @@ test.describe('Hermes kiosk smoke and visual regression anchors', () => {
     await expect(page.locator('.cb-radial-stage')).toHaveAttribute('data-optic-special', 'offline_horizon');
     await expect(page.locator('.cb-radial-stage')).toHaveAttribute('data-health', 'critical');
 
-    await page.evaluate(() => window.hermesMascotV2.publishAvatarEvent({
+    await page.evaluate(() => window.HermesDisplayRuntime.publishAvatarEvent({
       schema_version: '0.1.0',
       id: 'test-feed-recovered',
       event: 'feed.recovered',
@@ -916,7 +916,7 @@ test.describe('Hermes kiosk smoke and visual regression anchors', () => {
     // The behavior machine's parallel overlays are consumed by the renderer as data-attributes +
     // CSS treatments. Force them via URL params and assert both the machine truth and the visuals.
     const params = new URLSearchParams({ kiosk: '1', mode: 'idle_watch', orientation: 'landscape', v: EXPECTED_BUILD_ID, health: 'critical', quiet: 'night', privacy: 'sensitive' });
-    await page.goto(`/src/character-runtime-v2.html?${params.toString()}`);
+    await page.goto(`/src/character-runtime.html?${params.toString()}`);
     await page.waitForFunction(() => Boolean(window.__HERMES_DISPLAY_BEHAVIOR), null, { timeout: 8000 });
     await expect.poll(() => page.locator('.cb-radial-stage').evaluate((n) => n.dataset.quiet)).toBe('night');
     const view = await page.evaluate(() => {

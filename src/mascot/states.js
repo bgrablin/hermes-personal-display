@@ -509,7 +509,7 @@
     return list[list.length - 1];
   }
 
-  window.HermesMascotV2States = {
+  window.HermesDisplayStates = {
     STATES,
     NUDGES,
     BROWS,
