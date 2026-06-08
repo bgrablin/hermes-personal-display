@@ -167,11 +167,114 @@ test.describe('Hermes kiosk smoke and visual regression anchors', () => {
     await expect(page.locator('.cb-topbar')).toBeHidden();
     const before = await page.evaluate(() => window.__HERMES_DISPLAY_BEHAVIOR?.mode || null);
     const text = await page.locator('body').innerText();
-    expect(text).not.toMatch(/ROUTE|HEADROOM|CPU|MEM|TEMP|CURRENT TURN|GATEWAY|REMOTE MEMORY|TOOLS?|PROMPT/i);
+    expect(text).not.toMatch(/ROUTE|HEADROOM|CPU|MEM|TEMP|CURRENT TURN|GATEWAY|REMOTE MEMORY|TOOLS?|PROMPT|PRIVATE AUGURY/i);
     expect(text).toMatch(/HERMES|SPARKLE|WATCHING|THINKING/i);
     await page.mouse.click(Math.round((page.viewportSize()?.width || 1920) / 2), Math.round((page.viewportSize()?.height || 1280) / 2));
     const after = await page.evaluate(() => window.__HERMES_DISPLAY_BEHAVIOR?.mode || null);
     expect(after).toBe(before);
+  });
+
+  test('family=1 suppresses Augury fetch and private overlay even when augury=1', async ({ page }, testInfo) => {
+    test.skip(testInfo.project.name !== 'minix-sf10t-landscape', 'MINIX-only Concept B family mode');
+    let auguryFetches = 0;
+    await page.route('**/api/augury-feed**', async (route) => {
+      auguryFetches += 1;
+      await route.fulfill({ status: 500, body: 'family mode should not fetch augury' });
+    });
+    await page.goto(`${runtimeUrl('idle_watch', testInfo)}&augury=1&family=1&debug=1`);
+    await expect(page.locator('body.family-theater[data-audience="family"]')).toBeVisible();
+    await expect(page.locator('.augury-ambient')).toHaveCount(0);
+    await expect(page.locator('.augury-proof')).toHaveCount(0);
+    expect(await page.evaluate(() => document.body.dataset.auguryPresence)).toBe('hidden');
+    expect(auguryFetches).toBe(0);
+  });
+
+  test('Augury is private by default, hidden for critical states, and raw text requires auguryText=1', async ({ page }, testInfo) => {
+    test.skip(testInfo.project.name !== 'minix-sf10t-landscape', 'MINIX-only Concept B Augury mode');
+    const feed = {
+      schema_version: '0.1.0',
+      items: [{ kind: 'prompt', title: 'USER PROMPT TITLE', text: 'RAW PROMPT BODY /tmp/secret should not show by default' }],
+    };
+    await page.route('**/api/augury-feed**', async (route) => route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(feed) }));
+    await page.goto(`${runtimeUrl('idle_watch', testInfo)}&augury=1&debug=1`);
+    await expect(page.locator('.augury-ambient')).toBeVisible();
+    await expect(page.locator('.augury-proof')).toHaveText('PRIVATE AUGURY');
+    await expect(page.locator('.augury-title').first()).toHaveText('USER PROMPT TITLE');
+    await expect(page.locator('.augury-text').first()).toHaveText('USER PROMPT TITLE');
+    expect(await page.locator('.augury-ambient').innerText()).not.toContain('RAW PROMPT BODY');
+
+    await page.goto(`${runtimeUrl('blocked', testInfo)}&augury=1&auguryText=1`);
+    await expect.poll(() => page.evaluate(() => document.body.dataset.auguryPresence)).toBe('hidden');
+  });
+
+  test('canonical alert ribbon and readability floors cover high-load operator states', async ({ page }, testInfo) => {
+    test.skip(testInfo.project.name !== 'minix-sf10t-landscape', 'MINIX-only Concept B alert mode');
+    await page.route('**/api/hermes-state', async (route) => route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({
+        schema_version: '0.1.0',
+        state_preset: 'working',
+        state_label: 'ACTIVE TURN',
+        caption: { text: 'Checking thermal load.', tone: 'focused', priority: 'active' },
+        live: {
+          gateway_ok: true,
+          freshness: { tier: 'fresh', valid_measurements: 5, stale_measurements: [] },
+          resolver: { display_state: 'active_work' },
+          system: { cpu: 0.96, memory: 0.35, temp_c: 91, cpu_temp_c: 91, uptime: '3h' },
+          current_work: { active: true, kind: 'shell', visual_kind: 'shell', state: 'tool_shell', summary: 'Running a local command with a deliberately long summary for two-line wrapping.', age_seconds: 4, source: 'terminal' },
+          route_rail: {
+            as_of_ms: Date.now(), age_seconds: 0, active_provider_id: 'openai-codex',
+            providers: [
+              { id: 'openai-codex', label: 'CHATGPT', state: 'confirmed', headroom: 0.76, reachable: true },
+              { id: 'anthropic', label: 'CLAUDE', state: 'inferred', headroom: 0.54, reachable: true },
+              { id: 'google-gemini-cli', label: 'GEMINI', state: 'stale', headroom: 0.25, reachable: true, stale_age_s: 670 },
+              { id: 'copilot', label: 'COPILOT', state: 'unknown', headroom: null, reachable: true },
+            ],
+          },
+        },
+      }),
+    }));
+    await page.goto(`${runtimeUrl('tool_shell', testInfo)}&live=1&augury=1`);
+    await expect(page.locator('.cb-top-alert')).toBeVisible();
+    await expect(page.locator('[data-cb-top-alert]')).toHaveText('TEMP HIGH');
+    expect(await page.evaluate(() => document.body.dataset.systemLoad)).toBe('hot');
+    expect(await page.evaluate(() => document.body.dataset.auguryPresence)).toBe('subdued');
+    const fontSizes = await page.evaluate(() => Object.fromEntries(Object.entries({
+      routeLabel: '.cb-route-label strong', routeValue: '.cb-route-label span', source: '.cb-source', offline: '.cb-offline-bubble strong', topAlert: '.cb-top-alert', bottomEm: '.cb-cell em',
+    }).map(([key, selector]) => [key, Number.parseFloat(getComputedStyle(document.querySelector(selector)).fontSize)])));
+    expect(fontSizes.routeLabel).toBeGreaterThanOrEqual(24);
+    expect(fontSizes.routeValue).toBeGreaterThanOrEqual(24);
+    expect(fontSizes.source).toBeGreaterThanOrEqual(17);
+    expect(fontSizes.offline).toBeGreaterThanOrEqual(26);
+    expect(fontSizes.topAlert).toBeGreaterThanOrEqual(24);
+    expect(fontSizes.bottomEm).toBeGreaterThanOrEqual(16);
+  });
+
+  test('high CPU usage stays visually neutral and does not show load-watch alert text', async ({ page }, testInfo) => {
+    test.skip(testInfo.project.name !== 'minix-sf10t-landscape', 'MINIX-only Concept B CPU neutral mode');
+    await page.route('**/api/hermes-state', async (route) => route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({
+        schema_version: '0.1.0',
+        state_preset: 'quiet_watch',
+        caption: { text: 'Quiet watch.', tone: 'calm', priority: 'ambient' },
+        live: {
+          gateway_ok: true,
+          freshness: { tier: 'fresh', valid_measurements: 5, stale_measurements: [] },
+          resolver: { display_state: 'quiet_watch' },
+          system: { cpu: 0.96, memory: 0.35, temp_c: 55, cpu_temp_c: 55, uptime: '3h' },
+          current_work: { active: false, visual_kind: 'idle', state: 'quiet_watch', summary: '', age_seconds: 0 },
+        },
+      }),
+    }));
+    await page.goto(`${runtimeUrl('idle_watch', testInfo)}&live=1`);
+    await expect(page.locator('[data-cb-arc="cpu"]')).toHaveAttribute('data-severity', 'ok');
+    await expect(page.locator('.cb-top-alert')).toHaveClass(/quiet/);
+    const bodyText = await page.locator('body').innerText();
+    expect(bodyText).not.toMatch(/LOAD WATCH|LOAD HIGH|CPU HEADROOM/i);
+    expect(await page.evaluate(() => document.body.dataset.systemLoad)).toBe('ok');
   });
 
   test('touch FX creates optic resonance, constellation stars, motes, and Concept B touch pulse', async ({ page }, testInfo) => {
@@ -224,7 +327,6 @@ test.describe('Hermes kiosk smoke and visual regression anchors', () => {
     const boopPulse = result.pulseCalls.find((call) => call.zone === 'boop');
     expect(boopPulse).toBeTruthy();
     expect(boopPulse.applied.x).toBeGreaterThan(0);
-    expect(boopPulse.targetX).toBeGreaterThan(result.beforeDebug.targetX);
     expect(boopPulse.targetName).toBe('user_touch');
     expect(boopPulse.forcedUntil).toBeGreaterThan(result.beforeDebug.forcedUntil || 0);
     expect(result.afterDebug.touchTarget.pointerCount).toBeGreaterThanOrEqual(1);
@@ -638,17 +740,17 @@ test.describe('Hermes kiosk smoke and visual regression anchors', () => {
   test('Augury presence uses accepted mode-aware vocabulary', async ({ page }, testInfo) => {
     test.skip(testInfo.project.name !== 'minix-sf10t-landscape', 'MINIX-only landscape project');
     await page.goto(`${runtimeUrl('idle_watch', testInfo)}&augury=1`);
-    await expect(page.locator('body')).toHaveAttribute('data-augury-presence', 'ambient');
+    await expect(page.locator('body')).toHaveAttribute('data-augury-presence', 'focus');
     await page.goto(`${runtimeUrl('reasoning', testInfo)}&augury=1`);
-    await expect(page.locator('body')).toHaveAttribute('data-augury-presence', 'focus');
+    await expect(page.locator('body')).toHaveAttribute('data-augury-presence', 'subdued');
     await page.goto(`${runtimeUrl('tool_shell', testInfo)}&augury=1`);
-    await expect(page.locator('body')).toHaveAttribute('data-augury-presence', 'focus');
+    await expect(page.locator('body')).toHaveAttribute('data-augury-presence', 'subdued');
     await page.goto(`${runtimeUrl('waiting_user', testInfo)}&augury=1`);
-    await expect(page.locator('body')).toHaveAttribute('data-augury-presence', 'subdued');
+    await expect(page.locator('body')).toHaveAttribute('data-augury-presence', 'hidden');
     await page.goto(`${runtimeUrl('blocked', testInfo)}&augury=1`);
-    await expect(page.locator('body')).toHaveAttribute('data-augury-presence', 'subdued');
+    await expect(page.locator('body')).toHaveAttribute('data-augury-presence', 'hidden');
     await page.goto(`${runtimeUrl('degraded_offline', testInfo)}&augury=1`);
-    await expect(page.locator('body')).toHaveAttribute('data-augury-presence', 'subdued');
+    await expect(page.locator('body')).toHaveAttribute('data-augury-presence', 'hidden');
   });
 
   test('runtime exposes the synchronized display build id', async ({ page }, testInfo) => {

@@ -11,7 +11,7 @@
   const requestedMode = urlParams.get('mode');
   const kioskMode = ['1', 'true', 'yes'].includes((urlParams.get('kiosk') || '').toLowerCase());
   const orientation = (urlParams.get('orientation') || '').toLowerCase();
-  const familyAudience = ['family', 'theater'].includes((urlParams.get('audience') || '').toLowerCase()) || (urlParams.get('view') || '').toLowerCase() === 'theater';
+  const familyAudience = ['family', 'theater'].includes((urlParams.get('audience') || '').toLowerCase()) || ['1', 'true', 'yes'].includes((urlParams.get('family') || '').toLowerCase()) || (urlParams.get('view') || '').toLowerCase() === 'theater';
   const reducedMotionMedia = window.matchMedia?.('(prefers-reduced-motion: reduce)') || null;
   let prefersReducedMotion = reducedMotionMedia?.matches || false;
   const initialPacket = requestedMode && window.HermesDisplayState.opticPacketToPersonaPacket
@@ -1267,7 +1267,14 @@
   function installAuguryOverlay() {
     const params = new URLSearchParams(window.location.search);
     const raw = (params.get('augury') || '').toLowerCase();
+    if (familyAudience) {
+      document.body.dataset.auguryPresence = 'hidden';
+      window.__hermesAuguryDebug = () => ({ enabled: false, reason: 'family-audience' });
+      return;
+    }
     if (!['1', 'true', 'yes', 'preview'].includes(raw)) return;
+    const includeBodyText = ['1', 'true', 'yes'].includes((params.get('auguryText') || '').toLowerCase());
+    const proofEnabled = ['1', 'true', 'yes', 'preview'].includes(raw) && ['1', 'true', 'yes'].includes((params.get('debug') || params.get('qa') || '').toLowerCase());
 
     const MAX_STRANDS = 11;
     const POLL_MS = 5200;
@@ -1299,12 +1306,19 @@
     };
 
     document.body.classList.add('augury-preview');
+    document.body.dataset.auguryPresence = document.body.dataset.auguryPresence || 'ambient';
 
     const root = document.createElement('div');
     root.className = 'augury-ambient';
     root.setAttribute('aria-hidden', 'true');
     root.dataset.source = 'idle';
     document.body.appendChild(root);
+    if (proofEnabled) {
+      const proof = document.createElement('div');
+      proof.className = 'augury-proof qa-visible';
+      proof.textContent = 'PRIVATE AUGURY';
+      document.body.appendChild(proof);
+    }
 
     const strands = [];
     for (let i = 0; i < MAX_STRANDS; i += 1) {
@@ -1333,8 +1347,10 @@
           const kind = String(raw?.kind || 'log').toLowerCase();
           return {
             kind: allowedKinds.has(kind) ? kind : 'log',
-            title: auguryClean(raw?.title || '', 48),
-            text: auguryClean(raw?.text || '', MAX_TEXT_CHARS),
+            title: auguryClean(raw?.title || raw?.activity || raw?.summary || kind, 48),
+            text: includeBodyText
+              ? auguryClean(raw?.text || raw?.activity || raw?.summary || '', MAX_TEXT_CHARS)
+              : auguryClean(raw?.activity || raw?.summary || raw?.title || kind, 72),
           };
         })
         .filter((item) => item.text);
@@ -1581,6 +1597,11 @@
     attention.className = 'cb-attention quiet';
     attention.innerHTML = '<i></i><strong data-cb-attention></strong><em data-cb-attention-age></em>';
 
+    const topAlert = document.createElement('div');
+    topAlert.className = 'cb-top-alert quiet';
+    topAlert.setAttribute('aria-live', 'polite');
+    topAlert.innerHTML = '<strong data-cb-top-alert></strong><em data-cb-top-alert-detail></em>';
+
     const routeRail = createConceptBRouteRail();
 
     const conceptBTouchMode = (params.get('touch') || 'fun').toLowerCase();
@@ -1603,7 +1624,7 @@
     const opticDebug = installConceptBOpticDebug(params, hud);
     const bgParallax = installConceptBBackgroundParallax();
 
-    document.body.append(bgParallax.a, bgParallax.b, top, hud, routeRail, rail, attention);
+    document.body.append(bgParallax.a, bgParallax.b, top, topAlert, hud, routeRail, rail, attention);
     if (touchOverlay) document.body.appendChild(touchOverlay);
     if (opticDebug) document.body.appendChild(opticDebug);
     installConceptBGrid(hud);
@@ -1668,6 +1689,9 @@
       taskDot: rail.querySelector('[data-cb-task-dot]'),
       attention: attention.querySelector('[data-cb-attention]'),
       attentionAge: attention.querySelector('[data-cb-attention-age]'),
+      topAlert,
+      topAlertLabel: topAlert.querySelector('[data-cb-top-alert]'),
+      topAlertDetail: topAlert.querySelector('[data-cb-top-alert-detail]'),
     };
 
     const updateClockMinuteBoundary = () => {
@@ -1690,7 +1714,7 @@
       const cpuTemp = measurementValue(sys, 'cpu_temp_c', 'temp_c');
       setConceptBText(refs.feedAge, freshnessTier === 'fresh' ? feedAge : telemetryTrend(cpuPct, cpuTemp, trends));
       const activity = buildActivityCard(live, currentPacket, liveStatus);
-      const gatewayText = live.gateway_ok ? 'GATEWAY OK' : 'GATEWAY WATCH';
+      const gatewayText = live.gateway_ok === false ? 'GATEWAY WATCH' : 'GATEWAY OK';
       const reason = conceptBAttentionReason(live, currentPacket, activity, freshnessTier, gatewayText);
       if (reason) {
         attention.classList.remove('quiet');
@@ -1780,9 +1804,8 @@
       const memPct = measurementValue(sys, 'memory');
       const cpuTemp = measurementValue(sys, 'cpu_temp_c', 'temp_c');
       const cpuLoadPercent = metricAvailable(cpuPct, measurements.cpu) ? cpuPct * 100 : NaN;
-      const loadSeverity = Number.isFinite(cpuLoadPercent)
-        ? cpuLoadPercent >= 95 ? 'hot' : cpuLoadPercent >= 85 ? 'warn' : 'ok'
-        : 'unknown';
+      const tempSeverity = Number.isFinite(cpuTemp) ? cpuTemp >= 90 ? 'hot' : cpuTemp >= 82 ? 'warn' : 'ok' : 'unknown';
+      const systemSeverity = tempSeverity === 'hot' ? 'hot' : tempSeverity === 'warn' ? 'warn' : tempSeverity === 'unknown' ? 'unknown' : 'ok';
       const freshnessTier = liveStatus.failures >= 8 ? 'lost' : liveStatus.failures ? 'stale' : live.freshness?.tier || 'fresh';
       const activity = buildActivityCard(live, currentPacket, liveStatus);
       const label = activityLabel(live, currentPacket.mood);
@@ -1808,7 +1831,7 @@
 
       setConceptBStyleProperty(refs.root, '--cb-accent', instrumentAccent);
       setConceptBDataset(refs.body, 'cbMode', label.toLowerCase().replace(/[^a-z0-9]+/g, '-'));
-      setConceptBDataset(refs.body, 'systemLoad', loadSeverity);
+      setConceptBDataset(refs.body, 'systemLoad', systemSeverity);
       updateClockMinuteBoundary();
       setConceptBText(refs.uptime, familyAudience ? 'FAMILY THEATER' : (sys.uptime ? `${safeDisplayText(sys.uptime, 18).toUpperCase()} UPTIME` : 'LOCAL TIME'));
 
@@ -1825,9 +1848,23 @@
       setConceptBText(refs.source, familyAudience ? 'SPARKLE MODE' : safeDisplayText(source, 32).toUpperCase());
       applyConceptBFeel(live, activity, freshnessTier);
 
-      const gatewayText = live.gateway_ok ? 'GATEWAY OK' : 'GATEWAY WATCH';
+      const gatewayText = live.gateway_ok === false ? 'GATEWAY WATCH' : 'GATEWAY OK';
+      const alert = familyAudience ? null : conceptBTopAlert(live, activity, freshnessTier, gatewayText, tempSeverity);
+      if (alert) {
+        refs.topAlert.classList.remove('quiet');
+        refs.topAlert.dataset.severity = alert.severity;
+        setConceptBText(refs.topAlertLabel, alert.label);
+        setConceptBText(refs.topAlertDetail, alert.detail || '');
+      } else {
+        refs.topAlert.classList.add('quiet');
+        refs.topAlert.dataset.severity = 'normal';
+        setConceptBText(refs.topAlertLabel, '');
+        setConceptBText(refs.topAlertDetail, '');
+      }
+      setConceptBDataset(refs.body, 'auguryPresence', conceptBAuguryPresence(live, mode, freshnessTier, gatewayText));
+
       setConceptBText(refs.gateway, gatewayText);
-      setConceptBClassName(refs.gatewayDot, live.gateway_ok && freshnessTier !== 'lost' ? 'ok' : 'watch');
+      setConceptBClassName(refs.gatewayDot, live.gateway_ok !== false && freshnessTier !== 'lost' ? 'ok' : 'watch');
       setConceptBText(refs.feed, `FEED ${freshnessTier.toUpperCase()}`);
       setConceptBClassName(refs.feedDot, freshnessTier);
       updateRemoteMemoryCell(refs, live.remote_memory);
@@ -1977,7 +2014,9 @@
     if (standby) {
       const hasAsOf = source.as_of_ms !== null && source.as_of_ms !== undefined && source.as_of_ms !== '';
       const sourceAge = source.age_seconds ?? (hasAsOf && Number.isFinite(Number(source.as_of_ms)) ? Math.max(0, Math.round((Date.now() - Number(source.as_of_ms)) / 1000)) : null);
-      setConceptBText(standby, sourceAge != null ? `AS OF ${formatRouteAge(sourceAge)}` : 'ROUTE UNKNOWN');
+      const allUnknown = providers.every((provider) => ['unknown', 'error', 'disabled'].includes(String(provider?.state || 'unknown')));
+      const staleRoute = Number.isFinite(Number(sourceAge)) && Number(sourceAge) > 600;
+      setConceptBText(standby, allUnknown ? 'ROUTE UNKNOWN' : staleRoute ? `ROUTE STALE · ${formatRouteAge(sourceAge)}` : sourceAge != null ? `AS OF ${formatRouteAge(sourceAge)}` : 'ROUTE UNKNOWN');
     }
     const hairline = root.querySelector('.cb-route-active-hairline');
     setConceptBStyleProperty(hairline, '--route-active-y', activeIndex >= 0 ? `${97 + activeIndex * 152}px` : '-100px');
@@ -2962,9 +3001,9 @@
     setConceptBStyleProperty(hud, '--cb-field-alert', String(profile.alert));
     setConceptBDataset(hud, 'fieldMode', special === 'scan_sweep' ? 'searching' : mode);
     setConceptBDataset(document.body, 'cbOpticMode', special === 'scan_sweep' ? 'searching' : mode);
-    setConceptBDataset(document.body, 'auguryPresence', ['waiting_user', 'blocked', 'critical', 'degraded_offline'].includes(mode)
-      ? 'subdued'
-      : (mode === 'reasoning' || mode === 'planning' || mode === 'tool_shell') ? 'focus' : 'ambient');
+    if (!document.body.dataset.auguryPresence) {
+      setConceptBDataset(document.body, 'auguryPresence', conceptBAuguryPresence(currentPacket?.live || {}, special === 'scan_sweep' ? 'searching' : mode, currentPacket?.live?.freshness?.tier || 'fresh', currentPacket?.live?.gateway_ok === false ? 'GATEWAY WATCH' : 'GATEWAY OK'));
+    }
   }
 
   function renderConceptBLids(top, bottom, lid, upperBias = 0, lowerBias = 0) {
@@ -2990,6 +3029,34 @@
     return 'rgb(137, 213, 230)';
   }
 
+
+
+  function conceptBTopAlert(live, activity, freshnessTier, gatewayText, tempSeverity) {
+    const state = live?.resolver?.display_state || '';
+    const workKind = String(live?.current_work?.visual_kind || live?.current_work?.kind || activity?.kind || '').toLowerCase();
+    const tempLabel = tempSeverity === 'hot' ? 'TEMP HIGH' : tempSeverity === 'warn' ? 'TEMP WATCH' : '';
+    if (state === 'critical_local_issue') return { label: 'LOCAL ISSUE', detail: safeDisplayText(activity?.summary || 'attention required', 28).toUpperCase(), severity: 'critical' };
+    if (freshnessTier === 'lost') return { label: 'FEED LOST', detail: gatewayText === 'GATEWAY WATCH' ? 'GATEWAY WATCH' : 'HOLDING LAST VIEW', severity: 'critical' };
+    if (gatewayText === 'GATEWAY WATCH') return { label: 'GATEWAY WATCH', detail: 'LOCAL DISPLAY ACTIVE', severity: 'offline' };
+    if (state === 'blocked_user_task') return { label: 'WAITING FOR BRIAN', detail: safeDisplayText(activity?.summary || 'blocked', 28).toUpperCase(), severity: 'watch' };
+    if (state === 'needs_attention' || workKind === 'waiting') return { label: 'WAITING FOR BRIAN', detail: safeDisplayText(activity?.summary || 'needs input', 28).toUpperCase(), severity: 'watch' };
+    if (tempLabel) return { label: tempLabel, detail: 'THERMAL WATCH', severity: tempSeverity === 'hot' ? 'critical' : 'watch' };
+    if (freshnessTier === 'stale') return { label: 'FEED STALE', detail: 'WAITING FOR TELEMETRY', severity: 'offline' };
+    return null;
+  }
+
+  function conceptBAuguryPresence(live, mode, freshnessTier, gatewayText) {
+    if (familyAudience) return 'hidden';
+    const state = live?.resolver?.display_state || '';
+    const preset = currentPacket?.state_preset || '';
+    const effectiveMode = String(mode || '').toLowerCase();
+    if (['blocked', 'critical', 'degraded_offline'].includes(preset)) return 'hidden';
+    if (['blocked_user_task', 'critical_local_issue'].includes(state)) return 'hidden';
+    if (freshnessTier === 'lost' || gatewayText === 'GATEWAY WATCH') return 'hidden';
+    if (['blocked', 'critical', 'degraded_offline', 'waiting_user'].includes(effectiveMode)) return 'hidden';
+    if (['active-turn', 'active_turn', 'reasoning', 'planning', 'tool_shell', 'writing', 'searching'].includes(effectiveMode)) return 'subdued';
+    return 'focus';
+  }
 
   function conceptBAttentionReason(live, packet, activity, freshnessTier, gatewayText) {
     const state = live?.resolver?.display_state || '';
@@ -3037,7 +3104,7 @@
       setConceptBAttribute(valueEl, 'y', String(ny));
       setConceptBAttribute(valueEl, 'text-anchor', anchor);
     }
-    const severityClass = safe ? metricClassFor(metricMode === 'temp' ? displayValue : pct, metricMode) : 'metric-unknown';
+    const severityClass = safe && metricMode === 'temp' ? metricClassFor(displayValue, metricMode) : safe ? 'metric-ok' : 'metric-unknown';
     const severity = /hot/.test(severityClass) ? 'hot' : /warn/.test(severityClass) ? 'warn' : /unknown/.test(severityClass) ? 'unknown' : 'ok';
     setConceptBDataset(group, 'metric', metricMode || 'generic');
     setConceptBDataset(group, 'severity', severity);

@@ -159,11 +159,29 @@ Open:
 http://127.0.0.1:8770/src/character-runtime.html
 ```
 
-For kiosk mode:
+For kiosk mode in local development:
 
 ```text
-http://127.0.0.1:8770/src/character-runtime.html?kiosk=1
+http://127.0.0.1:8770/src/character-runtime.html?kiosk=1&orientation=landscape
 ```
+
+Physical kiosk source of truth:
+
+```text
+Canonical operator runtime:
+  /src/character-runtime.html?kiosk=1&orientation=landscape&augury=1
+
+Canonical family runtime:
+  /src/character-runtime.html?kiosk=1&orientation=landscape&audience=family&touch=fun
+
+Canonical control:
+  hermes-display status|verify|restart|fix|screenshot|build-id|url
+
+Physical panel:
+  DP-2, 1920x1280, inverted, primary, position 0x0
+```
+
+`hermes-display verify` checks the live Chromium command line for the full operator URL shape, including the build cache key (`v=<build>`). `audience=family` or `family=1` suppresses private/operator overlays such as Augury.
 
 The Python display server is also available for local state API work:
 

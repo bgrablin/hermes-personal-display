@@ -196,10 +196,15 @@ if (!appSource.includes("touchMode === 'legacy' && debugTouch")) {
 }
 
 const readableSelectors = [
-  ['body.kiosk-mode.kiosk-landscape.claude-concept-b .cb-line', 28],
+  ['body.kiosk-mode.kiosk-landscape.claude-concept-b .cb-line', 34],
+  ['body.kiosk-mode.kiosk-landscape.claude-concept-b .cb-source', 17],
   ['body.kiosk-mode.kiosk-landscape.claude-concept-b .cb-cell strong', 24],
+  ['body.kiosk-mode.kiosk-landscape.claude-concept-b .cb-cell em', 16],
   ['body.kiosk-mode.kiosk-landscape.claude-concept-b .cb-arc-value', 28],
   ['body.kiosk-mode.kiosk-landscape.claude-concept-b .cb-attention', 18],
+  ['body.kiosk-mode.kiosk-landscape.claude-concept-b .cb-top-alert', 24],
+  ['body.kiosk-mode.kiosk-landscape.claude-concept-b .cb-route-label strong', 24],
+  ['body.kiosk-mode.kiosk-landscape.claude-concept-b .cb-route-label span', 24],
 ];
 for (const [selector, minPx] of readableSelectors) {
   const px = fontPx(blockFor(selector), selector);
@@ -208,6 +213,65 @@ for (const [selector, minPx] of readableSelectors) {
 
 if (appSource.includes('♆')) {
   fail('Top-left identity mark must be Hermes caduceus-aligned, not the old trident/Neptune glyph.');
+}
+requireAll(xsessionSource, [
+  'URL="${PERSONAL_DISPLAY_URL:-$($SCRIPT_DIR/hermes-display url)}"',
+], 'Physical X session must derive its default launch URL from hermes-display url.');
+requireAll(displayCliSource, [
+  'canonical_url_status()',
+  'orientation=landscape',
+  'augury=1',
+  'OK live Chromium URL canonical',
+  'URL match:',
+], 'hermes-display must assert and report the canonical operator URL shape.');
+requireAll(appSource, [
+  'conceptBTopAlert',
+  'conceptBAuguryPresence',
+  "params.get('auguryText')",
+  "enabled: false, reason: 'family-audience'",
+  'PRIVATE AUGURY',
+], 'Canonical runtime must include top alert and private Augury safeguards.');
+if (!appSource.includes("['1', 'true', 'yes'].includes((urlParams.get('family')")) {
+  fail('family=1 must be treated as family audience and suppress private/operator overlays.');
+}
+if (!cssSource.includes('.cb-top-alert') || !cssSource.includes('body.family-theater.augury-preview .augury-ambient')) {
+  fail('Canonical CSS must include top alert ribbon and hard-hide Augury in family theater mode.');
+}
+if (!appSource.includes("(params.get('touch') || 'fun').toLowerCase()")) {
+  fail('Default touch effects must stay at touch=fun; do not reduce default touch behavior.');
+}
+if (!appSource.includes('conceptBAuguryPresence(live, mode, freshnessTier, gatewayText)')) {
+  fail('Augury presence must be recomputed from live operational state so alerts can hide it.');
+}
+if (!cssSource.includes('[data-cb-arc][data-severity="hot"] .cb-arc-value')) {
+  fail('Hot metric arc values must get high-contrast canonical treatment, not only taste=1 treatment.');
+}
+if (appSource.includes('LOAD WATCH') || appSource.includes('LOAD HIGH') || appSource.includes('CPU HEADROOM')) {
+  fail('CPU usage must not drive ugly top-alert text or CPU-headroom warning copy.');
+}
+if (!appSource.includes('FEED LOST') || !appSource.includes('GATEWAY WATCH')) {
+  fail('Top alert labels must still cover feed lost and gateway watch states.');
+}
+if (!appSource.includes("includeBodyText\n              ? auguryClean(raw?.text") && appSource.includes("text: auguryClean(raw?.text || '', MAX_TEXT_CHARS)")) {
+  fail('Augury must not show raw body text by default; require auguryText=1 for raw excerpts.');
+}
+if (!appSource.includes("if (familyAudience) return 'hidden';")) {
+  fail('Family/theater mode must force Augury presence hidden.');
+}
+if (!appSource.includes("['blocked_user_task', 'critical_local_issue'].includes(state)")) {
+  fail('Blocked and critical states must hide Augury so operational status wins.');
+}
+if (!appSource.includes("['active-turn', 'active_turn', 'reasoning', 'planning', 'tool_shell', 'writing', 'searching']")) {
+  fail('Active work/search/reasoning states must subdue Augury rather than leaving it dominant.');
+}
+if (!appSource.includes("state === 'blocked_user_task') return { label: 'WAITING FOR BRIAN'")) {
+  fail('Blocked current work must elevate a WAITING FOR BRIAN top alert.');
+}
+if (!cssSource.includes('white-space: normal') || !cssSource.includes('-webkit-line-clamp: 2')) {
+  fail('Current-work panel must support controlled two-line wrapping instead of nowrap clipping.');
+}
+if (touchFxSource.includes('touchIntensity') || touchFxSource.includes("touch=operator")) {
+  fail('This task explicitly excludes reducing default touch effects; touch-fx intensity settings should not be added here.');
 }
 if (!appSource.includes('ensureConceptBEyeMotion') || !appSource.includes('renderConceptBEyeMotion') || !appSource.includes('conceptBEyeMicroMotion')) {
   fail('Concept B eye gaze must use the RAF motion rig for fluid saccades, not one-second snapped updates.');
@@ -304,7 +368,7 @@ if (/safe\[idx\s*%\s*safe\.length\]/.test(appSource)) {
 }
 requireAll(cssSource, ['.cb-arc-label', 'font: 600 16px/1', 'fill: var(--cb-fg-1)'], 'Concept B telemetry arc labels must stay desk-readable and metric-identifying.');
 requireAll(appSource, ['ROUTE · HEADROOM', "const unknownRouteCopy = state === 'disabled' ? 'OFF' : state === 'error' ? 'ERR' : 'UNK'"], 'Route rail must label headroom and render unknown/inactive routes explicitly instead of bare dashes.');
-requireAll(cssSource, ['right: 44px', 'width: 340px', 'width: 40px', 'transform: scaleX(var(--route-headroom))', 'transition: transform 600ms ease, opacity 450ms ease', 'grid-template-columns: minmax(108px, auto) 76px', 'min-width: 76px', '[data-cb-mode="active-turn"] .cb-activity', 'var(--cb-hud-panel)'], 'Route values must use a fixed aligned column clear of the route whisker, animate the whisker via transform instead of width, and active turns must use a readable non-red HUD panel.');
+requireAll(cssSource, ['right: 44px', 'width: 390px', 'width: 40px', 'transform: scaleX(var(--route-headroom))', 'transition: transform 600ms ease, opacity 450ms ease', 'grid-template-columns: minmax(122px, auto) 86px', 'min-width: 76px', '[data-cb-mode="active-turn"] .cb-activity', 'var(--cb-hud-panel)'], 'Route values must use a fixed aligned column clear of the route whisker, animate the whisker via transform instead of width, and active turns must use a readable non-red HUD panel.');
 if (/right:\s*calc\(72px \+ 118px \* var\(--route-headroom\)\)/.test(cssSource)) {
   fail('Route percentage text must not shift horizontally by headroom; keep values fixed and move only the whisker/bar.');
 }

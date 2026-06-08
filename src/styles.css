@@ -1668,15 +1668,18 @@ body.kiosk-mode.kiosk-landscape.claude-concept-b .cb-activity {
   flex-direction: column;
   align-items: center;
   gap: 12px;
-  max-width: min(820px, 58vw);
+  max-width: min(940px, 64vw);
   padding: 0;
-  white-space: nowrap;
+  white-space: normal;
+  text-wrap: balance;
   text-align: center;
 }
 
 
-body.kiosk-mode.kiosk-landscape.claude-concept-b [data-cb-mode="active-turn"] .cb-activity {
-  width: min(780px, 54vw);
+body.kiosk-mode.kiosk-landscape.claude-concept-b [data-cb-mode="active-turn"] .cb-activity,
+body.kiosk-mode.kiosk-landscape.claude-concept-b [data-cb-mode="working"] .cb-activity,
+body.kiosk-mode.kiosk-landscape.claude-concept-b [data-cb-mode="planning"] .cb-activity {
+  width: min(860px, 60vw);
   padding: 18px 28px 20px;
   border: 1px solid color-mix(in srgb, var(--cb-accent) 38%, transparent);
   border-radius: 26px;
@@ -1715,7 +1718,11 @@ body.kiosk-mode.kiosk-landscape.claude-concept-b .cb-state span {
 body.kiosk-mode.kiosk-landscape.claude-concept-b .cb-line {
   max-width: 980px;
   color: var(--cb-fg-0);
-  font: 520 34px/1.09 system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  font: 560 38px/1.08 system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
   letter-spacing: -0.018em;
   text-shadow: 0 0 24px rgba(0,0,0,0.54);
   text-wrap: balance;
@@ -1759,7 +1766,7 @@ body.kiosk-mode.kiosk-landscape.claude-concept-b .cb-offline-bubble.quiet {
 body.kiosk-mode.kiosk-landscape.claude-concept-b .cb-offline-bubble strong {
   display: block;
   color: var(--cb-fg-0);
-  font: 520 22px/1.2 system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  font: 560 26px/1.2 system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
 }
 
 body.kiosk-mode.kiosk-landscape.claude-concept-b .cb-offline-bubble em {
@@ -1786,7 +1793,7 @@ body.kiosk-mode.kiosk-landscape.claude-concept-b .cb-offline-runner {
 
 body.kiosk-mode.kiosk-landscape.claude-concept-b .cb-source {
   color: var(--cb-fg-readable);
-  font: 620 15px/1 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font: 650 18px/1 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
   letter-spacing: 0.13em;
   text-transform: uppercase;
 }
@@ -1860,11 +1867,94 @@ body.kiosk-mode.kiosk-landscape.claude-concept-b .cb-cell strong {
 
 body.kiosk-mode.kiosk-landscape.claude-concept-b .cb-cell em {
   color: var(--cb-fg-muted-readable);
-  font: 600 15px/1 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font: 620 16px/1 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
   letter-spacing: 0.08em;
   text-transform: uppercase;
   font-style: normal;
   white-space: nowrap;
+}
+
+
+body.kiosk-mode.kiosk-landscape.claude-concept-b .cb-top-alert {
+  position: fixed;
+  left: 50%;
+  top: 132px;
+  z-index: 9;
+  transform: translateX(-50%);
+  display: flex;
+  align-items: baseline;
+  gap: 14px;
+  max-width: min(860px, 72vw);
+  padding: 10px 20px 11px;
+  border-radius: 999px;
+  border: 2px solid color-mix(in srgb, var(--cb-ochre) 70%, transparent);
+  background: rgba(42, 31, 10, 0.70);
+  color: color-mix(in srgb, var(--cb-ochre) 90%, var(--cb-fg-0));
+  font: 950 24px/1 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  text-shadow: 0 0 20px color-mix(in srgb, currentColor 52%, transparent);
+  box-shadow: 0 0 30px color-mix(in srgb, currentColor 24%, transparent), inset 0 0 20px rgba(205, 171, 91, 0.10);
+  pointer-events: none;
+}
+
+body.kiosk-mode.kiosk-landscape.claude-concept-b .cb-top-alert.quiet {
+  opacity: 0;
+}
+
+body.kiosk-mode.kiosk-landscape.claude-concept-b .cb-top-alert em {
+  color: color-mix(in srgb, currentColor 70%, var(--cb-fg-readable));
+  font: 760 16px/1 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-style: normal;
+  letter-spacing: 0.12em;
+  white-space: nowrap;
+}
+
+body.kiosk-mode.kiosk-landscape.claude-concept-b .cb-top-alert[data-severity="critical"] {
+  border-color: color-mix(in srgb, var(--cb-rust) 78%, transparent);
+  background: rgba(42, 14, 10, 0.78);
+  color: color-mix(in srgb, var(--cb-rust) 92%, var(--cb-fg-0));
+  box-shadow: 0 0 34px color-mix(in srgb, var(--cb-rust) 34%, transparent), inset 0 0 24px rgba(200, 119, 90, 0.14);
+}
+
+body.kiosk-mode.kiosk-landscape.claude-concept-b .cb-top-alert[data-severity="offline"] {
+  border-style: dashed;
+  border-color: color-mix(in srgb, var(--cb-steel) 72%, transparent);
+  background: rgba(10, 15, 18, 0.76);
+  color: color-mix(in srgb, var(--cb-steel) 86%, var(--cb-fg-0));
+}
+
+body.kiosk-mode.kiosk-landscape.claude-concept-b [data-cb-arc][data-severity="warn"] .cb-arc-fill,
+body.kiosk-mode.kiosk-landscape.claude-concept-b [data-cb-arc][data-severity="warn"] .cb-arc-dot {
+  stroke: var(--cb-ochre);
+  fill: var(--cb-ochre);
+  filter: drop-shadow(0 0 18px color-mix(in srgb, var(--cb-ochre) 58%, transparent));
+}
+
+body.kiosk-mode.kiosk-landscape.claude-concept-b [data-cb-arc][data-severity="hot"] .cb-arc-fill,
+body.kiosk-mode.kiosk-landscape.claude-concept-b [data-cb-arc][data-severity="hot"] .cb-arc-dot {
+  stroke: var(--cb-rust);
+  fill: var(--cb-rust);
+  stroke-width: 8;
+  filter: drop-shadow(0 0 34px color-mix(in srgb, var(--cb-rust) 88%, transparent));
+}
+
+body.kiosk-mode.kiosk-landscape.claude-concept-b [data-cb-arc][data-severity="hot"] .cb-arc-track {
+  stroke: color-mix(in srgb, var(--cb-rust) 34%, transparent);
+  stroke-width: 4;
+}
+
+body.kiosk-mode.kiosk-landscape.claude-concept-b [data-cb-arc][data-severity="hot"] .cb-arc-label {
+  fill: color-mix(in srgb, var(--cb-rust) 86%, var(--cb-fg-0));
+  font-weight: 900;
+}
+
+body.kiosk-mode.kiosk-landscape.claude-concept-b [data-cb-arc][data-severity="hot"] .cb-arc-value {
+  fill: var(--cb-rust);
+  font-weight: 900;
+  paint-order: stroke;
+  stroke: rgba(0, 0, 0, 0.72);
+  stroke-width: 4px;
 }
 
 body.kiosk-mode.kiosk-landscape.claude-concept-b .cb-attention {
@@ -1904,7 +1994,7 @@ body.kiosk-mode.kiosk-landscape.claude-concept-b .cb-route-rail {
   position: fixed;
   right: 44px;
   top: 162px;
-  width: 340px;
+  width: 390px;
   height: 730px;
   z-index: 6;
   pointer-events: none;
@@ -1918,10 +2008,10 @@ body.kiosk-mode.kiosk-landscape.claude-concept-b .cb-route-rail {
 
 body.kiosk-mode.kiosk-landscape.claude-concept-b .cb-route-title {
   position: absolute;
-  right: 74px;
+  right: 84px;
   top: 0;
   color: color-mix(in srgb, var(--cb-amber) 66%, var(--cb-fg-0));
-  font-size: 20px;
+  font-size: 21px;
   letter-spacing: 0.18em;
 }
 
@@ -1985,12 +2075,12 @@ body.kiosk-mode.kiosk-landscape.claude-concept-b .cb-route-row[data-state="disab
 
 body.kiosk-mode.kiosk-landscape.claude-concept-b .cb-route-label {
   position: absolute;
-  right: 104px;
+  right: 118px;
   top: 0;
-  min-width: 224px;
+  min-width: 250px;
   display: grid;
-  grid-template-columns: minmax(108px, auto) 76px;
-  column-gap: 16px;
+  grid-template-columns: minmax(122px, auto) 86px;
+  column-gap: 18px;
   row-gap: 8px;
   justify-content: end;
   align-items: baseline;
@@ -2000,7 +2090,7 @@ body.kiosk-mode.kiosk-landscape.claude-concept-b .cb-route-label {
 
 body.kiosk-mode.kiosk-landscape.claude-concept-b .cb-route-label strong {
   color: currentColor;
-  font: 760 21px/1 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font: 820 24px/1 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
   letter-spacing: 0.09em;
 }
 
@@ -2009,7 +2099,7 @@ body.kiosk-mode.kiosk-landscape.claude-concept-b .cb-route-label span {
   display: inline-block;
   min-width: 76px;
   text-align: right;
-  font: 760 21px/1 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font: 820 24px/1 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
   font-variant-numeric: tabular-nums;
   letter-spacing: 0.06em;
 }
@@ -2124,7 +2214,7 @@ body.kiosk-mode.kiosk-landscape.claude-concept-b .cb-route-standby {
   top: 702px;
   color: var(--cb-fg-muted-readable);
   opacity: 0.68;
-  font-size: 15px;
+  font-size: 16px;
   letter-spacing: 0.14em;
 }
 
@@ -2392,6 +2482,7 @@ body.kiosk-mode.kiosk-landscape.claude-concept-b .cb-touch-center { left: 49.3vw
   body.kiosk-mode.kiosk-landscape.claude-concept-b .cb-orbit-spin,
   body.kiosk-mode.kiosk-landscape.claude-concept-b .cb-orbit-main,
   body.kiosk-mode.kiosk-landscape.claude-concept-b .cb-attention i,
+  body.kiosk-mode.kiosk-landscape.claude-concept-b .cb-top-alert,
   body.kiosk-mode.kiosk-landscape.claude-concept-b .cb-listening-ripple,
   body.kiosk-mode.kiosk-landscape.claude-concept-b .cb-cadence-caret,
   body.kiosk-mode.kiosk-landscape.claude-concept-b .cb-offline-runner {
@@ -2925,6 +3016,26 @@ body[data-augury-presence="subdued"].augury-preview .augury-strand[data-echo="tr
 
 body[data-augury-presence="hidden"].augury-preview .augury-ambient {
   opacity: 0;
+  visibility: hidden;
+}
+
+body.family-theater.augury-preview .augury-ambient {
+  display: none !important;
+}
+
+body.augury-preview .augury-proof {
+  position: fixed;
+  left: 28px;
+  bottom: 28px;
+  z-index: 9;
+  padding: 5px 8px;
+  border: 1px solid rgba(101, 243, 255, 0.22);
+  border-radius: 8px;
+  color: rgba(101, 243, 255, 0.58);
+  background: rgba(3, 7, 11, 0.54);
+  font: 700 11px/1 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  letter-spacing: 0.14em;
+  pointer-events: none;
 }
 
 @keyframes augury-vertical-flow {

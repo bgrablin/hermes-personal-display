@@ -76,6 +76,53 @@ live_chromium_line() {
   pgrep -af '[c]hromium.*character-runtime.*kiosk=1' || true
 }
 
+canonical_url_status() {
+  local live="$1" build="$2"
+  if [[ -z "$live" ]]; then
+    echo "fail: no live Chromium kiosk process"
+    return 1
+  fi
+  LIVE_CHROMIUM="$live" python3 - "$RUNTIME_PATH" "$build" <<'PY'
+import os
+import re
+import sys
+from urllib.parse import parse_qs, unquote, urlsplit
+
+runtime_path, build = sys.argv[1], sys.argv[2]
+live = os.environ.get("LIVE_CHROMIUM", "").splitlines()
+expected = {
+    "kiosk": "1",
+    "orientation": "landscape",
+    "augury": "1",
+    "v": build,
+}
+legacy_ok = False
+seen = []
+for line in live:
+    for raw in re.findall(r"https?://[^\s'\"]+", line):
+        url = unquote(raw)
+        parts = urlsplit(url)
+        path = parts.path
+        query = parse_qs(parts.query, keep_blank_values=True)
+        params_ok = all(query.get(k) == [v] for k, v in expected.items())
+        if path == runtime_path and params_ok:
+            print("ok: canonical operator URL")
+            raise SystemExit(0)
+        if path == runtime_path.replace(".html", "-v2.html") and params_ok:
+            legacy_ok = True
+        if "character-runtime" in path:
+            seen.append(f"{path}?{parts.query}")
+if legacy_ok:
+    print("warn: legacy runtime path detected with exact canonical query")
+    raise SystemExit(2)
+if seen:
+    print("fail: expected exact canonical operator URL; saw " + " | ".join(seen[:3]))
+else:
+    print(f"fail: expected {runtime_path}?kiosk=1&orientation=landscape&augury=1&v={build}")
+raise SystemExit(1)
+PY
+}
+
 state_api_ok() {
   python3 - "$STATE_URL" <<'PY'
 import json, sys, urllib.request
@@ -164,6 +211,9 @@ status_kiosk() {
     echo "not running"
   fi
   echo
+  echo "URL match:"
+  canonical_url_status "$live" "$build" || true
+  echo
   echo "DP-2:"
   check_dp2 || true
   echo
@@ -198,10 +248,15 @@ verify_kiosk() {
   fi
 
   live="$(live_chromium_line)"
-  if [[ -n "$live" && "$live" == *"v=$build"* ]]; then
-    echo "OK live Chromium URL has v=$build"
+  local url_status=0 url_message
+  url_message="$(canonical_url_status "$live" "$build")" || url_status=$?
+  if [[ "$url_status" -eq 0 ]]; then
+    echo "OK live Chromium URL canonical: $url_message"
+  elif [[ "$url_status" -eq 2 ]]; then
+    echo "WARN live Chromium URL legacy path: $url_message"
+    [[ -n "$live" ]] && printf '%s\n' "$live" | sed -n '1,4p'
   else
-    echo "FAIL live Chromium URL missing v=$build"
+    echo "FAIL live Chromium URL not canonical: $url_message"
     [[ -n "$live" ]] && printf '%s\n' "$live" | sed -n '1,4p' || echo "no live Chromium kiosk process"
     ok=1
   fi

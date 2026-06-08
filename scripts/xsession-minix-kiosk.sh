@@ -8,7 +8,7 @@ export DBUS_SESSION_BUS_ADDRESS="${DBUS_SESSION_BUS_ADDRESS:-unix:path=${XDG_RUN
 
 SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd -P)"
 BUILD_ID="${PERSONAL_DISPLAY_BUILD_ID:-$($SCRIPT_DIR/hermes-display build-id)}"
-URL="${PERSONAL_DISPLAY_URL:-http://127.0.0.1:8770/src/character-runtime.html?kiosk=1&orientation=landscape}"
+URL="${PERSONAL_DISPLAY_URL:-$($SCRIPT_DIR/hermes-display url)}"
 # Cache-bust the kiosk shell on each frontend runtime revision. The system unit may
 # still pass an older v=... URL, so normalize here from the runtime's DISPLAY_BUILD_ID.
 # Match both the canonical character-runtime.html and the legacy

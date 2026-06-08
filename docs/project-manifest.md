@@ -21,6 +21,10 @@ This repository is intentionally trimmed to the files needed to run, test, and o
 
 ## Operation
 
+- Canonical operator runtime: `/src/character-runtime.html?kiosk=1&orientation=landscape&augury=1`.
+- Canonical family runtime: `/src/character-runtime.html?kiosk=1&orientation=landscape&audience=family&touch=fun`.
+- Physical panel source of truth: DP-2, 1920x1280, inverted, primary, position 0x0.
+- Canonical control path: `hermes-display status|verify|restart|fix|screenshot|build-id|url`.
 - `scripts/hermes-display` — local status/restart/verify helper for the live kiosk.
 - `scripts/serve-preview.sh` — preview server entrypoint used by systemd.
 - `scripts/xsession-minix-kiosk.sh` — current MINIX/SF10T X11 Chromium kiosk session.
