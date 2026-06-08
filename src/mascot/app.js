@@ -23,7 +23,7 @@
   const skinOrder = ['retro-robot-core', 'retro-terminal-focus', 'retro-night-watch', 'retro-amber-watch', 'retro-hermes-accent'];
   const liveStatus = { lastGoodAt: null, failures: 0, lastError: '', staleSince: null };
   const avatarEventStatus = { connected: false, accepted: 0, dropped: 0, lastError: '', lastEventAt: null, recent: [] };
-  const DISPLAY_BUILD_ID = 'concept-b-optic-cleanup1';
+  const DISPLAY_BUILD_ID = 'route-headroom-smooth1';
   const CONCEPT_B_BIO_MOTION = Object.freeze({
     // Quiet watch should not read as a metronomic eye twitch. Keep micro-saccades rare
     // and tiny in standby, while preserving more visible eye life for active/search modes.
@@ -1999,8 +1999,7 @@
       const headroom = Number(provider.headroom);
       const knownHeadroom = Number.isFinite(headroom) && !['unknown', 'error', 'disabled'].includes(state);
       const clamped = knownHeadroom ? Math.max(0, Math.min(1, headroom)) : null;
-      const quantized = knownHeadroom ? Math.round(clamped * 4) / 4 : 0;
-      setConceptBStyleProperty(row, '--route-headroom', knownHeadroom ? quantized.toFixed(2) : '0');
+      setConceptBStyleProperty(row, '--route-headroom', knownHeadroom ? clamped.toFixed(3) : '0');
       setConceptBText(entry.label, safeDisplayText(provider.label || 'ROUTE', 8).toUpperCase());
       const unknownRouteCopy = state === 'disabled' ? 'OFF' : state === 'error' ? 'ERR' : 'UNK';
       setConceptBText(entry.value, knownHeadroom ? `${state === 'inferred' ? '~' : ''}${Math.round(clamped * 100)}%` : unknownRouteCopy);
