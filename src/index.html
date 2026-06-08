@@ -5,27 +5,82 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Hermes Personal Display</title>
   <style>
-    :root { color-scheme: dark; font-family: Inter, ui-sans-serif, system-ui, sans-serif; }
-    body { margin: 0; min-height: 100vh; display: grid; place-items: center; background: #070a12; color: #dffbff; }
-    main { width: min(760px, calc(100vw - 32px)); padding: 28px; border: 1px solid rgba(101,243,255,.22); border-radius: 24px; background: rgba(12,18,32,.82); box-shadow: 0 24px 80px rgba(0,0,0,.45); }
-    h1 { margin: 0 0 10px; font-size: 28px; }
-    p { color: #96b9c6; line-height: 1.5; }
-    ul { display: grid; gap: 10px; padding-left: 20px; }
-    a { color: #65f3ff; font-weight: 700; }
-    code { color: #ffe7a3; }
+    :root {
+      color-scheme: dark;
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      --bg: #05070d;
+      --panel: rgba(10, 16, 27, 0.88);
+      --ink: #edfaff;
+      --muted: #b7cbd2;
+      --cyan: #65f3ff;
+      --amber: #e5b25a;
+      --line: rgba(101, 243, 255, 0.28);
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      min-height: 100dvh;
+      display: grid;
+      place-items: center;
+      padding: clamp(20px, 4vw, 48px);
+      background: #05070d;
+      color: var(--ink);
+    }
+    .index-shell {
+      width: min(1120px, 100%);
+      padding: clamp(36px, 5vw, 60px);
+      border: 1px solid var(--line);
+      border-radius: 28px;
+      background: linear-gradient(180deg, rgba(255,255,255,0.055), rgba(255,255,255,0.015)), var(--panel);
+      box-shadow: 0 28px 90px rgba(0,0,0,0.52), inset 0 0 0 1px rgba(255,255,255,0.04);
+    }
+    .index-kicker {
+      margin: 0 0 10px;
+      color: var(--cyan);
+      font: 800 13px/1 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+      letter-spacing: 0.16em;
+      text-transform: uppercase;
+    }
+    h1 { margin: 0 0 20px; font-family: ui-serif, Georgia, "Times New Roman", serif; font-size: 76px; line-height: 0.98; letter-spacing: -0.03em; }
+    p { margin: 0; color: var(--muted); font-size: 20px; line-height: 1.55; max-width: 68ch; }
+    .index-actions { list-style: none; padding: 0; margin: 28px 0 0; display: grid; gap: 14px; }
+    .index-link {
+      min-height: 76px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 18px;
+      padding: 20px 24px;
+      border: 1px solid rgba(101, 243, 255, 0.30);
+      border-radius: 18px;
+      background: rgba(101, 243, 255, 0.075);
+      color: var(--ink);
+      text-decoration: none;
+      font-size: 22px;
+      font-weight: 800;
+      touch-action: manipulation;
+    }
+    .index-link span { color: var(--muted); font: 700 15px/1.2 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; letter-spacing: 0.08em; text-transform: uppercase; }
+    .index-link.primary { border-color: rgba(229, 178, 90, 0.58); background: rgba(229, 178, 90, 0.105); }
+    .index-link:hover, .index-link:focus-visible { outline: 0; border-color: var(--cyan); background: rgba(101, 243, 255, 0.14); }
+    .index-note { margin-top: 24px; padding-top: 18px; border-top: 1px solid rgba(255,255,255,0.09); font-size: 18px; }
+    code { color: #ffe7a3; font-size: 0.95em; }
+    @media (max-width: 640px) {
+      .index-link { align-items: flex-start; flex-direction: column; font-size: 18px; }
+    }
   </style>
 </head>
-<body>
-  <main>
-    <p>Hermes Personal Display</p>
-    <h1>Current runtime: retro robot face mascot</h1>
-    <p>The accepted near-term path is the v2 mascot runtime. Older prototypes remain available for reference, but this page now points to the canonical current preview.</p>
-    <ul>
-      <li><a href="./character-runtime-v2.html">Open current runtime</a></li>
-      <li><a href="./mascot-v2-debug.html">Open debug/contact sheet</a></li>
-      <li><a href="../README.md">Read project status</a></li>
+<body style="background-color:#05070d;color:#edfaff;">
+  <main class="index-shell">
+    <h1>Hermes local display launcher</h1>
+    <p>Current production path is the Concept B landscape kiosk runtime. Use this page as a touch-friendly local launcher and QA entry point.</p>
+    <ul class="index-actions">
+      <li><a class="index-link primary" href="./character-runtime-v2.html?kiosk=1&amp;orientation=landscape">Open landscape kiosk <span>1920x1280</span></a></li>
+      <li><a class="index-link" href="./character-runtime-v2.html">Open runtime preview <span>dev shell</span></a></li>
+      <li><a class="index-link" href="./mascot-v2-debug.html">Open debug contact sheet <span>QA</span></a></li>
+      <li><a class="index-link" href="../README.md">Read project status <span>docs</span></a></li>
     </ul>
-    <p>For kiosk launch, target <code>src/character-runtime-v2.html?kiosk=1</code>.</p>
+    <p class="index-note">Kiosk launch target: <code>src/character-runtime-v2.html?kiosk=1&amp;orientation=landscape</code>.</p>
   </main>
 </body>
 </html>

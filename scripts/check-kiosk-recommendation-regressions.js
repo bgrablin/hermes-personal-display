@@ -305,7 +305,7 @@ if (/safe\[idx\s*%\s*safe\.length\]/.test(appSource)) {
 }
 requireAll(cssSource, ['.cb-arc-label', 'font: 600 16px/1', 'fill: var(--cb-fg-1)'], 'Concept B telemetry arc labels must stay desk-readable and metric-identifying.');
 requireAll(appSource, ['ROUTE · HEADROOM', "const unknownRouteCopy = state === 'disabled' ? 'OFF' : state === 'error' ? 'ERR' : 'UNK'"], 'Route rail must label headroom and render unknown/inactive routes explicitly instead of bare dashes.');
-requireAll(cssSource, ['right: 96px', 'width: calc(48px * var(--route-headroom))', 'grid-template-columns: minmax(94px, auto) 64px', 'min-width: 64px', '[data-cb-mode="active-turn"] .cb-activity'], 'Route values must use a fixed aligned column clear of the route whisker and active turns may use only a subtle non-red body cue.');
+requireAll(cssSource, ['right: 44px', 'width: 340px', 'width: 40px', 'transform: scaleX(var(--route-headroom))', 'transition: transform 600ms ease, opacity 450ms ease', 'grid-template-columns: minmax(108px, auto) 76px', 'min-width: 76px', '[data-cb-mode="active-turn"] .cb-activity', 'var(--cb-hud-panel)'], 'Route values must use a fixed aligned column clear of the route whisker, animate the whisker via transform instead of width, and active turns must use a readable non-red HUD panel.');
 if (/right:\s*calc\(72px \+ 118px \* var\(--route-headroom\)\)/.test(cssSource)) {
   fail('Route percentage text must not shift horizontally by headroom; keep values fixed and move only the whisker/bar.');
 }

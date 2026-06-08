@@ -26,7 +26,7 @@
   const skinOrder = ['retro-robot-core', 'retro-terminal-focus', 'retro-night-watch', 'retro-amber-watch', 'retro-hermes-accent'];
   const liveStatus = { lastGoodAt: null, failures: 0, lastError: '', staleSince: null };
   const avatarEventStatus = { connected: false, accepted: 0, dropped: 0, lastError: '', lastEventAt: null, recent: [] };
-  const DISPLAY_BUILD_ID = 'concept-b-theater1';
+  const DISPLAY_BUILD_ID = 'concept-b-legibility1';
   const CONCEPT_B_BIO_MOTION = Object.freeze({
     // Quiet watch should not read as a metronomic eye twitch. Keep micro-saccades rare
     // and tiny in standby, while preserving more visible eye life for active/search modes.

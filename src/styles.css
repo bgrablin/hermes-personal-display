@@ -19,7 +19,7 @@
   --hermes-motion-scale: 1;
   --hermes-attention-color: #65f3ff;
   --hermes-attention-rgb: 101, 243, 255;
-  font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
 }
 
 * { box-sizing: border-box; }
@@ -28,6 +28,7 @@ html,
 body {
   margin: 0;
   min-height: 100%;
+  background-color: #05070d;
   background:
     radial-gradient(circle at 12% 8%, rgba(101, 243, 255, 0.12), transparent 28rem),
     radial-gradient(circle at 90% 20%, rgba(184, 153, 255, 0.10), transparent 24rem),
@@ -1411,9 +1412,13 @@ body.kiosk-mode.kiosk-landscape[data-display-preset="night_watch"] .display-fram
   --cb-bg-gaze-x-inverse: 0px;
   --cb-bg-gaze-y-inverse: 0px;
   --cb-fg-0: rgba(242, 247, 244, 0.94);
-  --cb-fg-1: rgba(220, 230, 226, 0.78);
-  --cb-fg-2: rgba(180, 193, 190, 0.56);
-  --cb-fg-3: rgba(160, 176, 172, 0.34);
+  --cb-fg-1: rgba(224, 234, 231, 0.82);
+  --cb-fg-2: rgba(200, 214, 210, 0.70);
+  --cb-fg-3: rgba(180, 196, 191, 0.52);
+  --cb-fg-readable: rgba(226, 238, 234, 0.86);
+  --cb-fg-muted-readable: rgba(198, 216, 211, 0.72);
+  --cb-hud-panel: rgba(3, 7, 11, 0.58);
+  --cb-hud-panel-border: rgba(214, 226, 222, 0.14);
   --cb-line: rgba(214, 226, 222, 0.13);
   --cb-line-soft: rgba(214, 226, 222, 0.075);
   --cb-moss: rgb(115, 205, 159);
@@ -1533,8 +1538,8 @@ body.kiosk-mode.kiosk-landscape.claude-concept-b .cb-topbar {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  font: 560 18px/1.1 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
-  letter-spacing: 0.15em;
+  font: 590 19px/1.1 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  letter-spacing: 0.13em;
   text-transform: uppercase;
   color: var(--cb-fg-2);
 }
@@ -1561,9 +1566,9 @@ body.kiosk-mode.kiosk-landscape.claude-concept-b .cb-mark {
 body.kiosk-mode.kiosk-landscape.claude-concept-b .cb-id strong,
 body.kiosk-mode.kiosk-landscape.claude-concept-b .cb-time strong {
   color: var(--cb-fg-0);
-  font-size: 22px;
-  font-weight: 700;
-  letter-spacing: 0.20em;
+  font-size: 24px;
+  font-weight: 730;
+  letter-spacing: 0.16em;
 }
 
 body.kiosk-mode.kiosk-landscape.claude-concept-b .cb-radial-stage {
@@ -1686,22 +1691,33 @@ body.kiosk-mode.kiosk-landscape.claude-concept-b [data-cb-arc].unknown .cb-arc-v
 body.kiosk-mode.kiosk-landscape.claude-concept-b .cb-activity {
   position: absolute;
   left: 50%;
-  bottom: 188px;
+  bottom: 226px;
   transform: translateX(-50%);
   z-index: 6;
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 10px;
+  gap: 12px;
+  max-width: min(820px, 58vw);
+  padding: 0;
   white-space: nowrap;
   text-align: center;
 }
 
 
 body.kiosk-mode.kiosk-landscape.claude-concept-b [data-cb-mode="active-turn"] .cb-activity {
+  width: min(780px, 54vw);
+  padding: 18px 28px 20px;
+  border: 1px solid color-mix(in srgb, var(--cb-accent) 38%, transparent);
+  border-radius: 26px;
+  background:
+    linear-gradient(180deg, rgba(255,255,255,0.045), rgba(255,255,255,0.015)),
+    var(--cb-hud-panel);
   box-shadow:
-    0 0 0 1px color-mix(in srgb, var(--cb-accent) 42%, transparent),
-    0 18px 55px color-mix(in srgb, var(--cb-accent) 12%, transparent);
+    0 0 0 1px color-mix(in srgb, var(--cb-accent) 20%, transparent),
+    0 18px 55px color-mix(in srgb, var(--cb-accent) 13%, transparent),
+    inset 0 0 34px rgba(255,255,255,0.035);
+  backdrop-filter: blur(8px);
 }
 
 body.kiosk-mode.kiosk-landscape.claude-concept-b [data-cb-mode="active-turn"] .cb-eye-ring {
@@ -1714,8 +1730,8 @@ body.kiosk-mode.kiosk-landscape.claude-concept-b .cb-state {
   align-items: center;
   gap: 10px;
   color: var(--cb-accent);
-  font: 650 14px/1 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
-  letter-spacing: 0.20em;
+  font: 720 16px/1 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  letter-spacing: 0.18em;
   text-transform: uppercase;
 }
 
@@ -1729,8 +1745,9 @@ body.kiosk-mode.kiosk-landscape.claude-concept-b .cb-state span {
 body.kiosk-mode.kiosk-landscape.claude-concept-b .cb-line {
   max-width: 980px;
   color: var(--cb-fg-0);
-  font: 430 30px/1.1 system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-  letter-spacing: -0.01em;
+  font: 520 34px/1.09 system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  letter-spacing: -0.018em;
+  text-shadow: 0 0 24px rgba(0,0,0,0.54);
   text-wrap: balance;
 }
 
@@ -1798,9 +1815,9 @@ body.kiosk-mode.kiosk-landscape.claude-concept-b .cb-offline-runner {
 }
 
 body.kiosk-mode.kiosk-landscape.claude-concept-b .cb-source {
-  color: var(--cb-fg-2);
-  font: 520 13px/1 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
-  letter-spacing: 0.14em;
+  color: var(--cb-fg-readable);
+  font: 620 15px/1 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  letter-spacing: 0.13em;
   text-transform: uppercase;
 }
 
@@ -1808,13 +1825,13 @@ body.kiosk-mode.kiosk-landscape.claude-concept-b .cb-bottom-rail {
   position: fixed;
   left: 96px;
   right: 96px;
-  bottom: 92px;
+  bottom: 124px;
   z-index: 7;
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: 34px;
-  padding-top: 28px;
-  border-top: 1px solid var(--cb-line-soft);
+  gap: 28px;
+  padding-top: 30px;
+  border-top: 1px solid color-mix(in srgb, var(--cb-fg-readable) 18%, transparent);
 }
 
 body.kiosk-mode.kiosk-landscape.claude-concept-b .cb-cell {
@@ -1825,9 +1842,9 @@ body.kiosk-mode.kiosk-landscape.claude-concept-b .cb-cell {
 }
 
 body.kiosk-mode.kiosk-landscape.claude-concept-b .cb-cell > span {
-  color: var(--cb-fg-2);
-  font: 600 13px/1 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
-  letter-spacing: 0.18em;
+  color: var(--cb-fg-muted-readable);
+  font: 720 16px/1 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  letter-spacing: 0.14em;
 }
 
 body.kiosk-mode.kiosk-landscape.claude-concept-b .cb-cell > div {
@@ -1840,8 +1857,8 @@ body.kiosk-mode.kiosk-landscape.claude-concept-b .cb-cell > div {
 body.kiosk-mode.kiosk-landscape.claude-concept-b .cb-cell i,
 body.kiosk-mode.kiosk-landscape.claude-concept-b .cb-attention i {
   flex: 0 0 auto;
-  width: 10px;
-  height: 10px;
+  width: 12px;
+  height: 12px;
   border-radius: 50%;
   background: var(--cb-fg-2);
 }
@@ -1865,16 +1882,16 @@ body.kiosk-mode.kiosk-landscape.claude-concept-b .cb-cell i.lost {
 
 body.kiosk-mode.kiosk-landscape.claude-concept-b .cb-cell strong {
   color: var(--cb-fg-0);
-  font: 650 26px/1 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
-  letter-spacing: 0.10em;
+  font: 780 30px/1 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  letter-spacing: 0.08em;
   text-transform: uppercase;
   white-space: nowrap;
 }
 
 body.kiosk-mode.kiosk-landscape.claude-concept-b .cb-cell em {
-  color: var(--cb-fg-3);
-  font: 500 13px/1 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
-  letter-spacing: 0.10em;
+  color: var(--cb-fg-muted-readable);
+  font: 600 15px/1 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  letter-spacing: 0.08em;
   text-transform: uppercase;
   font-style: normal;
   white-space: nowrap;
@@ -1883,14 +1900,14 @@ body.kiosk-mode.kiosk-landscape.claude-concept-b .cb-cell em {
 body.kiosk-mode.kiosk-landscape.claude-concept-b .cb-attention {
   position: fixed;
   left: 50%;
-  bottom: 42px;
+  bottom: 54px;
   z-index: 8;
   transform: translateX(-50%);
   display: flex;
   align-items: center;
   gap: 14px;
   color: var(--cb-ochre);
-  font: 430 20px/1.1 system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  font: 560 24px/1.1 system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
   white-space: nowrap;
 }
 
@@ -1917,7 +1934,7 @@ body.kiosk-mode.kiosk-landscape.claude-concept-b .cb-route-rail {
   position: fixed;
   right: 44px;
   top: 162px;
-  width: 320px;
+  width: 340px;
   height: 730px;
   z-index: 6;
   pointer-events: none;
@@ -1931,25 +1948,25 @@ body.kiosk-mode.kiosk-landscape.claude-concept-b .cb-route-rail {
 
 body.kiosk-mode.kiosk-landscape.claude-concept-b .cb-route-title {
   position: absolute;
-  right: 64px;
+  right: 74px;
   top: 0;
-  color: var(--cb-fg-2);
-  font-size: 18px;
+  color: color-mix(in srgb, var(--cb-amber) 66%, var(--cb-fg-0));
+  font-size: 20px;
   letter-spacing: 0.18em;
 }
 
 body.kiosk-mode.kiosk-landscape.claude-concept-b .cb-route-spine {
   position: absolute;
   top: 44px;
-  right: 42px;
-  width: 1px;
+  right: 46px;
+  width: 2px;
   height: 626px;
-  background: linear-gradient(180deg, transparent, rgba(214, 226, 222, 0.23) 9%, rgba(214, 226, 222, 0.18) 84%, transparent);
+  background: linear-gradient(180deg, transparent, rgba(229, 178, 90, 0.42) 9%, rgba(214, 226, 222, 0.30) 84%, transparent);
 }
 
 body.kiosk-mode.kiosk-landscape.claude-concept-b .cb-route-anchor {
   position: absolute;
-  right: 42px;
+  right: 46px;
   top: 688px;
   width: 18px;
   height: 1px;
@@ -1998,12 +2015,12 @@ body.kiosk-mode.kiosk-landscape.claude-concept-b .cb-route-row[data-state="disab
 
 body.kiosk-mode.kiosk-landscape.claude-concept-b .cb-route-label {
   position: absolute;
-  right: 96px;
+  right: 104px;
   top: 0;
-  min-width: 190px;
+  min-width: 224px;
   display: grid;
-  grid-template-columns: minmax(94px, auto) 64px;
-  column-gap: 14px;
+  grid-template-columns: minmax(108px, auto) 76px;
+  column-gap: 16px;
   row-gap: 8px;
   justify-content: end;
   align-items: baseline;
@@ -2013,24 +2030,24 @@ body.kiosk-mode.kiosk-landscape.claude-concept-b .cb-route-label {
 
 body.kiosk-mode.kiosk-landscape.claude-concept-b .cb-route-label strong {
   color: currentColor;
-  font: 620 18px/1 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
-  letter-spacing: 0.10em;
+  font: 760 21px/1 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  letter-spacing: 0.09em;
 }
 
 body.kiosk-mode.kiosk-landscape.claude-concept-b .cb-route-label span {
   color: currentColor;
   display: inline-block;
-  min-width: 64px;
+  min-width: 76px;
   text-align: right;
-  font: 600 18px/1 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font: 760 21px/1 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
   font-variant-numeric: tabular-nums;
   letter-spacing: 0.06em;
 }
 
 body.kiosk-mode.kiosk-landscape.claude-concept-b .cb-route-label em {
   grid-column: 1 / 3;
-  color: var(--cb-fg-3);
-  font: 520 14px/1 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  color: var(--cb-fg-muted-readable);
+  font: 640 16px/1 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
   font-style: normal;
   letter-spacing: 0.10em;
   white-space: nowrap;
@@ -2038,15 +2055,17 @@ body.kiosk-mode.kiosk-landscape.claude-concept-b .cb-route-label em {
 
 body.kiosk-mode.kiosk-landscape.claude-concept-b .cb-route-whisker {
   position: absolute;
-  right: 42px;
-  top: 10px;
-  width: calc(48px * var(--route-headroom));
-  height: 1px;
+  right: 46px;
+  top: 14px;
+  width: 40px;
+  height: 3px;
+  transform: scaleX(var(--route-headroom));
   transform-origin: right center;
+  border-radius: 999px;
   background: currentColor;
-  opacity: 0.68;
-  box-shadow: 0 0 10px color-mix(in srgb, currentColor 22%, transparent);
-  transition: width 600ms ease, opacity 450ms ease;
+  opacity: 0.90;
+  box-shadow: 0 0 18px color-mix(in srgb, currentColor 36%, transparent);
+  transition: transform 600ms ease, opacity 450ms ease;
 }
 
 body.kiosk-mode.kiosk-landscape.claude-concept-b .cb-route-row[data-state="inferred"] .cb-route-whisker,
@@ -2057,16 +2076,16 @@ body.kiosk-mode.kiosk-landscape.claude-concept-b .cb-route-row[data-state="stale
 body.kiosk-mode.kiosk-landscape.claude-concept-b .cb-route-row[data-state="unknown"] .cb-route-whisker,
 body.kiosk-mode.kiosk-landscape.claude-concept-b .cb-route-row[data-state="error"] .cb-route-whisker,
 body.kiosk-mode.kiosk-landscape.claude-concept-b .cb-route-row[data-state="disabled"] .cb-route-whisker {
-  width: 0;
+  transform: scaleX(0);
   opacity: 0;
 }
 
 body.kiosk-mode.kiosk-landscape.claude-concept-b .cb-route-node {
   position: absolute;
-  right: 39.5px;
-  top: 7px;
-  width: 6px;
-  height: 6px;
+  right: 41px;
+  top: 10px;
+  width: 11px;
+  height: 11px;
   border-radius: 50%;
   background: currentColor;
   box-shadow: 0 0 10px color-mix(in srgb, currentColor 38%, transparent);
@@ -2089,11 +2108,11 @@ body.kiosk-mode.kiosk-landscape.claude-concept-b .cb-route-row[data-state="error
 
 body.kiosk-mode.kiosk-landscape.claude-concept-b .cb-route-glyph {
   position: absolute;
-  right: 14px;
-  top: 1px;
-  width: 18px;
-  color: var(--cb-fg-2);
-  font: 620 16px/1 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  right: 4px;
+  top: 4px;
+  width: 24px;
+  color: var(--cb-fg-readable);
+  font: 720 20px/1 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
   text-align: center;
 }
 
@@ -2103,10 +2122,10 @@ body.kiosk-mode.kiosk-landscape.claude-concept-b .cb-route-row[data-active="true
 
 body.kiosk-mode.kiosk-landscape.claude-concept-b .cb-route-active-hairline {
   position: absolute;
-  right: 42px;
+  right: 46px;
   top: var(--route-active-y, -100px);
-  width: 470px;
-  height: 1px;
+  width: 440px;
+  height: 2px;
   transform: translateY(45px);
   background: linear-gradient(90deg, transparent, color-mix(in srgb, var(--cb-amber) 16%, transparent) 18%, color-mix(in srgb, var(--cb-amber) 20%, transparent) 100%);
   opacity: 0.78;
@@ -2131,11 +2150,11 @@ body.kiosk-mode.kiosk-landscape.claude-concept-b .cb-route-active-hairline span 
 
 body.kiosk-mode.kiosk-landscape.claude-concept-b .cb-route-standby {
   position: absolute;
-  right: 64px;
+  right: 74px;
   top: 702px;
-  color: var(--cb-fg-3);
-  opacity: 0.56;
-  font-size: 14px;
+  color: var(--cb-fg-muted-readable);
+  opacity: 0.68;
+  font-size: 15px;
   letter-spacing: 0.14em;
 }
 

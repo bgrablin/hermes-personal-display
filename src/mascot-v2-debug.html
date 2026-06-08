@@ -7,18 +7,17 @@
   <link rel="stylesheet" href="./styles.css">
   <link rel="stylesheet" href="./mascot-v2/styles.css">
 </head>
-<body>
+<body style="background-color:#05070d;color:#e8f7ff;">
   <main class="debug-shell">
     <header>
-      <p class="eyebrow">Hermes Personal Display</p>
-      <h1>mascot v2 · debug contact sheet</h1>
+      <h1>Hermes mascot v2 debug contact sheet</h1>
       <p class="note">
-        Static stills of every required pose. Each card freezes its renderer ~700ms after
-        load so the result reads as a printed contact sheet. Use the per-card "sample intent"
-        button to play one named intent and capture it, or "re-freeze" to restore the still.
-        Global toolbar samples every card in parallel.
+        Static stills of every required pose. Each card freezes its renderer around 700ms after
+        load so the result reads as a printed contact sheet. Use this page to compare gaze,
+        intent, and expression states before checking the landscape kiosk.
       </p>
       <p class="note">
+        <a href="./character-runtime-v2.html?kiosk=1&amp;orientation=landscape">Landscape kiosk</a> ·
         <a href="./character-runtime-v2.html">Animated runtime</a> ·
         <a href="./character-runtime.html">Reference abstract runtime</a> ·
         <a href="./rgs-runtime.html">Previous RGS route</a>
@@ -35,6 +34,16 @@
     </div>
 
     <output id="debug-status" role="status">Booting…</output>
+
+    <details class="qa-panel" open>
+      <summary>Kiosk QA checks for this pass</summary>
+      <ul>
+        <li>Verify the landscape kiosk status text is readable from the 10.5 inch display distance.</li>
+        <li>Verify route rail provider names, headroom values, and secondary labels are legible.</li>
+        <li>Verify bottom rail secondary values are readable and not crowded by the bezel safe area.</li>
+        <li>Verify the central orb/eye graphics remain visually unchanged.</li>
+      </ul>
+    </details>
 
     <section id="contact-sheet" class="contact-sheet" aria-label="Mascot v2 still sheet"></section>
 

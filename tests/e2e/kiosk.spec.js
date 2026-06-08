@@ -324,18 +324,26 @@ test.describe('Hermes kiosk smoke and visual regression anchors', () => {
     await expect(page.locator('.cb-route-standby')).toHaveText('ROUTE UNKNOWN');
     const rows = page.locator('.cb-route-row');
     await expect(rows).toHaveCount(4);
-    const snapshot = await rows.evaluateAll((nodes) => nodes.map((node) => ({
-      label: node.querySelector('[data-route-label]')?.textContent,
-      value: node.querySelector('[data-route-value]')?.textContent,
-      glyph: node.querySelector('[data-route-glyph]')?.textContent,
-      state: node.dataset.state,
-      active: node.dataset.active,
-      whiskerWidth: Number.parseFloat(getComputedStyle(node.querySelector('.cb-route-whisker')).width),
-    })));
+    const snapshot = await rows.evaluateAll((nodes) => nodes.map((node) => {
+      const whisker = node.querySelector('.cb-route-whisker');
+      const style = getComputedStyle(whisker);
+      return {
+        label: node.querySelector('[data-route-label]')?.textContent,
+        value: node.querySelector('[data-route-value]')?.textContent,
+        glyph: node.querySelector('[data-route-glyph]')?.textContent,
+        state: node.dataset.state,
+        active: node.dataset.active,
+        whiskerWidth: Number.parseFloat(style.width),
+        whiskerTransform: style.transform,
+        whiskerOpacity: Number.parseFloat(style.opacity),
+      };
+    }));
     expect(snapshot.map((row) => row.label)).toEqual(['CHATGPT', 'CLAUDE', 'GEMINI', 'COPILOT']);
     for (const row of snapshot) {
       expect(row).toMatchObject({ value: 'UNK', glyph: '○', state: 'unknown', active: 'false' });
-      expect(row.whiskerWidth).toBeLessThan(1);
+      expect(row.whiskerWidth).toBeGreaterThan(38);
+      expect(row.whiskerTransform).toBe('matrix(0, 0, 0, 1, 0, 0)');
+      expect(row.whiskerOpacity).toBe(0);
     }
     expect(Number(await page.locator('.cb-route-active-hairline').evaluate((node) => window.getComputedStyle(node).opacity))).toBe(0);
     const unsafeText = await page.locator('.cb-route-rail').textContent();
