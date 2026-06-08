@@ -1784,6 +1784,10 @@
       const cpuPct = measurementValue(sys, 'cpu');
       const memPct = measurementValue(sys, 'memory');
       const cpuTemp = measurementValue(sys, 'cpu_temp_c', 'temp_c');
+      const cpuLoadPercent = metricAvailable(cpuPct, measurements.cpu) ? cpuPct * 100 : NaN;
+      const loadSeverity = Number.isFinite(cpuLoadPercent)
+        ? cpuLoadPercent >= 95 ? 'hot' : cpuLoadPercent >= 85 ? 'warn' : 'ok'
+        : 'unknown';
       const freshnessTier = liveStatus.failures >= 8 ? 'lost' : liveStatus.failures ? 'stale' : live.freshness?.tier || 'fresh';
       const activity = buildActivityCard(live, currentPacket, liveStatus);
       const label = activityLabel(live, currentPacket.mood);
@@ -1809,12 +1813,13 @@
 
       setConceptBStyleProperty(refs.root, '--cb-accent', instrumentAccent);
       setConceptBDataset(refs.body, 'cbMode', label.toLowerCase().replace(/[^a-z0-9]+/g, '-'));
+      setConceptBDataset(refs.body, 'systemLoad', loadSeverity);
       updateClockMinuteBoundary();
       setConceptBText(refs.uptime, familyAudience ? 'FAMILY THEATER' : (sys.uptime ? `${safeDisplayText(sys.uptime, 18).toUpperCase()} UPTIME` : 'LOCAL TIME'));
 
-      updateConceptBArc(refs.cpuArc, 'CPU', metricAvailable(cpuPct, measurements.cpu) ? cpuPct * 100 : NaN, '%', 'top');
-      updateConceptBArc(refs.memArc, 'MEM', metricAvailable(memPct, measurements.memory) ? memPct * 100 : NaN, '%', 'right');
-      updateConceptBArc(refs.tempArc, 'TEMP', metricAvailable(cpuTemp, measurements.cpu_temp_c || measurements.temp_c) ? ((cpuTemp - 30) / 65) * 100 : NaN, '°C', 'left', cpuTemp);
+      updateConceptBArc(refs.cpuArc, 'CPU', cpuLoadPercent, '%', 'top', null, 'cpu');
+      updateConceptBArc(refs.memArc, 'MEM', metricAvailable(memPct, measurements.memory) ? memPct * 100 : NaN, '%', 'right', null, 'mem');
+      updateConceptBArc(refs.tempArc, 'TEMP', metricAvailable(cpuTemp, measurements.cpu_temp_c || measurements.temp_c) ? ((cpuTemp - 30) / 65) * 100 : NaN, '°C', 'left', cpuTemp, 'temp');
       rememberTrend(trends.cpu, cpuPct);
       rememberTrend(trends.temp, cpuTemp);
 
@@ -3003,7 +3008,7 @@
     return '';
   }
 
-  function updateConceptBArc(group, label, value, unit, side, displayValue = null) {
+  function updateConceptBArc(group, label, value, unit, side, displayValue = null, metricMode = '') {
     if (!group) return;
     const safe = Number.isFinite(Number(value));
     const pct = Math.max(0, Math.min(100, safe ? Number(value) : 0));
@@ -3037,6 +3042,10 @@
       setConceptBAttribute(valueEl, 'y', String(ny));
       setConceptBAttribute(valueEl, 'text-anchor', anchor);
     }
+    const severityClass = safe ? metricClassFor(metricMode === 'temp' ? displayValue : pct, metricMode) : 'metric-unknown';
+    const severity = /hot/.test(severityClass) ? 'hot' : /warn/.test(severityClass) ? 'warn' : /unknown/.test(severityClass) ? 'unknown' : 'ok';
+    setConceptBDataset(group, 'metric', metricMode || 'generic');
+    setConceptBDataset(group, 'severity', severity);
     if (group.classList.contains('unknown') === safe) group.classList.toggle('unknown', !safe);
   }
 
@@ -3494,9 +3503,11 @@
     const kiosk = ['1', 'true', 'yes'].includes((params.get('kiosk') || '').toLowerCase());
     const landscape = ['landscape', 'right', 'cw'].includes((params.get('orientation') || '').toLowerCase());
     const family = ['family', 'theater'].includes((params.get('audience') || '').toLowerCase()) || (params.get('view') || '').toLowerCase() === 'theater';
+    const tastePrototype = ['1', 'true', 'yes'].includes((params.get('taste') || '').toLowerCase());
     document.body.classList.toggle('kiosk-mode', kiosk);
     document.body.classList.toggle('kiosk-landscape', kiosk && landscape);
     document.body.classList.toggle('family-theater', kiosk && family);
+    document.body.classList.toggle('taste-prototype', kiosk && landscape && tastePrototype);
     document.body.dataset.audience = family ? 'family' : 'operator';
     if (kiosk) {
       document.body.setAttribute('data-display-mode', 'kiosk');

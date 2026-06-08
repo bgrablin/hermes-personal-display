@@ -2143,6 +2143,195 @@ body.kiosk-mode.kiosk-landscape.claude-concept-b .cb-route-standby.quiet {
   opacity: 0.56;
 }
 
+/* Taste prototype, URL-gated with `taste=1` so the live kiosk baseline remains unchanged.
+   Intent: test the new design-taste-frontend feedback without rewriting the runtime:
+   less ghost texture, stronger scan hierarchy, louder high-load semantics, and a route rail
+   that reads from the physical 1920x1280 display rather than only up close. */
+body.kiosk-mode.kiosk-landscape.claude-concept-b.taste-prototype .cb-bg-parallax {
+  opacity: 0.26;
+  filter: blur(1px);
+}
+
+body.kiosk-mode.kiosk-landscape.claude-concept-b.taste-prototype .cb-radial-stage {
+  width: 980px;
+  height: 980px;
+}
+
+body.kiosk-mode.kiosk-landscape.claude-concept-b.taste-prototype #display-root,
+body.kiosk-mode.kiosk-landscape.claude-concept-b.taste-prototype #display-root canvas,
+body.kiosk-mode.kiosk-landscape.claude-concept-b.taste-prototype #display-root svg {
+  width: 640px !important;
+  height: 640px !important;
+}
+
+body.kiosk-mode.kiosk-landscape.claude-concept-b.taste-prototype .cb-arc-label {
+  font-size: 21px;
+  fill: color-mix(in srgb, var(--cb-fg-0) 76%, var(--cb-accent));
+}
+
+body.kiosk-mode.kiosk-landscape.claude-concept-b.taste-prototype .cb-arc-value {
+  font-weight: 720;
+  font-size: 36px;
+}
+
+body.kiosk-mode.kiosk-landscape.claude-concept-b.taste-prototype [data-cb-arc][data-severity="warn"] .cb-arc-fill,
+body.kiosk-mode.kiosk-landscape.claude-concept-b.taste-prototype [data-cb-arc][data-severity="warn"] .cb-arc-dot {
+  stroke: var(--cb-ochre);
+  fill: var(--cb-ochre);
+  filter: drop-shadow(0 0 18px color-mix(in srgb, var(--cb-ochre) 58%, transparent));
+}
+
+body.kiosk-mode.kiosk-landscape.claude-concept-b.taste-prototype [data-cb-arc][data-severity="hot"] .cb-arc-fill,
+body.kiosk-mode.kiosk-landscape.claude-concept-b.taste-prototype [data-cb-arc][data-severity="hot"] .cb-arc-dot {
+  stroke: var(--cb-rust);
+  fill: var(--cb-rust);
+  stroke-width: 8;
+  filter: drop-shadow(0 0 34px color-mix(in srgb, var(--cb-rust) 88%, transparent));
+}
+
+body.kiosk-mode.kiosk-landscape.claude-concept-b.taste-prototype [data-cb-arc][data-severity="hot"] .cb-arc-track {
+  stroke: color-mix(in srgb, var(--cb-rust) 34%, transparent);
+  stroke-width: 4;
+}
+
+body.kiosk-mode.kiosk-landscape.claude-concept-b.taste-prototype [data-cb-arc][data-severity="hot"] .cb-arc-label {
+  fill: color-mix(in srgb, var(--cb-rust) 86%, var(--cb-fg-0));
+  font-weight: 900;
+}
+
+body.kiosk-mode.kiosk-landscape.claude-concept-b.taste-prototype [data-cb-arc][data-severity="hot"] .cb-arc-value {
+  fill: var(--cb-rust);
+  font-weight: 900;
+  paint-order: stroke;
+  stroke: rgba(0, 0, 0, 0.72);
+  stroke-width: 4px;
+}
+
+body.kiosk-mode.kiosk-landscape.claude-concept-b.taste-prototype [data-cb-arc][data-severity="hot"] .cb-arc-dot {
+  r: 7px;
+}
+
+body.kiosk-mode.kiosk-landscape.claude-concept-b.taste-prototype .cb-route-rail {
+  right: 52px;
+  width: 390px;
+}
+
+body.kiosk-mode.kiosk-landscape.claude-concept-b.taste-prototype .cb-route-title {
+  right: 84px;
+  color: color-mix(in srgb, var(--cb-amber) 72%, var(--cb-fg-0));
+  font-size: 21px;
+}
+
+body.kiosk-mode.kiosk-landscape.claude-concept-b.taste-prototype .cb-route-spine {
+  right: 52px;
+  width: 3px;
+  background: linear-gradient(180deg, transparent, rgba(229, 178, 90, 0.46) 9%, rgba(214, 226, 222, 0.28) 84%, transparent);
+}
+
+body.kiosk-mode.kiosk-landscape.claude-concept-b.taste-prototype .cb-route-label {
+  right: 118px;
+  min-width: 250px;
+  grid-template-columns: minmax(122px, auto) 86px;
+  column-gap: 18px;
+}
+
+body.kiosk-mode.kiosk-landscape.claude-concept-b.taste-prototype .cb-route-label strong,
+body.kiosk-mode.kiosk-landscape.claude-concept-b.taste-prototype .cb-route-label span {
+  font-size: 24px;
+  font-weight: 820;
+}
+
+body.kiosk-mode.kiosk-landscape.claude-concept-b.taste-prototype .cb-route-label em {
+  color: color-mix(in srgb, var(--cb-fg-1) 76%, transparent);
+  font-size: 16px;
+}
+
+body.kiosk-mode.kiosk-landscape.claude-concept-b.taste-prototype .cb-route-whisker {
+  right: 52px;
+  top: 15px;
+  width: calc(104px * var(--route-headroom));
+  height: 4px;
+  opacity: 0.90;
+  border-radius: 999px;
+  box-shadow: 0 0 18px color-mix(in srgb, currentColor 36%, transparent);
+}
+
+body.kiosk-mode.kiosk-landscape.claude-concept-b.taste-prototype .cb-route-node {
+  right: 47px;
+  top: 10px;
+  width: 12px;
+  height: 12px;
+}
+
+body.kiosk-mode.kiosk-landscape.claude-concept-b.taste-prototype .cb-route-glyph {
+  right: 4px;
+  top: 4px;
+  width: 28px;
+  font-size: 22px;
+}
+
+body.kiosk-mode.kiosk-landscape.claude-concept-b.taste-prototype .cb-route-active-hairline {
+  right: 52px;
+  height: 3px;
+  background: linear-gradient(90deg, transparent, color-mix(in srgb, var(--cb-amber) 26%, transparent) 18%, color-mix(in srgb, var(--cb-amber) 40%, transparent) 100%);
+}
+
+body.kiosk-mode.kiosk-landscape.claude-concept-b.taste-prototype .cb-route-standby {
+  right: 84px;
+  font-size: 16px;
+  opacity: 0.72;
+}
+
+body.kiosk-mode.kiosk-landscape.claude-concept-b.taste-prototype[data-system-load="hot"] .cb-topbar::after,
+body.kiosk-mode.kiosk-landscape.claude-concept-b.taste-prototype[data-system-load="warn"] .cb-topbar::after {
+  content: 'LOAD HIGH';
+  position: fixed;
+  left: 50%;
+  top: 132px;
+  transform: translateX(-50%);
+  padding: 10px 20px 11px;
+  border-radius: 999px;
+  border: 2px solid color-mix(in srgb, var(--cb-rust) 72%, transparent);
+  background: rgba(42, 14, 10, 0.72);
+  color: color-mix(in srgb, var(--cb-rust) 88%, var(--cb-fg-0));
+  font: 950 24px/1 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  letter-spacing: 0.18em;
+  text-shadow: 0 0 20px color-mix(in srgb, var(--cb-rust) 72%, transparent);
+  box-shadow: 0 0 30px color-mix(in srgb, var(--cb-rust) 28%, transparent), inset 0 0 20px rgba(200, 119, 90, 0.10);
+}
+
+body.kiosk-mode.kiosk-landscape.claude-concept-b.taste-prototype[data-system-load="warn"] .cb-topbar::after {
+  content: 'LOAD WATCH';
+  border-color: color-mix(in srgb, var(--cb-ochre) 70%, transparent);
+  background: rgba(42, 31, 10, 0.68);
+  color: color-mix(in srgb, var(--cb-ochre) 88%, var(--cb-fg-0));
+  text-shadow: 0 0 20px color-mix(in srgb, var(--cb-ochre) 62%, transparent);
+}
+
+body.kiosk-mode.kiosk-landscape.claude-concept-b.taste-prototype .cb-state {
+  font-size: 18px;
+  font-weight: 780;
+}
+
+body.kiosk-mode.kiosk-landscape.claude-concept-b.taste-prototype .cb-line {
+  font-size: 34px;
+  font-weight: 580;
+}
+
+body.kiosk-mode.kiosk-landscape.claude-concept-b.taste-prototype .cb-source,
+body.kiosk-mode.kiosk-landscape.claude-concept-b.taste-prototype .cb-cell > span,
+body.kiosk-mode.kiosk-landscape.claude-concept-b.taste-prototype .cb-cell em {
+  font-size: 16px;
+  color: color-mix(in srgb, var(--cb-fg-1) 82%, transparent);
+}
+
+body.kiosk-mode.kiosk-landscape.claude-concept-b.taste-prototype .cb-cell i.lost,
+body.kiosk-mode.kiosk-landscape.claude-concept-b.taste-prototype .cb-cell i.watch,
+body.kiosk-mode.kiosk-landscape.claude-concept-b.taste-prototype .cb-cell i.stale {
+  width: 14px;
+  height: 14px;
+}
+
 @keyframes cb-route-breath {
   0%, 100% { transform: translateX(10px); opacity: 0; }
   38% { opacity: 0.45; }
