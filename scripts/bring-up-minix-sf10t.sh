@@ -54,7 +54,6 @@ EOF
 log
 
 log "5) When ready to apply after editing env values:"
-run systemctl --user stop hermes-personal-display-usb.service
 run systemctl --user enable --now hermes-personal-display-preview.service
 run systemctl --user enable --now hermes-personal-display-kiosk.service
 log

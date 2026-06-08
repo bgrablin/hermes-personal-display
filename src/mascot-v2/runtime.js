@@ -377,7 +377,7 @@
         width: WIDTH,
         height: HEIGHT,
         role: 'img',
-        'aria-label': 'Hermes mascot v2 SVG puppet runtime preview',
+        'aria-label': 'Hermes mascot SVG puppet runtime preview',
         class: 'mascot-v2-stage'
       });
       const defs = el('defs');

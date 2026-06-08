@@ -1,33 +1,48 @@
 # Project manifest
 
-## Canonical current path
+This repository is intentionally trimmed to the files needed to run, test, and operate the current Hermes personal display.
 
-- `README.md` — current project status and operating notes.
-- `src/character-runtime-v2.html` — current runtime review page.
-- `src/mascot-v2-debug.html` — current debug/contact-sheet page.
-- `src/mascot-v2/` — current accepted retro robot face mascot implementation.
-- `src/mascot-v2/SOURCE-LICENSE.md` — provenance note for the accepted retro robot path.
-- `docs/review-artifacts/mascot-v2-runtime-review.png` — current runtime screenshot artifact.
-- `docs/review-artifacts/mascot-v2-contact-sheet-review.png` — current contact-sheet screenshot artifact.
-- `docs/systemd-user-units.md` — monitor-ready kiosk and user-unit prep.
+## Current runtime
 
-- `deploy/systemd-user/` — checked-in preview/kiosk unit templates and env example.
-- `scripts/detect-display-env.sh` — graphical-session discovery helper for physical monitor bring-up.
-- `scripts/install-user-units.sh` — installs checked-in unit templates into the user systemd directory.
-- `docs/hermes-familiar-recovery-synthesis.md` — recovered design decision and future revamp path.
-- `docs/mascot-v2-motion-recommendation.md` — motion/gaze hardening recommendations.
-- `docs/hermes-familiar-asset-tooling-recommendation.md` — asset/tooling recommendation for future redesign.
+- `src/character-runtime-v2.html` — canonical browser/kiosk entrypoint.
+- `src/mascot-v2/` — current SVG puppet runtime, behavior machine, touch effects, audio hooks, and entertainment/watch logic.
+- `src/styles.css` and `src/mascot-v2/styles.css` — current runtime styling.
+- `src/state.js` — display-state normalization and contract consumption.
+- `src/vendor/` — vendored browser libraries used directly by the runtime.
+- `src/generated/display-contract.js` — generated browser contract constants.
 
-## Historical prototypes retained for reference
+## Server and state contract
 
-These are not the current path, but should not be deleted yet:
+- `scripts/hermes_display_server.py` — local static server and `/api/hermes-state` API.
+- `scripts/avatar_event_bus.py` — loopback avatar event validation and SSE support.
+- `scripts/display_state/` — display-state helper module boundary.
+- `scripts/generated/display_contract.py` — generated Python contract constants.
+- `schemas/` — source JSON contract and preset/posture definitions.
 
-- `src/character-runtime.html` — original abstract runtime Brian liked for motion feel.
-- `src/rgs-runtime.html`, `src/app-rgs.js`, `src/renderer-character-rgs.js` — rejected RGS prototype, useful as a lesson.
-- `src/foozle-runtime.html`, `src/app-foozle.js`, `src/renderer-foozle.js` — rejected Foozle path.
-- `src/gumbot-runtime.html`, `src/app-gumbot.js`, `src/renderer-gumbot.js` — older robot experiment.
-- Historical research docs may reference externally archived asset packs; raw packs are intentionally not tracked.
+## Operation
 
-## Future cleanup rule
+- `scripts/hermes-display` — local status/restart/verify helper for the live kiosk.
+- `scripts/serve-preview.sh` — preview server entrypoint used by systemd.
+- `scripts/xsession-minix-kiosk.sh` — current MINIX/SF10T X11 Chromium kiosk session.
+- `deploy/systemd-user/` — preview and generic user-kiosk templates.
+- `deploy/systemd-system/` — accepted MINIX/thermal system snippets.
+- `docs/minix-sf10t-bringup.md` and `docs/systemd-user-units.md` — current operational notes.
 
-The physical display is live and the accepted runtime path is stable. Keep the repo source-focused: commit runtime code, tests, fixtures, concise decisions, and curated baseline images only. Keep local review scratch, raw screenshots/videos, agent transcripts, bulky third-party asset packs, and environment/process captures out of Git.
+## Tests and quality gates
+
+- `package.json` / `package-lock.json` — pinned Node tooling.
+- `tests/` — unit, fixture, and Playwright tests.
+- `playwright.config.js` / `vite.config.js` — browser test/build configuration.
+- `scripts/check-*.js`, `scripts/check-*.py`, and `scripts/generate_display_contract.py` — active checks referenced by package scripts or `scripts/verify-project.sh`.
+
+## Removed from the source tree
+
+Historical Foozle, Gum Bot, RGS, p5, static concept-art, old design-review, raw screenshot, USB-panel, and one-off thermal/prototype artifacts were removed from the working tree. Deleted `docs/` content was archived in Obsidian at:
+
+- `Personal/AI/Hermes/Personal Display/Archive/repo-docs-archived-2026-06-08/Personal Display Repo Docs Archive - 2026-06-08.md`
+
+The removed repo files remain recoverable from Git history if needed, but they are no longer part of the current display runtime.
+
+## Known naming cleanup
+
+The current runtime still uses historical path/API names such as `character-runtime-v2.html`, `mascot-v2/`, and `window.hermesMascotV2`. Those are implementation names, not product names. User-facing labels have been cleaned up, but a full path/API rename should be a separate migration with tests and live-kiosk verification.

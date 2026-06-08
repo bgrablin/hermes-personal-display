@@ -144,7 +144,7 @@ PERSONAL_DISPLAY_WINDOW_SIZE=1280,1920
 
 Set only the display/session variables that are actually present.
 
-### 6. Switch from temporary USB panel to real kiosk
+### 6. Start the real kiosk
 
 Only after the MINIX display is visible to Linux:
 
@@ -155,7 +155,6 @@ DRY_RUN=0 ./scripts/bring-up-minix-sf10t.sh
 
 This will:
 
-- stop `hermes-personal-display-usb.service`
 - keep/start `hermes-personal-display-preview.service`
 - enable/start `hermes-personal-display-kiosk.service`
 
@@ -189,15 +188,15 @@ Mitigation: the current CSS scales cleanly. If it feels empty, next iteration sh
 
 ## Rollback
 
-To return to the temporary USB panel:
+To stop the kiosk while keeping the preview server available:
 
 ```bash
 systemctl --user stop hermes-personal-display-kiosk.service
-systemctl --user start hermes-personal-display-usb.service
 ```
 
-To keep the new monitor attached but not run kiosk:
+To recover the live NUC display, prefer the service-aware helper:
 
 ```bash
-systemctl --user stop hermes-personal-display-kiosk.service
+hermes-display fix
+hermes-display verify
 ```

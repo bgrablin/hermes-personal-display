@@ -79,9 +79,8 @@ Core paths:
 - `scripts/display_state/` - focused module boundary for collector, resolver, contract, privacy, persistence, route rail, remote memory, entertainment, and fixtures.
 - `scripts/avatar_event_bus.py` - avatar event validation and SSE helpers.
 - `deploy/systemd-user/` - preview/kiosk user service templates.
-- `docs/avatar-event-bus-contract-2026-05-21.md` - privacy and event contract.
 - `docs/systemd-user-units.md` - systemd user service notes.
-- `docs/project-manifest.md` - current source map and retained prototypes.
+- `docs/project-manifest.md` - current source map and cleanup boundary.
 
 ## Privacy model
 
@@ -229,6 +228,22 @@ deploy/systemd-user/hermes-personal-display.env.example
 ```
 
 Do not commit live display paths, session values, API keys, or machine-specific secrets.
+
+## Display control CLI
+
+The live NUC display is controlled through the service-aware CLI:
+
+```bash
+hermes-display status
+hermes-display verify
+hermes-display restart
+hermes-display fix
+hermes-display screenshot
+hermes-display build-id
+hermes-display url
+```
+
+`/home/brian/.local/bin/hermes-display` is a symlink to `scripts/hermes-display` in this repo. Keep that script in the source tree: `xsession-minix-kiosk.sh` derives the cache-busted kiosk URL from it, and `check:kiosk` verifies that restart/fix/status still target the real `hermes-personal-display-minix.service` path rather than an unmanaged Chromium process.
 
 ## Project status
 

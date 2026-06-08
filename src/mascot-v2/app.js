@@ -368,7 +368,7 @@
   document.querySelectorAll('[data-preset]').forEach((button) => {
     button.addEventListener('click', () => {
       const preset = PRESETS[button.dataset.preset];
-      writePacket(preset, `Previewing mascot v2 state: ${button.dataset.preset}.`);
+      writePacket(preset, `Previewing Hermes mascot state: ${button.dataset.preset}.`);
     });
   });
 
@@ -3515,5 +3515,5 @@
     }
   }
 
-  writePacket(currentPacket, 'Ready. Mascot v2 custom SVG puppet loaded. Use buttons or keys 1-5; press space/n for random intent.');
+  writePacket(currentPacket, 'Ready. Hermes custom SVG puppet loaded. Use buttons or keys 1-5; press space/n for random intent.');
 })();
