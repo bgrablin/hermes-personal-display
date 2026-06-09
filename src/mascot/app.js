@@ -23,7 +23,7 @@
   const skinOrder = ['retro-robot-core', 'retro-terminal-focus', 'retro-night-watch', 'retro-amber-watch', 'retro-hermes-accent'];
   const liveStatus = { lastGoodAt: null, failures: 0, lastError: '', staleSince: null };
   const avatarEventStatus = { connected: false, accepted: 0, dropped: 0, lastError: '', lastEventAt: null, recent: [] };
-  const DISPLAY_BUILD_ID = 'status-ticks1';
+  const DISPLAY_BUILD_ID = 'optic-iris-lattice1';
   const STATUS_TICK_MIN_GAP_MS = 4000;
   let statusTicksArmed = false;
   window.__HERMES_STATUS_TICKS = 0;
@@ -1549,6 +1549,7 @@
                 <circle class="cb-eye-lens" cx="550" cy="550" r="178" />
                 <circle class="cb-eye-ring" cx="550" cy="550" r="179" />
                 <g class="cb-eye-lens-contents" clip-path="url(#cb-eye-lens-clip)">
+                  <g class="cb-iris-lattice" aria-hidden="true"></g>
                   <g class="cb-eye-special cb-eye-grid" aria-hidden="true"></g>
                   <g class="cb-eye-special cb-eye-scan" aria-hidden="true">
                     <rect class="cb-eye-scan-band" x="546" y="376" width="8" height="174" rx="4" />
@@ -1631,6 +1632,7 @@
     if (touchOverlay) document.body.appendChild(touchOverlay);
     if (opticDebug) document.body.appendChild(opticDebug);
     installConceptBGrid(hud);
+    installConceptBIrisLattice(hud);
     installConceptBFieldInstrumentation(hud);
     ensureConceptBEyeMotion(hud);
     const trends = { cpu: [], temp: [] };
@@ -2177,6 +2179,43 @@
     }
   }
 
+  function installConceptBIrisLattice(hud) {
+    const lattice = hud.querySelector('.cb-iris-lattice');
+    if (!lattice || lattice.childNodes.length) return;
+    // Procedural machined-iris texture between the pupil (max scaled r is ~60) and the
+    // lens clip (r=176). Geometry comes from a seeded LCG so every boot renders the
+    // identical lattice and screenshot review artifacts stay diffable.
+    const ns = 'http://www.w3.org/2000/svg';
+    let seed = 28411;
+    const rand = () => ((seed = (seed * 48271) % 2147483647) / 2147483647);
+    const ringAt = (className, r) => {
+      const ring = document.createElementNS(ns, 'circle');
+      ring.classList.add(className);
+      ring.setAttribute('cx', '550');
+      ring.setAttribute('cy', '550');
+      ring.setAttribute('r', String(r));
+      lattice.appendChild(ring);
+    };
+    ringAt('cb-iris-collar', 64);
+    ringAt('cb-iris-limbal', 168);
+    const FILAMENTS = 56;
+    for (let i = 0; i < FILAMENTS; i += 1) {
+      const spoke = i % 7 === 0;
+      const angle = (Math.PI * 2 * i) / FILAMENTS + (rand() - 0.5) * 0.05;
+      const r0 = 67 + rand() * 9;
+      const r1 = spoke ? 154 + rand() * 12 : 122 + rand() * 30;
+      const line = document.createElementNS(ns, 'line');
+      line.classList.add('cb-iris-filament');
+      if (spoke) line.classList.add('cb-iris-filament-bright');
+      line.setAttribute('x1', (550 + Math.cos(angle) * r0).toFixed(2));
+      line.setAttribute('y1', (550 + Math.sin(angle) * r0).toFixed(2));
+      line.setAttribute('x2', (550 + Math.cos(angle) * r1).toFixed(2));
+      line.setAttribute('y2', (550 + Math.sin(angle) * r1).toFixed(2));
+      line.style.opacity = (spoke ? 0.52 + rand() * 0.18 : 0.16 + rand() * 0.22).toFixed(3);
+      lattice.appendChild(line);
+    }
+  }
+
   function installConceptBFieldInstrumentation(hud) {
     const ns = 'http://www.w3.org/2000/svg';
     const compass = hud.querySelector('.cb-field-compass');
@@ -2230,6 +2269,7 @@
     const pulseCircle = hud.querySelector('.cb-field-pulse');
     const glassSheen = hud.querySelector('.cb-eye-glass-sheen');
     const glassCrescent = hud.querySelector('.cb-eye-glass-crescent');
+    const irisLattice = hud.querySelector('.cb-iris-lattice');
     const activityPanel = document.querySelector('.cb-activity');
     // anime.js drives every optic cadence/transition/transient; the RAF flush below stays the
     // single writer of composed transforms so the two engines never fight over an attribute.
@@ -2266,6 +2306,8 @@
       breath: 1,
       ringAngle: 0,
       scanAngle: 0,
+      irisAngle: 0,
+      irisMs: 0,
       fieldRingAngles: { a: 0, b: 0, c: 0 },
       blinkMs: 5200,
       ringMs: 34000,
@@ -2442,6 +2484,39 @@
         targets: state, scanAngle: [0, 360], duration: 2600, easing: 'linear', loop: true
       });
     }
+    // Iris lattice cadence: signed period per mode (ms per revolution). Negative runs the
+    // lattice counter-clockwise for inward-focused thinking modes; 0 parks it so blocked,
+    // critical, and offline read as machinery actually stopped, distinct from idle creep.
+    const IRIS_LATTICE_PERIOD_MS = {
+      idle_watch: 210000,
+      listening: 150000,
+      waiting_user: 180000,
+      notice: 130000,
+      reading: 110000,
+      writing: 104000,
+      tool_shell: 88000,
+      searching: 46000,
+      reasoning: -150000,
+      planning: -128000,
+      complete: 170000,
+      blocked: 0,
+      critical: 0,
+      degraded_offline: 0
+    };
+    function irisLatticePeriodMs(mode) {
+      const period = IRIS_LATTICE_PERIOD_MS[mode];
+      return Number.isFinite(period) ? period : IRIS_LATTICE_PERIOD_MS.idle_watch;
+    }
+    function armIrisLattice() {
+      state.anims.irisLattice?.pause?.();
+      state.irisMs = irisLatticePeriodMs(state.mode);
+      if (prefersReducedMotion || !motion?.hasAnime || !state.irisMs) return;
+      const from = state.irisAngle % 360;
+      state.anims.irisLattice = motion.animateValue({
+        targets: state, irisAngle: [from, from + (state.irisMs < 0 ? -360 : 360)],
+        duration: Math.abs(state.irisMs), easing: 'linear', loop: true
+      });
+    }
     function fieldRingRate(mode, idx) {
       const base = mode === 'searching' ? 6 : mode === 'reasoning' ? -1.8 : 0.9;
       return base * (idx + 1);
@@ -2535,6 +2610,19 @@
         complete: () => { eyeRing.style.opacity = ''; }
       });
     }
+    function flareLattice() {
+      // Short light pulse across the iris lattice on state changes: the lens material
+      // acknowledges the transition without adding any new chrome. CSS folds the var
+      // into the lattice group opacity; removing it returns ownership to the stylesheet.
+      if (!irisLattice || !motion?.hasAnime || prefersReducedMotion) return;
+      const o = { p: 0 };
+      state.anims.latticeFlare?.pause?.();
+      state.anims.latticeFlare = motion.animateValue({
+        targets: o, p: [0, 1], duration: 560, easing: 'outQuad',
+        update: () => { irisLattice.style.setProperty('--cb-lattice-flare', Math.sin(o.p * Math.PI).toFixed(3)); },
+        complete: () => { irisLattice.style.removeProperty('--cb-lattice-flare'); }
+      });
+    }
     const transients = {
       notice() { ripple(pulseCircle, { fromR: 208, toR: 328, peakO: 0.30, dur: 640 }); flashRing(); pulsePupilFlash(-0.045, 300); },
       complete() { ripple(pulseCircle, { fromR: 212, toR: 360, peakO: 0.46, dur: 820 }); flashRing(); pulsePupilFlash(0.035, 420); },
@@ -2542,6 +2630,7 @@
       touch() { ripple(pulseCircle, { fromR: 202, toR: 302, peakO: 0.34, dur: 560 }); flashRing(); pulsePupilFlash(0.04, 360); }
     };
     function fireModeTransition(prev, mode) {
+      flareLattice();
       if (mode === 'complete') transients.complete();
       else if (mode === 'blocked' || mode === 'critical') transients.blocked();
       else if (mode === 'notice') transients.notice();
@@ -2658,7 +2747,7 @@
         if (breathMs !== state.breathMs) { state.breathMs = breathMs; armBreath(); }
         const scanning = state.mode === 'searching' || state.special === 'scan_sweep';
         if (scanning !== state.scanning) { state.scanning = scanning; armScan(); }
-        if (state.mode !== prevMode) { contextualBlink(`mode-${state.mode}`); armFieldRings(); fireModeTransition(prevMode, state.mode); }
+        if (state.mode !== prevMode) { contextualBlink(`mode-${state.mode}`); armFieldRings(); armIrisLattice(); fireModeTransition(prevMode, state.mode); }
       },
       touchPulse(detail = {}) {
         const now = performance.now();
@@ -2718,7 +2807,7 @@
       teardown() {
         window.cancelAnimationFrame(state.raf);
         window.clearTimeout(state.blinkTimer);
-        const all = [state.anims.blink, state.anims.halfBlink, state.anims.pupilFlash, state.anims.breath, state.anims.ring, state.anims.scan, state.anims.pulse, ...(state.anims.dots || []), ...(state.anims.fieldRings || [])];
+        const all = [state.anims.blink, state.anims.halfBlink, state.anims.pupilFlash, state.anims.breath, state.anims.ring, state.anims.scan, state.anims.pulse, state.anims.irisLattice, state.anims.latticeFlare, ...(state.anims.dots || []), ...(state.anims.fieldRings || [])];
         for (const a of all) a?.pause?.();
       },
       forceGaze(name = 'front', holdMs = 1200) {
@@ -2727,7 +2816,7 @@
         setFixation(normalized, holdMs, { blink: true, minBlinkGapMs: 520 });
       },
       debug() {
-        return { build: DISPLAY_BUILD_ID, x: state.x, y: state.y, targetX: state.targetX, targetY: state.targetY, microX: state.micro?.x || 0, microY: state.micro?.y || 0, nextMicroAt: state.micro?.nextAt || 0, targetName: state.fixation?.kind || 'front', forcedUntil: state.forcedUntil || 0, iris: state.iris, pupil: state.pupil, pupilFlash: state.pupilFlash || 0, lid: state.lid, upperBias: state.upperBias, lowerBias: state.lowerBias, blink: state.blink, breath: state.breath, touchTarget: state.lastTouchTarget, lastResonanceAt: state.lastResonanceAt || 0, mode: state.mode, special: state.special, anime: Boolean(motion?.hasAnime) };
+        return { build: DISPLAY_BUILD_ID, irisAngle: state.irisAngle, irisMs: state.irisMs, x: state.x, y: state.y, targetX: state.targetX, targetY: state.targetY, microX: state.micro?.x || 0, microY: state.micro?.y || 0, nextMicroAt: state.micro?.nextAt || 0, targetName: state.fixation?.kind || 'front', forcedUntil: state.forcedUntil || 0, iris: state.iris, pupil: state.pupil, pupilFlash: state.pupilFlash || 0, lid: state.lid, upperBias: state.upperBias, lowerBias: state.lowerBias, blink: state.blink, breath: state.breath, touchTarget: state.lastTouchTarget, lastResonanceAt: state.lastResonanceAt || 0, mode: state.mode, special: state.special, anime: Boolean(motion?.hasAnime) };
       }
     };
     const step = (now) => {
@@ -2756,7 +2845,7 @@
       state.vy *= Math.exp(-damping * dt);
       state.x += state.vx * dt;
       state.y += state.vy * dt;
-      renderConceptBEyeMotion({ root, hud, gazeGroup, iris, pupil, pupilGroup, glow, glowGradient, scanSweep, core, orbitSpin, lidTop, lidBottom, field, axisNodes, debugOverlay, bgA: bgParallax.a, bgB: bgParallax.b, glassSheen, glassCrescent, activityPanel }, state);
+      renderConceptBEyeMotion({ root, hud, gazeGroup, iris, pupil, pupilGroup, glow, glowGradient, scanSweep, core, orbitSpin, lidTop, lidBottom, field, axisNodes, debugOverlay, bgA: bgParallax.a, bgB: bgParallax.b, glassSheen, glassCrescent, irisLattice, activityPanel }, state);
       state.raf = window.requestAnimationFrame(step);
     };
     // Kick the anime.js cadence loops once; setTarget re-arms them when a packet changes period.
@@ -2764,6 +2853,7 @@
     armBreath();
     armRing();
     armFieldRings();
+    armIrisLattice();
     driftDots();
     scheduleNextMicro(performance.now());
     state.raf = window.requestAnimationFrame(step);
@@ -2815,6 +2905,9 @@
     if (parts.pupil) setConceptBAttribute(parts.pupil, 'r', '44');
     if (parts.glassSheen) setConceptBTransform(parts.glassSheen, `translate(${(-x * 0.18).toFixed(2)} ${(-y * 0.14).toFixed(2)})`);
     if (parts.glassCrescent) setConceptBTransform(parts.glassCrescent, `translate(${(-x * 0.10).toFixed(2)} ${(-y * 0.08).toFixed(2)})`);
+    // Lattice rotation is the anime.js irisAngle loop; the slight counter-gaze lag layers
+    // it between the lens body and the glass sheen so the iris reads as depth, not a decal.
+    if (parts.irisLattice) setConceptBTransform(parts.irisLattice, `translate(${(-x * 0.07).toFixed(2)} ${(-y * 0.05).toFixed(2)}) rotate(${(state.irisAngle % 360).toFixed(2)} 550 550)`);
     renderConceptBLids(parts.lidTop, parts.lidBottom, lidFrac, state.upperBias, state.lowerBias);
     if (parts.glow) {
       setConceptBAttribute(parts.glow, 'cx', (550 + x * 0.42).toFixed(2));

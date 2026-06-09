@@ -614,4 +614,32 @@ if (!serverSource.includes('def __init__(self, *args, **kwargs):') || !serverSou
   fail('Preview server must pass directory=str(ROOT); service cwd alone caused 404s for static src assets.');
 }
 
+// Iris lattice: procedural state-aware material inside the lens. The anime.js irisAngle
+// scalar is the only rotation source and the RAF flush is its only transform writer; CSS
+// must not animate or re-origin the lattice (the orbit-ring drift lesson). Blocked,
+// critical, and degraded_offline park the lattice (period 0) so a halted optic reads as
+// actually stopped machinery.
+requireAll(appSource, [
+  'cb-iris-lattice',
+  'installConceptBIrisLattice',
+  'IRIS_LATTICE_PERIOD_MS',
+  'irisLatticePeriodMs',
+  'setConceptBTransform(parts.irisLattice',
+  'cb-iris-filament',
+  'flareLattice',
+], 'Concept B lens must render the procedural iris lattice driven by the single-writer motion rig.');
+if (!/blocked:\s*0,\s*\n\s*critical:\s*0,\s*\n\s*degraded_offline:\s*0/.test(appSource)) {
+  fail('Iris lattice must park (period 0) for blocked, critical, and degraded_offline modes.');
+}
+requireAll(cssSource, [
+  '.cb-iris-lattice',
+  '.cb-iris-filament',
+  '.cb-iris-collar',
+  '.cb-iris-limbal',
+  '--cb-lattice-flare',
+], 'Iris lattice must be styled with accent-tinted filaments and flare-aware group opacity.');
+if (/\.cb-iris[^{]*\{[^}]*(animation:|transform-box)/.test(cssSource)) {
+  fail('Iris lattice rotation/light must stay with the anime.js scalars and the RAF writer; CSS animation or transform-box on .cb-iris-* re-introduces drift.');
+}
+
 console.log('OK kiosk recommendation regression checks.');

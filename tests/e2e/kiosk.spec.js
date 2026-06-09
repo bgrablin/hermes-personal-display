@@ -853,6 +853,69 @@ test.describe('Hermes kiosk smoke and visual regression anchors', () => {
     }
   });
 
+  test('iris lattice is procedural, clipped to the lens, and anchored to the optic center', async ({ page }, testInfo) => {
+    test.skip(testInfo.project.name !== 'minix-sf10t-landscape', 'MINIX-only landscape project');
+    await page.goto(runtimeUrl('idle_watch', testInfo));
+    await page.waitForFunction(() => Boolean(window.__HERMES_CONCEPT_B_EYE_MOTION), null, { timeout: 8000 });
+    const geometry = await page.evaluate(() => {
+      const filaments = Array.from(document.querySelectorAll('.cb-iris-lattice .cb-iris-filament'));
+      const radii = filaments.flatMap((line) => [
+        Math.hypot(Number(line.getAttribute('x1')) - 550, Number(line.getAttribute('y1')) - 550),
+        Math.hypot(Number(line.getAttribute('x2')) - 550, Number(line.getAttribute('y2')) - 550),
+      ]);
+      return {
+        count: filaments.length,
+        brightCount: document.querySelectorAll('.cb-iris-lattice .cb-iris-filament-bright').length,
+        maxR: Math.max(...radii),
+        minR: Math.min(...radii),
+        hasCollar: Boolean(document.querySelector('.cb-iris-lattice .cb-iris-collar')),
+        hasLimbal: Boolean(document.querySelector('.cb-iris-lattice .cb-iris-limbal')),
+      };
+    });
+    expect(geometry.count).toBe(56);
+    expect(geometry.brightCount).toBe(8);
+    expect(geometry.maxR).toBeLessThanOrEqual(172); // inside the r=176 lens clip
+    expect(geometry.minR).toBeGreaterThanOrEqual(64); // outside the max scaled pupil (~r=60)
+    expect(geometry.hasCollar).toBe(true);
+    expect(geometry.hasLimbal).toBe(true);
+    // The single RAF writer must keep rotation pinned to the lens center.
+    await expect.poll(() => page.evaluate(() => document.querySelector('.cb-iris-lattice').getAttribute('transform') || '')).toContain('550 550');
+    // Idle creep: slow forward rotation driven by the anime.js irisAngle loop.
+    await expect.poll(
+      () => page.evaluate(() => window.__HERMES_CONCEPT_B_EYE_MOTION.debug().irisAngle),
+      { timeout: 6000 },
+    ).toBeGreaterThan(0.0005);
+  });
+
+  test('iris lattice cadence is state-aware and parks under reduced motion', async ({ page }, testInfo) => {
+    const debugIris = () => page.evaluate(() => {
+      const d = window.__HERMES_CONCEPT_B_EYE_MOTION.debug();
+      return { irisMs: d.irisMs, irisAngle: d.irisAngle };
+    });
+    const waitForRig = () => page.waitForFunction(() => Boolean(window.__HERMES_CONCEPT_B_EYE_MOTION), null, { timeout: 8000 });
+
+    await page.goto(runtimeUrl('reasoning', testInfo));
+    await waitForRig();
+    await expect.poll(async () => (await debugIris()).irisMs).toBeLessThan(0); // inward modes counter-rotate
+
+    await page.goto(runtimeUrl('searching', testInfo));
+    await waitForRig();
+    const searching = await debugIris();
+    expect(searching.irisMs).toBeGreaterThan(0);
+    expect(Math.abs(searching.irisMs)).toBeLessThan(150000); // faster than reasoning
+
+    await page.goto(runtimeUrl('blocked', testInfo));
+    await waitForRig();
+    await expect.poll(async () => (await debugIris()).irisMs).toBe(0); // halted work parks the lattice
+
+    await page.emulateMedia({ reducedMotion: 'reduce' });
+    await page.goto(`${runtimeUrl('idle_watch', testInfo)}&case=reduced`);
+    await waitForRig();
+    await page.waitForTimeout(600);
+    const reduced = await debugIris();
+    expect(reduced.irisAngle).toBe(0);
+  });
+
   test('semantic gaze targets drive Augury, route, bottom, and touch fixations', async ({ page }, testInfo) => {
     test.skip(testInfo.project.name !== 'minix-sf10t-landscape', 'MINIX-only landscape project');
     await page.goto(runtimeUrl('idle_watch', testInfo));

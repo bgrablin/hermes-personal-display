@@ -2722,6 +2722,47 @@ body.kiosk-mode.kiosk-landscape.claude-concept-b .cb-eye-glass-crescent {
   pointer-events: none;
 }
 
+body.kiosk-mode.kiosk-landscape.claude-concept-b .cb-iris-lattice {
+  /* Rotation comes from the SVG transform attribute rotate(deg 550 550) written by the
+     single RAF flush. No CSS transform model overrides and no CSS keyframes here; mixing
+     transform models is what made the orbit ring drift off center. Light level follows
+     the mode focus var, plus the short anime.js --cb-lattice-flare pulse on state
+     changes (no opacity transition so the flare is not low-passed into mush). */
+  opacity: calc(0.46 + var(--cb-field-focus, 0.24) * 0.42 + var(--cb-lattice-flare, 0) * 0.34);
+  will-change: transform, opacity;
+  pointer-events: none;
+}
+
+body.kiosk-mode.kiosk-landscape.claude-concept-b .cb-iris-filament {
+  stroke: color-mix(in srgb, var(--cb-accent) 30%, transparent);
+  stroke-width: 0.8;
+  stroke-linecap: round;
+  transition: stroke 600ms ease;
+}
+
+body.kiosk-mode.kiosk-landscape.claude-concept-b .cb-iris-filament-bright {
+  stroke: color-mix(in srgb, var(--cb-accent) 52%, rgba(240, 248, 246, 0.4));
+  stroke-width: 1.15;
+  filter: drop-shadow(0 0 6px color-mix(in srgb, var(--cb-accent) 28%, transparent));
+}
+
+body.kiosk-mode.kiosk-landscape.claude-concept-b .cb-iris-collar,
+body.kiosk-mode.kiosk-landscape.claude-concept-b .cb-iris-limbal {
+  fill: none;
+  stroke: color-mix(in srgb, var(--cb-accent) 24%, transparent);
+  transition: stroke 600ms ease;
+}
+
+body.kiosk-mode.kiosk-landscape.claude-concept-b .cb-iris-collar {
+  stroke-width: 1;
+  opacity: 0.5;
+}
+
+body.kiosk-mode.kiosk-landscape.claude-concept-b .cb-iris-limbal {
+  stroke-width: 0.7;
+  opacity: 0.36;
+}
+
 body.kiosk-mode.kiosk-landscape.claude-concept-b .cb-eye-pupil {
   fill: rgba(1, 3, 5, 0.985);
   stroke: color-mix(in srgb, var(--cb-accent) 34%, transparent);
@@ -2878,6 +2919,12 @@ body.kiosk-mode.kiosk-landscape.claude-concept-b .cb-radial-stage.optic-debug-en
   body.kiosk-mode.kiosk-landscape.claude-concept-b .cb-field-mote,
   body.kiosk-mode.kiosk-landscape.claude-concept-b .cb-field-pulse {
     animation: none !important;
+  }
+
+  body.kiosk-mode.kiosk-landscape.claude-concept-b .cb-iris-lattice {
+    /* The rotation loop and flare never arm under reduced motion; a gentle opacity
+       transition keeps per-mode light changes readable as fades instead of jumps. */
+    transition: opacity 700ms ease;
   }
 }
 
