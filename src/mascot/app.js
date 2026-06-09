@@ -23,7 +23,10 @@
   const skinOrder = ['retro-robot-core', 'retro-terminal-focus', 'retro-night-watch', 'retro-amber-watch', 'retro-hermes-accent'];
   const liveStatus = { lastGoodAt: null, failures: 0, lastError: '', staleSince: null };
   const avatarEventStatus = { connected: false, accepted: 0, dropped: 0, lastError: '', lastEventAt: null, recent: [] };
-  const DISPLAY_BUILD_ID = 'route-headroom-smooth1';
+  const DISPLAY_BUILD_ID = 'status-ticks1';
+  const STATUS_TICK_MIN_GAP_MS = 4000;
+  let statusTicksArmed = false;
+  window.__HERMES_STATUS_TICKS = 0;
   const CONCEPT_B_BIO_MOTION = Object.freeze({
     // Quiet watch should not read as a metronomic eye twitch. Keep micro-saccades rare
     // and tiny in standby, while preserving more visible eye life for active/search modes.
@@ -1842,9 +1845,9 @@
       rememberTrend(trends.temp, cpuTemp);
 
       const familyState = label === 'ACTIVE TURN' ? 'HERMES IS THINKING' : label === 'LOCAL WATCH' ? 'HERMES IS WATCHING' : label === 'BLOCKED' ? 'HERMES IS PAUSED' : 'HERMES IS HERE';
-      setConceptBText(refs.state, familyAudience ? familyState : label);
+      setConceptBStatusText(refs.state, familyAudience ? familyState : label);
       if (refs.stateDot && refs.stateDot.style.background !== instrumentAccent) refs.stateDot.style.background = instrumentAccent;
-      setConceptBText(refs.activity, familyAudience ? familySafeStatusPhrase(label, freshnessTier, live.gateway_ok) : displaySentence(activity.summary));
+      setConceptBStatusText(refs.activity, familyAudience ? familySafeStatusPhrase(label, freshnessTier, live.gateway_ok) : displaySentence(activity.summary));
       setConceptBText(refs.source, familyAudience ? 'SPARKLE MODE' : safeDisplayText(source, 32).toUpperCase());
       applyConceptBFeel(live, activity, freshnessTier);
 
@@ -1863,10 +1866,10 @@
       }
       setConceptBDataset(refs.body, 'auguryPresence', conceptBAuguryPresence(live, mode, freshnessTier, gatewayText));
 
-      setConceptBText(refs.gateway, gatewayText);
-      setConceptBClassName(refs.gatewayDot, live.gateway_ok !== false && freshnessTier !== 'lost' ? 'ok' : 'watch');
-      setConceptBText(refs.feed, `FEED ${freshnessTier.toUpperCase()}`);
-      setConceptBClassName(refs.feedDot, freshnessTier);
+      setConceptBStatusText(refs.gateway, gatewayText);
+      setConceptBStatusDotClass(refs.gatewayDot, live.gateway_ok !== false && freshnessTier !== 'lost' ? 'ok' : 'watch');
+      setConceptBStatusText(refs.feed, `FEED ${freshnessTier.toUpperCase()}`);
+      setConceptBStatusDotClass(refs.feedDot, freshnessTier);
       updateRemoteMemoryCell(refs, live.remote_memory);
       const taskText = isCurrentWork
         ? 'CURRENT TURN'
@@ -1878,14 +1881,15 @@
         : Number.isFinite(queuedTaskCount) && queuedTaskCount > 0
           ? 'queued calmly'
           : 'no queued work';
-      setConceptBText(refs.tasks, taskText);
+      setConceptBStatusText(refs.tasks, taskText);
       setConceptBText(refs.taskHint, taskHint);
-      setConceptBClassName(refs.taskDot, isCurrentWork || (Number.isFinite(queuedTaskCount) && queuedTaskCount > 0) ? 'ok' : 'fresh');
+      setConceptBStatusDotClass(refs.taskDot, isCurrentWork || (Number.isFinite(queuedTaskCount) && queuedTaskCount > 0) ? 'ok' : 'fresh');
 
       updateConceptBRouteRail(routeRail, live.route_rail);
       updateStatusAges();
     };
     updatePanelFromPacket();
+    statusTicksArmed = true;
     installConceptBFeelApi();
     scheduleClockMinuteBoundary();
     window.setInterval(updateStatusAges, 5000);
@@ -1910,9 +1914,9 @@
     const age = Number(remoteMemory?.age_seconds);
     const ageText = Number.isFinite(age) ? formatRouteAge(age) : '--';
     const statusText = status === 'UP' ? `${label} UP` : status === 'DOWN' ? `${label} DOWN` : `${label} ${status}`;
-    setConceptBText(refs.memory, statusText);
+    setConceptBStatusText(refs.memory, statusText);
     setConceptBText(refs.memoryAge, ageText);
-    setConceptBClassName(refs.memoryDot, dotClass);
+    setConceptBStatusDotClass(refs.memoryDot, dotClass);
   }
 
 
@@ -2108,6 +2112,43 @@
     const next = String(value);
     if (el.dataset[key] === next) return;
     el.dataset[key] = next;
+  }
+
+  // Status-change ticks: a short transform/opacity nudge when a status label or severity dot
+  // actually changes value, so state flips read as events instead of silent text swaps.
+  // Armed only after the first panel render (boot must not flutter) and throttled per element
+  // so churny fields cannot strobe the rail. Reduced motion keeps the instant swap.
+  function playConceptBStatusTick(el, keyframes, duration) {
+    if (!el || !statusTicksArmed || prefersReducedMotion || typeof el.animate !== 'function') return;
+    const now = Date.now();
+    if (el.__cbTickAt && now - el.__cbTickAt < STATUS_TICK_MIN_GAP_MS) return;
+    el.__cbTickAt = now;
+    el.__cbTickAnim?.cancel?.();
+    el.__cbTickAnim = el.animate(keyframes, { duration, easing: 'cubic-bezier(0.22, 1, 0.36, 1)' });
+    window.__HERMES_STATUS_TICKS += 1;
+  }
+
+  function setConceptBStatusText(el, value) {
+    if (!el) return;
+    const next = String(value);
+    if (el.textContent === next) return;
+    el.textContent = next;
+    playConceptBStatusTick(el, [
+      { opacity: 0.25, transform: 'translateY(6px)' },
+      { opacity: 1, transform: 'translateY(0)' },
+    ], 360);
+  }
+
+  function setConceptBStatusDotClass(el, value) {
+    if (!el) return;
+    const next = String(value);
+    if (el.className === next) return;
+    el.className = next;
+    playConceptBStatusTick(el, [
+      { transform: 'scale(1)' },
+      { transform: 'scale(1.75)', offset: 0.4 },
+      { transform: 'scale(1)' },
+    ], 540);
   }
 
   function installConceptBGrid(hud) {

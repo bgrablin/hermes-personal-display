@@ -45,6 +45,49 @@ test.describe('Hermes kiosk smoke and visual regression anchors', () => {
     });
   }
 
+  test('status-change ticks are event-only and reduced-motion safe', async ({ page }, testInfo) => {
+    const packet = (preset, summary) => ({
+      schema_version: '0.1.0',
+      state_preset: preset,
+      mood: preset === 'working' ? 'thinking_focused' : 'idle_watchful',
+      skin: 'retro-robot-core',
+      caption: { text: summary, tone: 'focused', priority: 'ambient' },
+      live: {
+        gateway_ok: true,
+        freshness: { tier: 'fresh', valid_measurements: 3, stale_measurements: [] },
+        resolver: { display_state: preset === 'working' ? 'active_work' : 'idle' },
+        current_work: preset === 'working'
+          ? { active: true, kind: 'shell', visual_kind: 'shell', state: 'tool_shell', summary, age_seconds: 1, source: 'terminal' }
+          : { active: false, summary, age_seconds: 0, source: 'local' },
+        system: { cpu: 0.18, memory: 0.32, temp_c: 54, cpu_temp_c: 54 },
+        tasks: { queued: 0, active: preset === 'working' ? 1 : 0 },
+      },
+    });
+
+    await page.goto(runtimeUrl('idle_watch', testInfo));
+    await expect(page.locator('[data-cb-state]')).toBeVisible();
+    await expect.poll(() => page.evaluate(() => window.__HERMES_STATUS_TICKS)).toBe(0);
+
+    let requestCount = 0;
+    await page.route('**/api/hermes-state**', async (route) => {
+      requestCount += 1;
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify(requestCount === 1 ? packet('quiet_watch', 'Systems steady.') : packet('working', 'Running focused local work.')),
+      });
+    });
+
+    await page.goto(`${runtimeUrl('idle_watch', testInfo)}&live=1`);
+    await expect.poll(() => page.evaluate(() => window.__HERMES_STATUS_TICKS)).toBeGreaterThan(0);
+
+    const reducedPage = page;
+    await reducedPage.emulateMedia({ reducedMotion: 'reduce' });
+    requestCount = 0;
+    await reducedPage.goto(`${runtimeUrl('idle_watch', testInfo)}&live=1&case=reduced`);
+    await expect.poll(() => reducedPage.evaluate(() => window.__HERMES_STATUS_TICKS)).toBe(0);
+  });
+
   test('caption sanitizer keeps unsafe html out of display text', async ({ page }, testInfo) => {
     await page.goto(runtimeUrl('idle_watch', testInfo));
     const sanitized = await page.evaluate(() => window.HermesSanitize.captionText('<img src=x onerror=alert(1)>Visible<script>x</script>'));
