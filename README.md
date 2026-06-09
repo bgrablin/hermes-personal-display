@@ -78,8 +78,9 @@ Core paths:
 - `scripts/hermes_display_server.py` - compatibility HTTP route boundary for the local static server plus display-state API.
 - `scripts/display_state/` - focused module boundary for collector, resolver, contract, privacy, persistence, route rail, remote memory, entertainment, and fixtures.
 - `scripts/avatar_event_bus.py` - avatar event validation and SSE helpers.
-- `deploy/systemd-user/` - preview/kiosk user service templates.
-- `docs/systemd-user-units.md` - systemd user service notes.
+- `tests/fixtures/` - synthetic display-safe preview and regression fixtures; see `tests/fixtures/README.md`.
+- `deploy/systemd-user/` - preview/kiosk user service templates; see `docs/systemd-user-units.md`.
+- `docs/display-contract.md` - schema-to-generated-bindings contract notes.
 - `docs/project-manifest.md` - current source map and cleanup boundary.
 
 ## Privacy model
@@ -108,7 +109,7 @@ Hermes Agent or local monitor
   -> kiosk renders without knowing raw prompts, raw logs, tool output, file paths, or secrets
 ```
 
-Authoritative sources:
+Authoritative sources are documented in `docs/display-contract.md` and live under `schemas/`:
 
 - `schemas/hermes-display-state.schema.json`
 - `schemas/hermes-avatar-event.schema.json`
@@ -206,6 +207,8 @@ npm run check:augury-feed
 npm run build
 ```
 
+Fixture families and their consumers are documented in `tests/fixtures/README.md`.
+
 Full local gate, including Playwright projects:
 
 ```bash
@@ -227,7 +230,7 @@ Those details are included so other Hermes Agent users can reproduce the physica
 
 ## Kiosk deployment
 
-The repo includes systemd user unit templates under `deploy/systemd-user/`.
+The repo includes systemd user unit templates under `deploy/systemd-user/`. See `docs/systemd-user-units.md` for the service layout, install notes, and local environment boundaries.
 
 Typical flow:
 
