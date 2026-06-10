@@ -231,9 +231,42 @@ requireAll(appSource, [
   "enabled: false, reason: 'family-audience'",
   'PRIVATE AUGURY',
 ], 'Canonical runtime must include top alert and private Augury safeguards.');
-if (!appSource.includes("['1', 'true', 'yes'].includes((urlParams.get('family')")) {
-  fail('family=1 must be treated as family audience and suppress private/operator overlays.');
+// Audience/family parsing is unified: parseFamilyAudience is the single parser for every
+// accepted family route (audience=family|theater, family=1|true|yes, view=theater), and
+// every consumer — top-level familyAudience, applyPageMode, and the mode-toggle URL
+// rewrite — must go through it. Divergent re-parsing in applyPageMode once dropped
+// family=1 and let ?kiosk=1&family=1 boot with a transient operator audience.
+const audienceParserMatch = appSource.match(/function parseFamilyAudience\(params\) \{([\s\S]*?)\n  \}/);
+if (!audienceParserMatch) fail('Runtime must define the shared parseFamilyAudience(params) audience parser.');
+requireAll(audienceParserMatch[1], [
+  "['family', 'theater'].includes((params.get('audience') || '').toLowerCase())",
+  "['1', 'true', 'yes'].includes((params.get('family') || '').toLowerCase())",
+  "(params.get('view') || '').toLowerCase() === 'theater'",
+], 'parseFamilyAudience must accept all family routes: audience=family|theater, family=1|true|yes, view=theater');
+if (!appSource.includes('const familyAudience = parseFamilyAudience(urlParams);')) {
+  fail('Top-level familyAudience must come from the shared parseFamilyAudience parser.');
 }
+const applyPageModeMatch = appSource.match(/function applyPageMode\(\) \{([\s\S]*?)\n  \}/);
+if (!applyPageModeMatch) fail('Runtime must define applyPageMode.');
+if (!applyPageModeMatch[1].includes('parseFamilyAudience(params)')) {
+  fail('applyPageMode must derive family audience from the shared parser so kiosk=1&family=1 boots family-first.');
+}
+if (/\.get\(['"](?:audience|view|family)['"]\)/.test(applyPageModeMatch[1])) {
+  fail('applyPageMode must not re-parse audience/family/view params; divergent parsing caused the family=1 boot flash.');
+}
+const audienceParseSites = (appSource.match(/\['family', 'theater'\]\.includes/g) || []).length;
+if (audienceParseSites !== 1) {
+  fail(`Audience param parsing must exist exactly once (inside parseFamilyAudience); found ${audienceParseSites} sites.`);
+}
+if (!appSource.includes("const FAMILY_AUDIENCE_PARAMS = Object.freeze(['audience', 'family', 'view'])")) {
+  fail('FAMILY_AUDIENCE_PARAMS must list every accepted audience param so mode-toggle URL rewrites clear them all.');
+}
+const familyUrlBuilderMatch = appSource.match(/function familyModeTargetUrl\(toFamily\) \{([\s\S]*?)\n  \}/);
+if (!familyUrlBuilderMatch) fail('Runtime must define the shared familyModeTargetUrl(toFamily) URL rewriter.');
+requireAll(familyUrlBuilderMatch[1], [
+  'FAMILY_AUDIENCE_PARAMS.forEach((key) => url.searchParams.delete(key))',
+  "url.searchParams.set('audience', 'family')",
+], 'familyModeTargetUrl must clear every audience param via FAMILY_AUDIENCE_PARAMS and re-enter family mode via audience=family');
 if (!cssSource.includes('.cb-top-alert') || !cssSource.includes('body.family-theater.augury-preview .augury-ambient')) {
   fail('Canonical CSS must include top alert ribbon and hard-hide Augury in family theater mode.');
 }
@@ -704,9 +737,9 @@ requireAll(appSource, [
   'function installFamilyModeToggle()',
   'FAMILY_HOLD_MS = 1200',
   'HOLD_CANCEL_DISTANCE_PX',
-  "['audience', 'family', 'view'].forEach((key) => url.searchParams.delete(key))",
+  'FAMILY_AUDIENCE_PARAMS.forEach((key) => url.searchParams.delete(key))',
   "url.searchParams.set('audience', 'family')",
-  'window.location.replace(modeTargetUrl(!familyAudience))',
+  'window.location.replace(familyModeTargetUrl(!familyAudience))',
   'cb-mode-hold',
   "familyAudience ? 'OPERATOR HOLD' : 'FAMILY HOLD'",
   "familyAudience ? 'OPERATOR MODE' : 'FAMILY MODE'",

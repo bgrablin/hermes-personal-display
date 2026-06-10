@@ -232,6 +232,44 @@ test.describe('Hermes kiosk smoke and visual regression anchors', () => {
     expect(auguryFetches).toBe(0);
   });
 
+  test('kiosk=1&family=1 boots family-first with no transient operator audience', async ({ page }, testInfo) => {
+    test.skip(testInfo.project.name !== 'minix-sf10t-landscape', 'MINIX-only Concept B family mode');
+    let auguryFetches = 0;
+    await page.route('**/api/augury-feed**', async (route) => {
+      auguryFetches += 1;
+      await route.fulfill({ status: 500, body: 'family mode should not fetch augury' });
+    });
+    // Record every data-audience value the body ever carries. The duplicated parser bug
+    // let applyPageMode drop family=1 and stamp a transient operator audience at boot
+    // before the unified familyAudience path corrected it.
+    await page.addInitScript(() => {
+      window.__AUDIENCE_HISTORY = [];
+      // Init scripts run before documentElement exists, so observe the document node.
+      // The observer callback fires after the boot script's synchronous writes finish,
+      // so the transient value only survives in each mutation record's oldValue; the
+      // current attribute read at callback time would always show the corrected value.
+      new MutationObserver((mutations) => {
+        for (const mutation of mutations) {
+          if (mutation.target.nodeName === 'BODY' && mutation.attributeName === 'data-audience') {
+            if (mutation.oldValue !== null) window.__AUDIENCE_HISTORY.push(mutation.oldValue);
+            window.__AUDIENCE_HISTORY.push(mutation.target.getAttribute('data-audience'));
+          }
+        }
+      }).observe(document, { attributes: true, subtree: true, attributeOldValue: true, attributeFilter: ['data-audience'] });
+    });
+    await page.goto(`${runtimeUrl('idle_watch', testInfo)}&family=1&augury=1`);
+    await expect(page.locator('body.family-theater[data-audience="family"]')).toBeVisible();
+    const audienceHistory = await page.evaluate(() => window.__AUDIENCE_HISTORY);
+    expect(audienceHistory.length).toBeGreaterThan(0);
+    expect(audienceHistory).not.toContain('operator');
+    await expect(page.locator('.cb-topbar')).toBeHidden();
+    await expect(page.locator('.cb-bottom-rail')).toBeHidden();
+    await expect(page.locator('.cb-route-rail')).toBeHidden();
+    await expect(page.locator('.augury-ambient')).toHaveCount(0);
+    expect(await page.evaluate(() => document.body.dataset.auguryPresence)).toBe('hidden');
+    expect(auguryFetches).toBe(0);
+  });
+
   test.describe('family mode hold toggle', () => {
     const holdChip = async (page) => {
       const box = await page.locator('.cb-mode-hold').boundingBox();

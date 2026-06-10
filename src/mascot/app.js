@@ -11,7 +11,7 @@
   const requestedMode = urlParams.get('mode');
   const kioskMode = ['1', 'true', 'yes'].includes((urlParams.get('kiosk') || '').toLowerCase());
   const orientation = (urlParams.get('orientation') || '').toLowerCase();
-  const familyAudience = ['family', 'theater'].includes((urlParams.get('audience') || '').toLowerCase()) || ['1', 'true', 'yes'].includes((urlParams.get('family') || '').toLowerCase()) || (urlParams.get('view') || '').toLowerCase() === 'theater';
+  const familyAudience = parseFamilyAudience(urlParams);
   const reducedMotionMedia = window.matchMedia?.('(prefers-reduced-motion: reduce)') || null;
   let prefersReducedMotion = reducedMotionMedia?.matches || false;
   const initialPacket = requestedMode && window.HermesDisplayState.opticPacketToPersonaPacket
@@ -23,7 +23,7 @@
   const skinOrder = ['retro-robot-core', 'retro-terminal-focus', 'retro-night-watch', 'retro-amber-watch', 'retro-hermes-accent'];
   const liveStatus = { lastGoodAt: null, failures: 0, lastError: '', staleSince: null };
   const avatarEventStatus = { connected: false, accepted: 0, dropped: 0, lastError: '', lastEventAt: null, recent: [] };
-  const DISPLAY_BUILD_ID = 'asset-version-unify1';
+  const DISPLAY_BUILD_ID = 'audience-parser-unify1';
   const STATUS_TICK_MIN_GAP_MS = 4000;
   const ROUTE_HEADROOM_LOW_THRESHOLD = 0.15;
   let statusTicksArmed = false;
@@ -971,19 +971,6 @@
     const HOLD_CANCEL_DISTANCE_PX = 14;
     const REDUCED_HOLD_STEPS = 4;
 
-    // Mode switching is a pure URL rewrite. Entering family mode adds audience=family on
-    // top of the live operator query, so the operator setup (augury flags included)
-    // round-trips through the URL itself and the return hold restores it exactly.
-    // No browser storage of any kind: the only "state" is the display mode in the URL.
-    // Privacy holds because every family gate (Augury install, overlay chrome, text
-    // swaps) keys off the audience param before any private feature reads its own flag.
-    const modeTargetUrl = (toFamily) => {
-      const url = new URL(window.location.href);
-      ['audience', 'family', 'view'].forEach((key) => url.searchParams.delete(key));
-      if (toFamily) url.searchParams.set('audience', 'family');
-      return url.toString();
-    };
-
     const chip = document.createElement('button');
     chip.type = 'button';
     chip.className = 'cb-mode-hold';
@@ -1027,7 +1014,7 @@
       chip.dataset.holdState = 'engaged';
       label.textContent = engagedLabel;
       renderer.triggerIntent?.('tiny_perk');
-      window.setTimeout(() => window.location.replace(modeTargetUrl(!familyAudience)), prefersReducedMotion ? 80 : 420);
+      window.setTimeout(() => window.location.replace(familyModeTargetUrl(!familyAudience)), prefersReducedMotion ? 80 : 420);
     };
 
     const smoothTick = (now) => {
@@ -1091,7 +1078,7 @@
       mode: () => (familyAudience ? 'family' : 'operator'),
       state: () => chip.dataset.holdState,
       progress: () => Number(chip.style.getPropertyValue('--cb-hold-progress') || 0),
-      targetUrl: () => modeTargetUrl(!familyAudience),
+      targetUrl: () => familyModeTargetUrl(!familyAudience),
     };
   }
 
@@ -3917,11 +3904,33 @@
     return Math.max(0, Math.min(1, Number(value) || 0));
   }
 
+  // Family/theater audience has exactly one source of truth. Every accepted route —
+  // audience=family, audience=theater, family=1, view=theater — is recognized here, and
+  // FAMILY_AUDIENCE_PARAMS names every param that can carry an audience so URL rewrites
+  // clear them all. Mode switching is a pure URL rewrite: entering family mode layers
+  // audience=family over the live operator query (augury flags included), so the return
+  // hold restores the operator setup exactly. No browser storage of any kind: the only
+  // "state" is the display mode in the URL. Privacy holds because every family gate
+  // (Augury install, overlay chrome, text swaps) keys off this parser before any private
+  // feature reads its own flag.
+  const FAMILY_AUDIENCE_PARAMS = Object.freeze(['audience', 'family', 'view']);
+  function parseFamilyAudience(params) {
+    return ['family', 'theater'].includes((params.get('audience') || '').toLowerCase())
+      || ['1', 'true', 'yes'].includes((params.get('family') || '').toLowerCase())
+      || (params.get('view') || '').toLowerCase() === 'theater';
+  }
+  function familyModeTargetUrl(toFamily) {
+    const url = new URL(window.location.href);
+    FAMILY_AUDIENCE_PARAMS.forEach((key) => url.searchParams.delete(key));
+    if (toFamily) url.searchParams.set('audience', 'family');
+    return url.toString();
+  }
+
   function applyPageMode() {
     const params = new URLSearchParams(window.location.search);
     const kiosk = ['1', 'true', 'yes'].includes((params.get('kiosk') || '').toLowerCase());
     const landscape = ['landscape', 'right', 'cw'].includes((params.get('orientation') || '').toLowerCase());
-    const family = ['family', 'theater'].includes((params.get('audience') || '').toLowerCase()) || (params.get('view') || '').toLowerCase() === 'theater';
+    const family = parseFamilyAudience(params);
     const tastePrototype = ['1', 'true', 'yes'].includes((params.get('taste') || '').toLowerCase());
     document.body.classList.toggle('kiosk-mode', kiosk);
     document.body.classList.toggle('kiosk-landscape', kiosk && (landscape || !(params.get('orientation') || '').trim()));
