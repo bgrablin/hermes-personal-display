@@ -334,7 +334,7 @@ if (!appSource.includes("setConceptBTransform(parts.pupilGroup, `translate(550 5
 // symmetric lid pinch over a stable lens, not as iris/pupil zoom or lower-right dart.
 // It is still driven by an anime.js cadence loop (state.blink), but the RAF flush keeps
 // gaze/iris/pupil transforms posture-only while lids occlude the eye.
-if (!appSource.includes('function armBlink()') || !appSource.includes('blink: 1, duration:') || appSource.includes('blinkHoldX') || appSource.includes('blinkZoom') || !appSource.includes('const lidFrac = Math.max(state.lid, blink);') || !appSource.includes('const effPupil = Math.max(0.60, Math.min(1.35, state.pupil + (Number(state.pupilFlash) || 0)))') || !appSource.includes('const topH = Math.max(0, 176 * Math.max(0, Math.min(1, amount + (Number(upperBias) || 0))))') || !appSource.includes('const bottomH = Math.max(0, 176 * Math.max(0, Math.min(1, amount + (Number(lowerBias) || 0))))') || !appSource.includes('renderConceptBLids(parts.lidTop, parts.lidBottom, lidFrac, state.upperBias, state.lowerBias)')) {
+if (!appSource.includes('function armBlink()') || !appSource.includes('blink: 1, duration:') || appSource.includes('blinkHoldX') || appSource.includes('blinkZoom') || !appSource.includes('const lidFrac = Math.max(Math.max(0, state.lid - lidWiden), blink);') || !appSource.includes('const effPupil = Math.max(0.60, Math.min(1.35, state.pupil + (Number(state.pupilFlash) || 0) + (Number(state.hippus) || 0) + (Number(state.regard) || 0)))') || !appSource.includes('const topH = Math.max(0, 176 * Math.max(0, Math.min(1, amount + (Number(upperBias) || 0))))') || !appSource.includes('const bottomH = Math.max(0, 176 * Math.max(0, Math.min(1, amount + (Number(lowerBias) || 0))))') || !appSource.includes('renderConceptBLids(parts.lidTop, parts.lidBottom, lidFrac, state.upperBias + lidFollow, state.lowerBias + lidFollow * 0.45)')) {
   fail('Concept B must blink via an anime.js cadence loop: symmetric lid pinch over stable iris/pupil on blink.interval_ms.');
 }
 // anime.js must actually drive the optic cadence + expressive transients, not just be loaded.
@@ -345,6 +345,36 @@ requireAll(appSource, [
   'setConceptBTransform(parts.orbitSpin', 'state.ringAngle', 'state.scanAngle', 'setConceptBTransform(parts.core', 'state.breath',
   'ripple(pulseCircle', 'fireModeTransition', 'function driftDots()',
 ], 'anime.js must drive optic cadence (blink/breath/ring/scan), drifting catchlights, and one-shot transients (notice/complete/blocked/touch).');
+// Involuntary vitals layer: hippus/sigh/regard/spark plus lid-gaze coupling are what make
+// the optic read as alive rather than instrumented. Each has a parking/eligibility rule
+// that must not silently regress.
+requireAll(appSource, [
+  'const CONCEPT_B_VITALS = Object.freeze({',
+  'hippusAmp:', 'doubleBlinkChance:', 'sighScale:', 'regardPupil:', 'lidGazeFollow:',
+  "VITALS_PARKED_MODES = ['blocked', 'critical', 'degraded_offline']",
+  'function updateVitals(now, seconds)',
+  'updateVitals(now, seconds);',
+  'if (prefersReducedMotion || VITALS_PARKED_MODES.includes(state.mode)) { state.hippus = 0; return; }',
+  '(Number(state.hippus) || 0) + (Number(state.regard) || 0)',
+  'state.upperBias + lidFollow',
+  'viewer: [0, -6]',
+], 'Optic vitals (hippus/sigh/regard/spark + lid-gaze follow) must stay wired: parked in stopped modes, zero under reduced motion, composed into the pupil/lids by the single RAF writer.');
+const vitalNumber = (name) => {
+  const m = appSource.match(new RegExp(`${name}:\\s*(-?[0-9.]+)`));
+  return m ? Number(m[1]) : NaN;
+};
+const hippusAmp = vitalNumber('hippusAmp');
+const regardPupil = vitalNumber('regardPupil');
+const doubleBlinkChance = vitalNumber('doubleBlinkChance');
+if (!(hippusAmp > 0 && hippusAmp <= 0.04)) {
+  fail(`hippusAmp must stay subtle (0 < amp <= 0.04); got ${hippusAmp}. Visible pupil throbbing reads as malfunction, not life.`);
+}
+if (!(regardPupil > 0 && regardPupil <= 0.12)) {
+  fail(`regardPupil must stay a subtle interest swell (0 < swell <= 0.12); got ${regardPupil}.`);
+}
+if (!(doubleBlinkChance > 0 && doubleBlinkChance <= 0.3)) {
+  fail(`doubleBlinkChance must stay occasional (0 < chance <= 0.3); got ${doubleBlinkChance}. Frequent double blinks read as a tic.`);
+}
 // Per-mode posture must reach the eye on the deterministic ?mode= preview path, not just live.
 if (!stateSource.includes('MODE_OPTIC_POSTURE') || !stateSource.includes('...(MODE_OPTIC_POSTURE[packet.mode]')) {
   fail('opticPacketToPersonaPacket must re-attach per-mode posture so previewed modes are not all flat idle.');

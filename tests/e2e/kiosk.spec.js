@@ -669,6 +669,39 @@ test.describe('Hermes kiosk smoke and visual regression anchors', () => {
     expect(state.idle.attracted).toBe(0);
   });
 
+  test('Concept B optic vitals: hippus wanders when alive and parks in stopped modes', async ({ page }, testInfo) => {
+    await page.goto(runtimeUrl('idle_watch', testInfo));
+    await page.waitForFunction(() => Boolean(window.__HERMES_CONCEPT_B_EYE_MOTION?.debug));
+    const first = await page.evaluate(() => window.__HERMES_CONCEPT_B_EYE_MOTION.debug());
+    expect(first.vitals).toBeTruthy();
+    expect(first.vitals.mode).toBe('idle_watch');
+    expect(first.vitals.nextSighAt).toBeGreaterThan(0);
+    expect(first.vitals.nextRegardAt).toBeGreaterThan(0);
+    await page.waitForTimeout(500);
+    const second = await page.evaluate(() => window.__HERMES_CONCEPT_B_EYE_MOTION.debug());
+    // Continuous pupillary unrest: the hippus scalar moves between samples but stays subtle.
+    expect(second.hippus).not.toBe(first.hippus);
+    expect(Math.abs(second.hippus)).toBeLessThanOrEqual(0.04);
+
+    // Stopped modes park involuntary pupil life entirely (same rule as the iris lattice).
+    await page.goto(runtimeUrl('blocked', testInfo));
+    await page.waitForFunction(() => window.__HERMES_CONCEPT_B_EYE_MOTION?.debug?.().mode === 'blocked');
+    await page.waitForTimeout(300);
+    const parked = await page.evaluate(() => window.__HERMES_CONCEPT_B_EYE_MOTION.debug());
+    expect(parked.hippus).toBe(0);
+  });
+
+  test('Concept B optic vitals stay inert under reduced motion', async ({ page }, testInfo) => {
+    await page.emulateMedia({ reducedMotion: 'reduce' });
+    await page.goto(runtimeUrl('idle_watch', testInfo));
+    await page.waitForFunction(() => Boolean(window.__HERMES_CONCEPT_B_EYE_MOTION?.debug));
+    await page.waitForTimeout(600);
+    const d = await page.evaluate(() => window.__HERMES_CONCEPT_B_EYE_MOTION.debug());
+    expect(d.hippus).toBe(0);
+    expect(d.regard).toBe(0);
+    expect(d.vitals.sighing).toBe(false);
+  });
+
   test('legacy mood-only preset JSON normalizes before rich behavior enrichment', async ({ page }, testInfo) => {
     await page.goto(runtimeUrl('idle_watch', testInfo));
     const packet = await page.evaluate(() => {

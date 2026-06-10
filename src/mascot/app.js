@@ -23,7 +23,7 @@
   const skinOrder = ['retro-robot-core', 'retro-terminal-focus', 'retro-night-watch', 'retro-amber-watch', 'retro-hermes-accent'];
   const liveStatus = { lastGoodAt: null, failures: 0, lastError: '', staleSince: null };
   const avatarEventStatus = { connected: false, accepted: 0, dropped: 0, lastError: '', lastEventAt: null, recent: [] };
-  const DISPLAY_BUILD_ID = 'family-exit-hold1';
+  const DISPLAY_BUILD_ID = 'optic-vitals1';
   const STATUS_TICK_MIN_GAP_MS = 4000;
   const ROUTE_HEADROOM_LOW_THRESHOLD = 0.15;
   let statusTicksArmed = false;
@@ -46,6 +46,34 @@
     edgeRimBase: 0.12,
     edgeRimGain: 0.24,
     gazeMaxHypot: 34,
+  });
+  const CONCEPT_B_VITALS = Object.freeze({
+    // Involuntary "alive" signals layered under the intentional gaze/posture system.
+    // Hippus: continuous low-amplitude pupillary unrest. Parked (0) in the same stopped
+    // modes as the iris lattice so a halted optic reads as machinery stopped, not asleep.
+    hippusAmp: 0.022,
+    hippusQuietScale: 0.6,
+    // Occasional second blink right after the first — human blinks come in pairs sometimes.
+    doubleBlinkChance: 0.14,
+    doubleBlinkGapMs: 170,
+    // Sigh: one deeper, slower breath cycle in calm modes; the optic settles afterwards.
+    sighMinGapMs: 45000,
+    sighMaxGapMs: 100000,
+    sighScale: 1.013,
+    sighMs: 6800,
+    // Regard: in calm modes the optic periodically looks just above center — toward the
+    // human eye line — with a brief pupil swell, so glancing at the panel meets a gaze
+    // that acknowledges you rather than instrumentation that happens to be on.
+    regardMinGapMs: 26000,
+    regardMaxGapMs: 64000,
+    regardPupil: 0.07,
+    regardMs: 1600,
+    // Spark: during reasoning/planning, a moment where a thought lands — pupil flash,
+    // lattice flare, single blink.
+    sparkMinGapMs: 22000,
+    sparkMaxGapMs: 48000,
+    // Upper lid follows vertical gaze (down-gaze drops the lid, up-gaze widens slightly).
+    lidGazeFollow: 0.085,
   });
   const CONCEPT_B_FEEL = Object.freeze({
     loadPulseMinSeconds: 1.2,
@@ -2543,6 +2571,9 @@
       anims: {},
       blinkTimer: 0,
       micro: { x: 0, y: 0, fromX: 0, fromY: 0, targetX: 0, targetY: 0, returnX: 0, returnY: 0, startAt: 0, returnAt: 0, endAt: 0, nextAt: 0, lastAt: 0, burst: 0, lastHalfBlinkAt: 0 },
+      hippus: 0,
+      regard: 0,
+      vitals: { mode: '', nextSighAt: 0, nextRegardAt: 0, nextSparkAt: 0, sighing: false },
       fixation: { kind: 'front', nextAt: 0, x: 0, y: 0 },
       forcedUntil: 0,
       lastContextBlinkAt: 0,
@@ -2555,7 +2586,7 @@
 
     // ── anime.js cadence loops ───────────────────────────────────────────────
     // Each owns one scalar on `state`; the RAF flush composes them into transforms.
-    function runBlinkOnce(onComplete) {
+    function runBlinkOnce(onComplete, allowDouble = true) {
       if (!motion?.hasAnime) { onComplete?.(); return; }
       // Two chained single-value tweens (close, then open). The RAF flush renders this
       // scalar as a symmetric lid pinch over the lens; iris/pupil/gaze transforms remain
@@ -2565,7 +2596,16 @@
         complete: () => {
           window.setTimeout(() => {
             state.anims.blink = motion.animateValue({
-              targets: state, blink: 0, duration: 115, easing: 'outSine', complete: onComplete
+              targets: state, blink: 0, duration: 115, easing: 'outSine',
+              complete: () => {
+                // Occasional paired blink — a second, non-doubling blink shortly after the
+                // first reads as biology; a single fixed-cadence blink reads as firmware.
+                if (allowDouble && !prefersReducedMotion && Math.random() < CONCEPT_B_VITALS.doubleBlinkChance) {
+                  window.setTimeout(() => runBlinkOnce(onComplete, false), CONCEPT_B_VITALS.doubleBlinkGapMs);
+                } else {
+                  onComplete?.();
+                }
+              }
             });
           }, 35);
         }
@@ -2863,7 +2903,9 @@
       internal_focus: [4, -8],
       down_work_left: [-14, 18],
       down_work_right: [14, 18],
-      user_touch: [0, -1]
+      user_touch: [0, -1],
+      // Just above optical center: the human eye line when standing at the panel.
+      viewer: [0, -6]
     };
     const FIXATION_POOLS = {
       idle_watch: [
@@ -2919,6 +2961,81 @@
       state.targetY = y;
       state.lastGazeKind = kind;
       return state.fixation;
+    }
+
+    // ── involuntary vitals (hippus / sigh / regard / spark) ──────────────────
+    // The mode sets the parking rules: stopped modes park hippus with the lattice,
+    // calm modes are the only ones that sigh or seek the viewer's eye line, and
+    // inward thinking modes are the only ones that spark.
+    const VITALS_PARKED_MODES = ['blocked', 'critical', 'degraded_offline'];
+    const VITALS_CALM_MODES = ['idle_watch', 'listening', 'waiting_user', 'complete'];
+    const VITALS_SPARK_MODES = ['reasoning', 'planning'];
+    function vitalsGap(minMs, maxMs, scale = 1) {
+      return (minMs + Math.random() * Math.max(1, maxMs - minMs)) * scale;
+    }
+    function updateHippus(seconds) {
+      if (prefersReducedMotion || VITALS_PARKED_MODES.includes(state.mode)) { state.hippus = 0; return; }
+      // Three incommensurate sines so the wander never visibly repeats; quiet modes
+      // breathe shallower. Amplitude stays ~2% of pupil scale — felt, not seen.
+      const amp = CONCEPT_B_VITALS.hippusAmp * (isQuietMicroMode() ? CONCEPT_B_VITALS.hippusQuietScale : 1);
+      state.hippus = amp * (
+        0.62 * Math.sin(seconds * 0.43) +
+        0.27 * Math.sin(seconds * 1.07 + 1.7) +
+        0.11 * Math.sin(seconds * 2.31 + 4.2)
+      );
+    }
+    function maybeSigh(now) {
+      if (prefersReducedMotion || !motion?.hasAnime || state.vitals.sighing) return;
+      if (!VITALS_CALM_MODES.includes(state.mode) || now < state.vitals.nextSighAt) return;
+      state.vitals.sighing = true;
+      state.vitals.nextSighAt = now + vitalsGap(CONCEPT_B_VITALS.sighMinGapMs, CONCEPT_B_VITALS.sighMaxGapMs);
+      // One deeper breath cycle owns state.breath while the base loop is paused, with a
+      // slight under-swing before settling — inhale, release, settle.
+      state.anims.breath?.pause?.();
+      state.anims.sigh = motion.animateValue({
+        targets: state, breath: [state.breath, CONCEPT_B_VITALS.sighScale, 0.9985, 1.0],
+        duration: CONCEPT_B_VITALS.sighMs, easing: 'inOutSine',
+        complete: () => { state.vitals.sighing = false; armBreath(); }
+      });
+    }
+    function maybeRegard(now) {
+      if (prefersReducedMotion || !motion?.hasAnime) return;
+      if (!VITALS_CALM_MODES.includes(state.mode)) return;
+      if (now < state.vitals.nextRegardAt || now < (state.forcedUntil || 0)) return;
+      state.vitals.nextRegardAt = now + vitalsGap(CONCEPT_B_VITALS.regardMinGapMs, CONCEPT_B_VITALS.regardMaxGapMs);
+      // Meet the viewer: fix just above center (human eye line sits above the panel's
+      // optical center), swell the pupil briefly — interest, not alarm — and soften the
+      // lids with the existing rate-limited half blink.
+      setFixation('viewer', 2600 + Math.random() * 1600, { blink: false });
+      state.anims.regard?.pause?.();
+      state.anims.regard = motion.animateValue({
+        targets: state, regard: [0, CONCEPT_B_VITALS.regardPupil, 0],
+        duration: CONCEPT_B_VITALS.regardMs, easing: 'inOutSine'
+      });
+      runHalfBlinkOnce();
+    }
+    function maybeSpark(now) {
+      if (prefersReducedMotion || !motion?.hasAnime) return;
+      if (!VITALS_SPARK_MODES.includes(state.mode) || now < state.vitals.nextSparkAt) return;
+      state.vitals.nextSparkAt = now + vitalsGap(CONCEPT_B_VITALS.sparkMinGapMs, CONCEPT_B_VITALS.sparkMaxGapMs);
+      // A thought lands: brief dilation, the lens material catches it, one blink.
+      pulsePupilFlash(0.055, 480);
+      flareLattice();
+      contextualBlink('spark', 2400);
+    }
+    function updateVitals(now, seconds) {
+      if (state.vitals.mode !== state.mode) {
+        // Re-seed timers on mode entry so a stale schedule from a previous mode never
+        // fires an instant sigh/regard/spark the moment the mode becomes eligible.
+        state.vitals.mode = state.mode;
+        state.vitals.nextSighAt = now + vitalsGap(CONCEPT_B_VITALS.sighMinGapMs, CONCEPT_B_VITALS.sighMaxGapMs, 0.5);
+        state.vitals.nextRegardAt = now + vitalsGap(CONCEPT_B_VITALS.regardMinGapMs, CONCEPT_B_VITALS.regardMaxGapMs, 0.35);
+        state.vitals.nextSparkAt = now + vitalsGap(CONCEPT_B_VITALS.sparkMinGapMs, CONCEPT_B_VITALS.sparkMaxGapMs, 0.5);
+      }
+      updateHippus(seconds);
+      maybeSigh(now);
+      maybeRegard(now);
+      maybeSpark(now);
     }
 
     const rig = {
@@ -3025,7 +3142,7 @@
       teardown() {
         window.cancelAnimationFrame(state.raf);
         window.clearTimeout(state.blinkTimer);
-        const all = [state.anims.blink, state.anims.halfBlink, state.anims.pupilFlash, state.anims.breath, state.anims.ring, state.anims.scan, state.anims.pulse, state.anims.irisLattice, state.anims.latticeFlare, ...(state.anims.dots || []), ...(state.anims.fieldRings || [])];
+        const all = [state.anims.blink, state.anims.halfBlink, state.anims.pupilFlash, state.anims.breath, state.anims.sigh, state.anims.regard, state.anims.ring, state.anims.scan, state.anims.pulse, state.anims.irisLattice, state.anims.latticeFlare, ...(state.anims.dots || []), ...(state.anims.fieldRings || [])];
         for (const a of all) a?.pause?.();
       },
       forceGaze(name = 'front', holdMs = 1200) {
@@ -3034,7 +3151,7 @@
         setFixation(normalized, holdMs, { blink: true, minBlinkGapMs: 520 });
       },
       debug() {
-        return { build: DISPLAY_BUILD_ID, irisAngle: state.irisAngle, irisMs: state.irisMs, x: state.x, y: state.y, targetX: state.targetX, targetY: state.targetY, microX: state.micro?.x || 0, microY: state.micro?.y || 0, nextMicroAt: state.micro?.nextAt || 0, targetName: state.fixation?.kind || 'front', forcedUntil: state.forcedUntil || 0, iris: state.iris, pupil: state.pupil, pupilFlash: state.pupilFlash || 0, lid: state.lid, upperBias: state.upperBias, lowerBias: state.lowerBias, blink: state.blink, breath: state.breath, touchTarget: state.lastTouchTarget, lastResonanceAt: state.lastResonanceAt || 0, mode: state.mode, special: state.special, anime: Boolean(motion?.hasAnime) };
+        return { build: DISPLAY_BUILD_ID, irisAngle: state.irisAngle, irisMs: state.irisMs, x: state.x, y: state.y, targetX: state.targetX, targetY: state.targetY, microX: state.micro?.x || 0, microY: state.micro?.y || 0, nextMicroAt: state.micro?.nextAt || 0, targetName: state.fixation?.kind || 'front', forcedUntil: state.forcedUntil || 0, iris: state.iris, pupil: state.pupil, pupilFlash: state.pupilFlash || 0, lid: state.lid, upperBias: state.upperBias, lowerBias: state.lowerBias, blink: state.blink, breath: state.breath, touchTarget: state.lastTouchTarget, lastResonanceAt: state.lastResonanceAt || 0, mode: state.mode, special: state.special, anime: Boolean(motion?.hasAnime), hippus: state.hippus || 0, regard: state.regard || 0, vitals: { mode: state.vitals.mode, nextSighAt: state.vitals.nextSighAt, nextRegardAt: state.vitals.nextRegardAt, nextSparkAt: state.vitals.nextSparkAt, sighing: state.vitals.sighing } };
       }
     };
     const step = (now) => {
@@ -3047,6 +3164,7 @@
         const nextFix = chooseFixation(state.mode);
         setFixation(nextFix.kind, nextFix.dwellMs, { blink: nextFix.kind !== state.lastGazeKind && Math.hypot(nextFix.x - state.targetX, nextFix.y - state.targetY) > 22 });
       }
+      updateVitals(now, seconds);
       const micro = prefersReducedMotion ? { x: 0, y: 0 } : conceptBEyeMicroMotion(state.mode, state.special, seconds);
       const saccade = updateMicroSaccade(now);
       const tx = state.targetX + micro.x + saccade.x;
@@ -3114,8 +3232,16 @@
     // Blink is an anime.js cadence loop writing state.blink (0..1). Render it as a
     // symmetric lid pinch over the lens, not by scaling the iris/pupil. Scaling the
     // asymmetric catchlights toward center reads as a down-right dart on the physical panel.
-    const lidFrac = Math.max(state.lid, blink);
-    const effPupil = Math.max(0.60, Math.min(1.35, state.pupil + (Number(state.pupilFlash) || 0)));
+    // Upper lid follows vertical gaze: down-gaze drops the lid with the eye, up-gaze
+    // widens it slightly. Coupling posture to gaze is one of the strongest "this is an
+    // eye, not a dial" cues. Applied to the posture lid only, never to the blink scalar.
+    const gazeDown = Math.max(0, Math.min(1, y / 30));
+    const gazeUp = Math.max(0, Math.min(1, -y / 30));
+    const lidFollow = gazeDown * CONCEPT_B_VITALS.lidGazeFollow;
+    const lidWiden = gazeUp * CONCEPT_B_VITALS.lidGazeFollow * 0.5;
+    const lidFrac = Math.max(Math.max(0, state.lid - lidWiden), blink);
+    // Pupil composes intent (posture + flash) with involuntary life (hippus + regard swell).
+    const effPupil = Math.max(0.60, Math.min(1.35, state.pupil + (Number(state.pupilFlash) || 0) + (Number(state.hippus) || 0) + (Number(state.regard) || 0)));
     // Scale the whole pupil assembly so the pupil, catchlights, and specular dots stay
     // locked together during dilation/blink. Scaling only the pupil circle leaves the dots
     // looking like fixed screen artifacts as the eye breathes or changes state.
@@ -3126,7 +3252,7 @@
     // Lattice rotation is the anime.js irisAngle loop; the slight counter-gaze lag layers
     // it between the lens body and the glass sheen so the iris reads as depth, not a decal.
     if (parts.irisLattice) setConceptBTransform(parts.irisLattice, `translate(${(-x * 0.07).toFixed(2)} ${(-y * 0.05).toFixed(2)}) rotate(${(state.irisAngle % 360).toFixed(2)} 550 550)`);
-    renderConceptBLids(parts.lidTop, parts.lidBottom, lidFrac, state.upperBias, state.lowerBias);
+    renderConceptBLids(parts.lidTop, parts.lidBottom, lidFrac, state.upperBias + lidFollow, state.lowerBias + lidFollow * 0.45);
     if (parts.glow) {
       setConceptBAttribute(parts.glow, 'cx', (550 + x * 0.42).toFixed(2));
       setConceptBAttribute(parts.glow, 'cy', (550 + y * 0.42).toFixed(2));
