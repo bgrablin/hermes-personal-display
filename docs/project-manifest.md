@@ -60,20 +60,10 @@ version suffix:
   of the existing `window.HermesTouchFx` factory). These replace the former
   `hermesMascotV2*` / `HermesMascotV2*` names.
 
-### Temporary v2 compatibility shim
-
-Installed kiosks may still launch the old `/src/character-runtime-v2.html` URL from a
-stale `PERSONAL_DISPLAY_URL` / systemd env override. Until every device is reconfigured,
-compatibility is preserved by:
-
-- `scripts/hermes_display_server.py` issuing a `302` redirect from the legacy
-  `/src/character-runtime-v2.html` and `/src/mascot-v2-debug.html` entrypoint pages
-  to their canonical equivalents (query string preserved). The retired
-  `/src/mascot-v2/*` asset directory is not aliased; old direct asset URLs should fail
-  rather than silently loading unrelated current modules.
-- `scripts/hermes-display` and `scripts/xsession-minix-kiosk.sh` matching the bare
-  `character-runtime` substring so live-process detection and cache-busting work for both
-  the old and new URLs.
-
-Remove the shim and the broadened matches once all deployed devices launch the canonical
-URL (update `~/.config/hermes-personal-display.env` via `scripts/detect-display-env.sh`).
+The v2 compatibility shim (server-side 302 redirects from the retired
+`/src/character-runtime-v2.html` / `/src/mascot-v2-debug.html` entrypoints, plus
+broadened `character-runtime` substring matches in `scripts/hermes-display` and
+`scripts/xsession-minix-kiosk.sh`) was removed on 2026-06-10 after confirming the only
+deployed kiosk (the local NUC, `~/.config/hermes-personal-display.env`) launches the
+canonical URL. Retired v2 paths now 404; `scripts/verify-project.sh` asserts they are
+not aliased back to current modules.

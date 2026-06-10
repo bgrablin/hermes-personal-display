@@ -11,10 +11,7 @@ BUILD_ID="${PERSONAL_DISPLAY_BUILD_ID:-$($SCRIPT_DIR/hermes-display build-id)}"
 URL="${PERSONAL_DISPLAY_URL:-$($SCRIPT_DIR/hermes-display url)}"
 # Cache-bust the kiosk shell on each frontend runtime revision. The system unit may
 # still pass an older v=... URL, so normalize here from the runtime's DISPLAY_BUILD_ID.
-# Match both the canonical character-runtime.html and the legacy
-# character-runtime-v2.html that a stale PERSONAL_DISPLAY_URL override may still use;
-# the preview server redirects the legacy path to the canonical one.
-if [[ "$URL" == *"character-runtime"* ]]; then
+if [[ "$URL" == *"character-runtime.html"* ]]; then
   if [[ "$URL" == *"v="* ]]; then
     URL="$(python3 - "$URL" "$BUILD_ID" <<'PY'
 import sys

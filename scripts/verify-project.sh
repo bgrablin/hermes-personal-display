@@ -81,28 +81,27 @@ for p in paths:
     except Exception as exc:
         print('WARN http unavailable', p, exc)
 
+# Retired v2 entrypoints must fail outright (no alias/redirect back to current modules).
 class NoRedirect(urllib.request.HTTPRedirectHandler):
     def redirect_request(self, req, fp, code, msg, headers, newurl):
         return None
 
 opener = urllib.request.build_opener(NoRedirect)
-legacy_redirects = {
-  'src/character-runtime-v2.html?kiosk=1&legacy-check=1': 'src/character-runtime.html?kiosk=1&legacy-check=1',
-  'src/mascot-v2-debug.html?health=1': 'src/mascot-debug.html?health=1',
-}
-for old_path, new_path in legacy_redirects.items():
+retired_paths = [
+  'src/character-runtime-v2.html?kiosk=1&legacy-check=1',
+  'src/mascot-v2-debug.html?health=1',
+]
+for old_path in retired_paths:
     try:
         opener.open(base + old_path, timeout=3)
-        print('WARN legacy redirect followed unexpectedly', old_path)
+        print('WARN retired path served unexpectedly', old_path)
     except urllib.error.HTTPError as exc:
-        location = exc.headers.get('Location') or ''
-        expected = '/' + new_path
-        if exc.code == 302 and location == expected:
-            print('OK legacy redirect', old_path, '->', location)
+        if exc.code == 404:
+            print('OK retired path 404', old_path)
         else:
-            print('WARN legacy redirect mismatch', old_path, exc.code, location, 'expected', expected)
+            print('WARN retired path unexpected status', old_path, exc.code, exc.headers.get('Location') or '')
     except Exception as exc:
-        print('WARN legacy redirect unavailable', old_path, exc)
+        print('WARN retired path check unavailable', old_path, exc)
 PY
 
 exit "$fail"

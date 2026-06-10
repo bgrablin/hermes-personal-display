@@ -69,11 +69,7 @@ xrun() {
 }
 
 live_chromium_line() {
-  # Match the canonical character-runtime.html as well as the legacy
-  # character-runtime-v2.html that installed kiosks may still launch from a
-  # stale PERSONAL_DISPLAY_URL override. The bare "character-runtime" substring
-  # covers both until the live env is reconfigured.
-  pgrep -af '[c]hromium.*character-runtime.*kiosk=1' || true
+  pgrep -af '[c]hromium.*character-runtime\.html.*kiosk=1' || true
 }
 
 canonical_url_status() {
@@ -96,7 +92,6 @@ expected = {
     "augury": "1",
     "v": build,
 }
-legacy_ok = False
 seen = []
 for line in live:
     for raw in re.findall(r"https?://[^\s'\"]+", line):
@@ -108,13 +103,8 @@ for line in live:
         if path == runtime_path and params_ok:
             print("ok: canonical operator URL")
             raise SystemExit(0)
-        if path == runtime_path.replace(".html", "-v2.html") and params_ok:
-            legacy_ok = True
         if "character-runtime" in path:
             seen.append(f"{path}?{parts.query}")
-if legacy_ok:
-    print("warn: legacy runtime path detected with exact canonical query")
-    raise SystemExit(2)
 if seen:
     print("fail: expected exact canonical operator URL; saw " + " | ".join(seen[:3]))
 else:
@@ -252,9 +242,6 @@ verify_kiosk() {
   url_message="$(canonical_url_status "$live" "$build")" || url_status=$?
   if [[ "$url_status" -eq 0 ]]; then
     echo "OK live Chromium URL canonical: $url_message"
-  elif [[ "$url_status" -eq 2 ]]; then
-    echo "WARN live Chromium URL legacy path: $url_message"
-    [[ -n "$live" ]] && printf '%s\n' "$live" | sed -n '1,4p'
   else
     echo "FAIL live Chromium URL not canonical: $url_message"
     [[ -n "$live" ]] && printf '%s\n' "$live" | sed -n '1,4p' || echo "no live Chromium kiosk process"
