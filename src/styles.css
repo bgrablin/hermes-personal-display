@@ -2055,6 +2055,7 @@ body.kiosk-mode.kiosk-landscape.claude-concept-b .cb-route-row[data-index="1"] {
 body.kiosk-mode.kiosk-landscape.claude-concept-b .cb-route-row[data-index="2"] { --route-row: 2; }
 body.kiosk-mode.kiosk-landscape.claude-concept-b .cb-route-row[data-index="3"] { --route-row: 3; }
 
+body.kiosk-mode.kiosk-landscape.claude-concept-b .cb-route-row[data-state="confirmed"],
 body.kiosk-mode.kiosk-landscape.claude-concept-b .cb-route-row[data-active="true"] {
   color: var(--cb-amber);
 }
@@ -2201,7 +2202,8 @@ body.kiosk-mode.kiosk-landscape.claude-concept-b .cb-route-glyph {
   right: 4px;
   top: 4px;
   width: 24px;
-  color: var(--cb-fg-readable);
+  color: currentColor;
+  opacity: 0.98;
   font: 720 20px/1 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
   text-align: center;
 }

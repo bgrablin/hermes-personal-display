@@ -460,10 +460,13 @@ requireAll(appSource, [
 requireAll(cssSource, [
   '.cb-route-track',
   '.cb-route-row[data-state="unknown"] .cb-route-track',
+  '.cb-route-row[data-state="confirmed"]',
+  '.cb-route-glyph',
+  'color: currentColor',
   '[data-headroom-tier="low"] .cb-route-label span',
   'transform: translateY(calc(var(--route-active-y, -100px) + 45px))',
   'transition: transform 650ms ease, opacity 450ms ease',
-], 'Route headroom must render fill-vs-track with honest hiding for unknown routes, low-band ochre values, and a transform-driven active hairline.');
+], 'Route headroom must render fill-vs-track with honest hiding for unknown routes, amber confirmed rows/dots, low-band ochre values, and a transform-driven active hairline.');
 if (!serverSource.includes('actionable_warn_lines')) {
   fail('Routine provider/tool warnings must be filtered before driving the physical attention state.');
 }
