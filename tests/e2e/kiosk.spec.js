@@ -236,18 +236,47 @@ test.describe('Hermes kiosk smoke and visual regression anchors', () => {
     test.skip(testInfo.project.name !== 'minix-sf10t-landscape', 'MINIX-only Concept B Augury mode');
     const feed = {
       schema_version: '0.1.0',
-      items: [{ kind: 'prompt', title: 'USER PROMPT TITLE', text: 'RAW PROMPT BODY /tmp/secret should not show by default' }],
+      current_work: { active: true, kind: 'shell', summary: 'SAFE WORK SUMMARY from the display-safe card', detail: 'SAFE WORK DETAIL line', session_id: 'sess_workr1', age_seconds: 6 },
+      items: [{ kind: 'prompt', title: 'USER PROMPT TITLE', text: 'RAW PROMPT BODY /tmp/secret should not show by default', age_seconds: 12, session_id: '20260101_010101_61cd7e', safeText: true }],
     };
     await page.route('**/api/augury-feed**', async (route) => route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(feed) }));
     await page.goto(`${runtimeUrl('idle_watch', testInfo)}&augury=1&debug=1`);
     await expect(page.locator('.augury-ambient')).toBeVisible();
     await expect(page.locator('.augury-proof')).toHaveText('PRIVATE AUGURY');
-    await expect(page.locator('.augury-title').first()).toHaveText('USER PROMPT TITLE');
-    await expect(page.locator('.augury-text').first()).toHaveText('USER PROMPT TITLE');
+    // Display-safe current_work rows render their text without auguryText=1.
+    await expect(page.locator('.augury-ambient')).toContainText('SAFE WORK SUMMARY');
+    // Raw log items show only structural trace data: title plus age/session meta.
+    const promptStrand = page.locator('.augury-strand[data-kind="prompt"]').first();
+    await expect(promptStrand.locator('.augury-title')).toHaveText('USER PROMPT TITLE');
+    await expect(promptStrand.locator('.augury-meta')).toContainText('61CD7E');
+    await expect(promptStrand.locator('.augury-meta')).toContainText('T-12S');
+    // A feed-supplied safeText flag must not bypass the auguryText gate.
     expect(await page.locator('.augury-ambient').innerText()).not.toContain('RAW PROMPT BODY');
+
+    await page.goto(`${runtimeUrl('idle_watch', testInfo)}&augury=1&auguryText=1&debug=1`);
+    await expect(page.locator('.augury-ambient')).toContainText('RAW PROMPT BODY');
 
     await page.goto(`${runtimeUrl('blocked', testInfo)}&augury=1&auguryText=1`);
     await expect.poll(() => page.evaluate(() => document.body.dataset.auguryPresence)).toBe('hidden');
+  });
+
+  test('Augury strand flow and background veil respect reduced motion', async ({ page }, testInfo) => {
+    test.skip(testInfo.project.name !== 'minix-sf10t-landscape', 'MINIX-only Concept B Augury mode');
+    await page.emulateMedia({ reducedMotion: 'reduce' });
+    await page.goto(`${runtimeUrl('idle_watch', testInfo)}&augury=1`);
+    await expect(page.locator('.augury-ambient')).toBeVisible();
+    const anims = await page.evaluate(() => {
+      const ambient = document.querySelector('.augury-ambient');
+      const strand = document.querySelector('.augury-strand');
+      return {
+        strand: getComputedStyle(strand).animationName,
+        veil: getComputedStyle(ambient, '::before').animationName,
+        band: getComputedStyle(ambient, '::after').animationName,
+      };
+    });
+    expect(anims.strand).toBe('none');
+    expect(anims.veil).toBe('none');
+    expect(anims.band).toBe('none');
   });
 
   test('canonical alert ribbon and readability floors cover high-load operator states', async ({ page }, testInfo) => {

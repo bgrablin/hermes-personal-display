@@ -264,6 +264,21 @@ if (!appSource.includes("['blocked_user_task', 'critical_local_issue'].includes(
 if (!appSource.includes("['active-turn', 'active_turn', 'reasoning', 'planning', 'tool_shell', 'writing', 'searching']")) {
   fail('Active work/search/reasoning states must subdue Augury rather than leaving it dominant.');
 }
+requireAll(cssSource, [
+  '.augury-head',
+  '.augury-meta',
+  'augury-veil-drift',
+  'augury-band-rise',
+], 'Augury left stream must keep trace head/meta rows and the ambient background veil.');
+if (!appSource.includes('raw?.safeText === true')) {
+  fail('Augury safe-text rows must be explicitly client-flagged; raw feed text stays gated behind auguryText=1.');
+}
+if (!appSource.includes('safeText: false')) {
+  fail('Feed log items must have safeText stripped so a malformed payload cannot bypass the auguryText gate.');
+}
+if (!cssSource.includes('html[data-hermes-reduced-motion="true"] body.augury-preview .augury-ambient::before')) {
+  fail('Augury background veil must be disabled under Hermes reduced-motion.');
+}
 if (!appSource.includes("state === 'blocked_user_task') return { label: 'WAITING FOR BRIAN'")) {
   fail('Blocked current work must elevate a WAITING FOR BRIAN top alert.');
 }

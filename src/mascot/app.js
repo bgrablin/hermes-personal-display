@@ -23,7 +23,7 @@
   const skinOrder = ['retro-robot-core', 'retro-terminal-focus', 'retro-night-watch', 'retro-amber-watch', 'retro-hermes-accent'];
   const liveStatus = { lastGoodAt: null, failures: 0, lastError: '', staleSince: null };
   const avatarEventStatus = { connected: false, accepted: 0, dropped: 0, lastError: '', lastEventAt: null, recent: [] };
-  const DISPLAY_BUILD_ID = 'optic-iris-lattice1';
+  const DISPLAY_BUILD_ID = 'augury-trace-restore1';
   const STATUS_TICK_MIN_GAP_MS = 4000;
   let statusTicksArmed = false;
   window.__HERMES_STATUS_TICKS = 0;
@@ -1283,6 +1283,11 @@
     const POLL_MS = 5200;
     const POLL_BACKOFF_MS = 22000;
     const MAX_TEXT_CHARS = 220;
+    // Display-safe rows (current_work card, captions, snippets) already pass the
+    // server's display-safety pipeline and are shown center-screen elsewhere, so
+    // they may render their text without auguryText=1. Raw agent.log excerpts
+    // never get this flag.
+    const SAFE_TEXT_CHARS = 150;
     // Augury runs on a private home-LAN appliance, so this client-side filter
     // only enforces the *hard* credential redaction (API keys, bearer tokens,
     // private keys, JWTs). Display safety for paths/prompts is already enforced
@@ -1308,6 +1313,18 @@
       return s.length > limit ? `${s.slice(0, limit - 1).trimEnd()}…` : s;
     };
 
+    // Structural trace metadata (age, session tail) is not raw log text; it keeps
+    // the stream legible as a living agent trace even when body text is gated.
+    const auguryMeta = (raw) => {
+      const age = Number(raw?.age_seconds);
+      const ageLabel = Number.isFinite(age) && age >= 0
+        ? (age < 90 ? `T-${Math.round(age)}S` : age < 5400 ? `T-${Math.round(age / 60)}M` : `T-${Math.round(age / 3600)}H`)
+        : '';
+      const sessionRaw = auguryClean(raw?.session_id || raw?.session_label || '', 24);
+      const sessionTail = sessionRaw ? `S/${sessionRaw.slice(-6).toUpperCase()}` : '';
+      return [ageLabel, sessionTail].filter(Boolean).join(' · ');
+    };
+
     document.body.classList.add('augury-preview');
     document.body.dataset.auguryPresence = document.body.dataset.auguryPresence || 'ambient';
 
@@ -1329,39 +1346,62 @@
       strand.className = 'augury-strand';
       strand.dataset.lane = String(i);
       strand.style.setProperty('--augury-lane', String(i));
+      const headEl = document.createElement('span');
+      headEl.className = 'augury-head';
       const kindEl = document.createElement('span');
       kindEl.className = 'augury-kind';
       const titleEl = document.createElement('span');
       titleEl.className = 'augury-title';
+      const metaEl = document.createElement('span');
+      metaEl.className = 'augury-meta';
+      headEl.append(kindEl, titleEl, metaEl);
       const textEl = document.createElement('span');
       textEl.className = 'augury-text';
-      strand.append(kindEl, titleEl, textEl);
+      strand.append(headEl, textEl);
       strand.dataset.populated = 'false';
       root.appendChild(strand);
-      strands.push({ strand, kindEl, titleEl, textEl });
+      strands.push({ strand, kindEl, titleEl, metaEl, textEl });
     }
 
     const allowedKinds = new Set(['prompt', 'tool', 'thinking', 'log']);
 
-    const sanitizeItems = (items) => {
+    // trustSafe only applies to rows this client constructed (packet fallback,
+    // feed current_work card); feed log items have safeText stripped before they
+    // reach here so a malformed payload cannot self-elevate past the text gate.
+    const sanitizeItems = (items, trustSafe = false) => {
       if (!Array.isArray(items)) return [];
       return items
         .map((raw) => {
           const kind = String(raw?.kind || 'log').toLowerCase();
+          const safeRow = trustSafe && raw?.safeText === true;
+          const rawTitle = auguryClean(raw?.title || raw?.activity || raw?.summary || kind, 48);
+          // Server titles like "tool Bash" repeat the kind chip; trim the echo,
+          // and blank titles that only restate the kind (the chip already shows it).
+          let title = rawTitle.toLowerCase().startsWith(`${kind} `)
+            ? (rawTitle.slice(kind.length + 1) || kind)
+            : rawTitle;
+          if (title.toLowerCase() === kind) title = '';
           return {
             kind: allowedKinds.has(kind) ? kind : 'log',
-            title: auguryClean(raw?.title || raw?.activity || raw?.summary || kind, 48),
+            title,
+            rawTitle,
+            meta: auguryMeta(raw),
             text: includeBodyText
               ? auguryClean(raw?.text || raw?.activity || raw?.summary || '', MAX_TEXT_CHARS)
-              : auguryClean(raw?.activity || raw?.summary || raw?.title || kind, 72),
+              : safeRow
+                ? auguryClean(raw?.text || raw?.activity || raw?.summary || '', SAFE_TEXT_CHARS)
+                : auguryClean(raw?.activity || raw?.summary || raw?.title || kind, 72),
           };
         })
-        .filter((item) => item.text);
+        // A text row that merely repeats the title reads as filler; drop it and
+        // let the head row (kind, title, meta) carry the strand.
+        .map((item) => (item.text && (item.text === item.title || item.text === item.rawTitle) ? { ...item, text: '' } : item))
+        .filter((item) => item.text || item.title || item.meta);
     };
 
     let lastAugurySignature = '';
-    const renderRows = (items, source) => {
-      const safe = sanitizeItems(items).slice(0, MAX_STRANDS);
+    const renderRows = (items, source, trustSafe = false) => {
+      const safe = sanitizeItems(items, trustSafe).slice(0, MAX_STRANDS);
       const signature = safe.slice(0, 3).map((item) => `${item.kind}:${item.title}:${item.text}`).join('|');
       if (signature && lastAugurySignature && signature !== lastAugurySignature) {
         const now = Date.now();
@@ -1375,7 +1415,7 @@
       // Only populate strands with real items; never echo/duplicate rows to fill the field.
       // Empty strands stay unpopulated so on-glass density matches actual log volume.
       const visible = Array.from({ length: MAX_STRANDS }, (_, idx) => safe[idx] || null);
-      const renderSignature = `${source || 'idle'}|${safe.length}|${visible.map((item) => item ? `${item.kind}:${item.title}:${item.text}` : '').join('|')}`;
+      const renderSignature = `${source || 'idle'}|${safe.length}|${visible.map((item) => item ? `${item.kind}:${item.title}:${item.meta}:${item.text}` : '').join('|')}`;
       if (renderRows.lastRenderSignature === renderSignature) return;
       renderRows.lastRenderSignature = renderSignature;
       setConceptBDataset(root, 'source', source || 'idle');
@@ -1388,6 +1428,7 @@
           setConceptBDataset(row.strand, 'echo', 'false');
           setConceptBText(row.kindEl, '');
           setConceptBText(row.titleEl, '');
+          setConceptBText(row.metaEl, '');
           setConceptBText(row.textEl, '');
           return;
         }
@@ -1395,13 +1436,27 @@
         setConceptBDataset(row.strand, 'kind', item.kind);
         setConceptBDataset(row.strand, 'echo', 'false');
         setConceptBText(row.kindEl, item.kind.toUpperCase());
-        setConceptBText(row.titleEl, item.title || item.kind);
+        setConceptBText(row.titleEl, item.title);
+        setConceptBText(row.metaEl, item.meta || '');
         setConceptBText(row.textEl, item.text);
       });
     };
 
     let feedItems = [];
+    let feedWork = null;
     let lastFeedAt = 0;
+
+    // The feed's current_work card is built server-side from display-safe fields
+    // (the same summary/detail already shown center-screen), so its text may
+    // render without auguryText=1.
+    const currentWorkRows = (card) => {
+      if (!card || typeof card !== 'object') return [];
+      const rows = [];
+      const session = card.session_id || card.session_label || '';
+      if (card.summary) rows.push({ kind: card.kind || 'log', title: 'NOW', text: card.summary, safeText: true, age_seconds: card.age_seconds, session_id: session });
+      if (card.detail && card.detail !== card.summary) rows.push({ kind: 'log', title: 'STATUS', text: card.detail, safeText: true, session_id: session });
+      return rows;
+    };
 
     const renderFromPacket = (packet) => {
       // Only fall back to packet-derived rows if the feed is missing or stale.
@@ -1409,14 +1464,14 @@
       const live = packet?.live || {};
       const work = live.current_work || {};
       const fallback = [];
-      if (work.summary) fallback.push({ kind: work.visual_kind || 'log', title: 'CURRENT', text: work.summary });
-      if (work.detail && work.detail !== work.summary) fallback.push({ kind: 'log', title: 'STATUS', text: work.detail });
-      if (packet?.caption?.text) fallback.push({ kind: 'log', title: 'STATE', text: packet.caption.text });
-      if (packet?.snippet?.text) fallback.push({ kind: 'thinking', title: 'SIGNAL', text: packet.snippet.text });
+      if (work.summary) fallback.push({ kind: work.visual_kind || 'log', title: 'CURRENT', text: work.summary, safeText: true, age_seconds: work.age_seconds, session_id: work.session_id || work.session_label });
+      if (work.detail && work.detail !== work.summary) fallback.push({ kind: 'log', title: 'STATUS', text: work.detail, safeText: true });
+      if (packet?.caption?.text) fallback.push({ kind: 'log', title: 'STATE', text: packet.caption.text, safeText: true });
+      if (packet?.snippet?.text && packet.snippet.sensitivity === 'display_safe') fallback.push({ kind: 'thinking', title: 'SIGNAL', text: packet.snippet.text, safeText: true });
       const session = live.active_sessions?.[0];
-      if (session?.session_label) fallback.push({ kind: 'prompt', title: 'SESSION', text: session.session_label });
+      if (session?.session_label) fallback.push({ kind: 'prompt', title: 'SESSION', text: session.session_label, safeText: true });
       if (!fallback.length) return;
-      renderRows(fallback, 'packet');
+      renderRows(fallback, 'packet', true);
     };
 
     let fetchPending = false;
@@ -1434,8 +1489,11 @@
         const payload = await response.json();
         if (payload?.schema_version !== '0.1.0') throw new Error('unexpected schema');
         feedItems = Array.isArray(payload.items) ? payload.items : [];
+        feedWork = payload.current_work && typeof payload.current_work === 'object' ? payload.current_work : null;
         lastFeedAt = Date.now();
-        if (feedItems.length) renderRows(feedItems, 'feed');
+        // Strip safeText from raw log items so only client-built rows can use it.
+        const rows = [...currentWorkRows(feedWork), ...feedItems.map((item) => ({ ...item, safeText: false }))];
+        if (rows.length) renderRows(rows, 'feed', true);
         else renderFromPacket(currentPacket);
       } catch {
         // Feed unavailable; fall back to the live packet on the next event.
@@ -1456,9 +1514,11 @@
     window.__hermesAuguryDebug = () => ({
       enabled: true,
       sourceMode: raw,
+      bodyTextEnabled: includeBodyText,
       strandCount: strands.length,
       lastFeedAgeMs: lastFeedAt ? Date.now() - lastFeedAt : null,
       feedItems: feedItems.length,
+      feedWorkActive: Boolean(feedWork?.summary),
       pollIntervalMs: POLL_MS,
       pollTimerId: pollTimer,
     });

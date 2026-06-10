@@ -2979,6 +2979,45 @@ body.augury-preview .augury-ambient {
   mask-composite: intersect;
 }
 
+/* Background atmosphere behind the strands: a faint scanline veil that drifts
+   vertically plus a slow rising light band. Both are transform/opacity only and
+   inherit the container's masks, so they never reach the optic or right HUD. */
+body.augury-preview .augury-ambient::before {
+  content: '';
+  position: absolute;
+  inset: -8vh 0;
+  pointer-events: none;
+  background:
+    repeating-linear-gradient(to bottom,
+      rgba(101, 243, 255, 0.045) 0 1px,
+      transparent 1px 7px),
+    linear-gradient(to right,
+      rgba(101, 243, 255, 0.065) 0%,
+      rgba(101, 243, 255, 0.022) 38%,
+      transparent 72%);
+  opacity: 0.5;
+  animation: augury-veil-drift 36s ease-in-out infinite alternate;
+  will-change: transform, opacity;
+}
+
+body.augury-preview .augury-ambient::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: -30vh;
+  width: 100%;
+  height: 46vh;
+  pointer-events: none;
+  background: linear-gradient(to bottom,
+    transparent 0%,
+    rgba(101, 243, 255, 0.055) 38%,
+    rgba(154, 134, 255, 0.045) 62%,
+    transparent 100%);
+  opacity: 0;
+  animation: augury-band-rise 23s linear infinite;
+  will-change: transform, opacity;
+}
+
 body.augury-preview .augury-strand {
   display: flex;
   flex-direction: column;
@@ -2989,11 +3028,11 @@ body.augury-preview .augury-strand {
   padding: 4px 14px 5px 12px;
   white-space: nowrap;
   overflow: hidden;
-  border-left: 2px solid rgba(101, 243, 255, 0.22);
+  border-left: 2px solid rgba(101, 243, 255, 0.28);
   background: linear-gradient(90deg,
-    rgba(101, 243, 255, 0.045) 0%,
-    rgba(101, 243, 255, 0.028) 42%,
-    rgba(101, 243, 255, 0.010) 78%,
+    rgba(101, 243, 255, 0.058) 0%,
+    rgba(101, 243, 255, 0.034) 42%,
+    rgba(101, 243, 255, 0.012) 78%,
     rgba(101, 243, 255, 0) 100%);
   /* Stagger each lane across the 34s cycle so the stream looks continuous
      rather than rolling as a synchronized block. -3.09s × 11 lanes ≈ 34s. */
@@ -3011,6 +3050,14 @@ body.augury-preview .augury-strand[data-echo="true"] {
   filter: saturate(0.85);
 }
 
+body.augury-preview .augury-head {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  max-width: 100%;
+  overflow: hidden;
+}
+
 body.augury-preview .augury-kind {
   font-weight: 650;
   letter-spacing: 0.12em;
@@ -3019,12 +3066,24 @@ body.augury-preview .augury-kind {
 }
 
 body.augury-preview .augury-title {
-  opacity: 0.62;
+  opacity: 0.70;
   font-weight: 560;
+}
+
+body.augury-preview .augury-meta {
+  font-size: 0.78em;
+  letter-spacing: 0.10em;
+  opacity: 0.46;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
 }
 
 body.augury-preview .augury-text {
   opacity: 0.84;
+}
+
+body.augury-preview .augury-text:empty {
+  display: none;
 }
 
 body.augury-preview .augury-strand[data-kind="prompt"] {
@@ -3087,9 +3146,21 @@ body.augury-preview .augury-proof {
 
 @keyframes augury-vertical-flow {
   0%   { opacity: 0; transform: translate3d(0, 6vh, 0); }
-  14%  { opacity: 0.55; }
-  82%  { opacity: 0.42; }
+  14%  { opacity: 0.62; }
+  82%  { opacity: 0.48; }
   100% { opacity: 0; transform: translate3d(0, -6vh, 0); }
+}
+
+@keyframes augury-veil-drift {
+  0%   { opacity: 0.34; transform: translate3d(0, 1.6vh, 0); }
+  100% { opacity: 0.62; transform: translate3d(0, -1.6vh, 0); }
+}
+
+@keyframes augury-band-rise {
+  0%   { opacity: 0; transform: translate3d(0, 110vh, 0); }
+  12%  { opacity: 0.55; }
+  88%  { opacity: 0.40; }
+  100% { opacity: 0; transform: translate3d(0, 0, 0); }
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -3098,12 +3169,34 @@ body.augury-preview .augury-proof {
     transform: none !important;
     opacity: 0.32;
   }
+
+  body.augury-preview .augury-ambient::before {
+    animation: none !important;
+    transform: none !important;
+    opacity: 0.26;
+  }
+
+  body.augury-preview .augury-ambient::after {
+    animation: none !important;
+    opacity: 0;
+  }
 }
 
 html[data-hermes-reduced-motion="true"] body.augury-preview .augury-strand {
   animation: none !important;
   transform: none !important;
   opacity: 0.32;
+}
+
+html[data-hermes-reduced-motion="true"] body.augury-preview .augury-ambient::before {
+  animation: none !important;
+  transform: none !important;
+  opacity: 0.26;
+}
+
+html[data-hermes-reduced-motion="true"] body.augury-preview .augury-ambient::after {
+  animation: none !important;
+  opacity: 0;
 }
 
 body.kiosk-mode.kiosk-landscape.claude-concept-b.family-theater {
