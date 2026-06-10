@@ -31,6 +31,17 @@ from avatar_event_bus import (
     sse_frame,
 )
 
+from display_state.persistence import atomic_json_write, append_bounded_jsonl
+from display_state.privacy import (
+    AUGURY_HARD_REDACT_PATTERNS,
+    AUGURY_REDACTED_PLACEHOLDER,
+    augury_clean,
+    augury_redact,
+    clean_log_msg,
+    scrub,
+    sanitize_current_work as _sanitize_current_work,
+)
+
 ROOT = Path(__file__).resolve().parents[1]
 HERMES_HOME = Path.home() / ".hermes"
 LOG_DIR = HERMES_HOME / "logs"
@@ -150,48 +161,8 @@ AUGURY_MAX_MINUTES = 120
 AUGURY_MAX_ITEM_CHARS = 320
 AUGURY_TAIL_BYTES = 160_000
 AUGURY_FEED_TTL_SECONDS = 4
-AUGURY_HARD_REDACT_PATTERNS: list[re.Pattern[str]] = [
-    *SECRET_PATTERNS,
-    # `Authorization: Bearer <token>` is more common than `bearer=` and is not
-    # caught by the base SECRET_PATTERNS, so add a whitespace-separated variant
-    # plus an explicit `authorization` header form.
-    re.compile(r"(?i)\bbearer\s+[A-Za-z0-9._~\-+/=]{16,}\b"),
-    re.compile(r"(?i)\bauthorization\s*[:=]\s*[^\s'\"]{12,}"),
-    re.compile(r"(?i)\b(?:api[_-]?key|access[_-]?key|secret[_-]?key|client[_-]?secret)\s+[A-Za-z0-9._~\-+/=]{12,}\b"),
-    # Logs often contain already-abbreviated credential-looking values such as
-    # sk-abc...xyz or ghp_abc...xyz. Treat those as hard credentials too; the
-    # visible ellipsis is not enough for the public dashboard feed.
-    re.compile(r"\bsk-[A-Za-z0-9_-]{2,}\.\.\.[A-Za-z0-9_-]{2,}\b"),
-    re.compile(r"\bgh[pousr]_[A-Za-z0-9_]{2,}\.\.\.[A-Za-z0-9_]{2,}\b"),
-    # Long credential-like base64 / opaque blob.
-    re.compile(r"\b[A-Za-z0-9+/]{60,}={0,2}\b"),
-]
-AUGURY_REDACTED_PLACEHOLDER = "[redacted]"
 AUGURY_TS_RE = re.compile(r"^(\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2})(?:[,.]\d+)?")
 AUGURY_CONVERSATION_KIND_RE = re.compile(r"conversation turn: session=", re.I)
-
-
-def augury_redact(text: str) -> str:
-    """Mask hard credentials but leave normal log/prompt text intact."""
-    if not text:
-        return ""
-    redacted = str(text)
-    for pattern in AUGURY_HARD_REDACT_PATTERNS:
-        redacted = pattern.sub(AUGURY_REDACTED_PLACEHOLDER, redacted)
-    return redacted
-
-
-def augury_clean(text: str, max_chars: int = AUGURY_MAX_ITEM_CHARS) -> str:
-    """Normalize whitespace, redact hard credentials, and bound length."""
-    if text is None:
-        return ""
-    collapsed = re.sub(r"\s+", " ", str(text).replace("\r", " ").replace("\t", " ")).strip()
-    if not collapsed:
-        return ""
-    redacted = augury_redact(collapsed)
-    if len(redacted) > max_chars:
-        redacted = redacted[: max(0, max_chars - 1)].rstrip() + "…"
-    return redacted
 
 
 def augury_session_id(line: str) -> str | None:
@@ -372,26 +343,6 @@ from display_state.contract import (
     OPTIC_STATE_BY_MODE,
 )
 
-def atomic_json_write(path: Path, payload: dict) -> None:
-    try:
-        path.parent.mkdir(parents=True, exist_ok=True)
-        fd, tmp_name = tempfile.mkstemp(prefix=f".{path.name}.", suffix=".tmp", dir=path.parent)
-        tmp = Path(tmp_name)
-        try:
-            with os.fdopen(fd, "w", encoding="utf-8") as tmp_file:
-                tmp_file.write(json.dumps(payload, indent=2, sort_keys=True) + "\n")
-            os.replace(tmp, path)
-        finally:
-            try:
-                if tmp.exists():
-                    tmp.unlink()
-            except Exception:
-                pass
-    except Exception as exc:
-        detail = f"{exc.__class__.__name__}:{getattr(exc, 'errno', '') or ''}".rstrip(':')
-        print(f"Display file-bus write failed for {path.name}: {scrub(detail)}", flush=True)
-
-
 class FixtureLookupError(Exception):
     """Expected fixture lookup failure for local preview/debug API input."""
 
@@ -452,13 +403,6 @@ def line_age_seconds(line: str) -> float | None:
         return None
 
 
-def clean_log_msg(text: str, max_chars: int = 78) -> str:
-    text = text.replace("\\n", " ").replace("\\'", "'").replace('\\"', '"')
-    text = scrub(text)
-    text = re.sub(r"\s+", " ", text).strip(" '\"")
-    return text[:max_chars]
-
-
 def current_user_request(lines: list[str], fallback_index: int | None = None, session_id: str | None = None) -> dict | None:
     """Return the newest display-safe real user request, skipping maintenance turns."""
     if fallback_index is None:
@@ -492,54 +436,8 @@ def session_label(session_id: str | None, platform: str | None = None) -> str:
     return "Hermes session"
 
 
-def current_work_timing(age_seconds) -> dict:
-    """Return TTL metadata for display-safe current_work cards."""
-    try:
-        age = max(0, int(round(float(age_seconds))))
-    except Exception:
-        age = None
-    expires_in = 0 if age is None else max(0, CURRENT_WORK_MAX_AGE_SECONDS - age)
-    return {
-        "valid_for_seconds": CURRENT_WORK_MAX_AGE_SECONDS,
-        "expires_in_seconds": expires_in,
-    }
-
-
 def sanitize_current_work(work: dict) -> dict:
-    """Keep backend current_work display-safe and time-bounded."""
-    safe = dict(work or {})
-    for key in ("prompt", "raw_prompt", "tool_output", "output", "path", "cwd", "tokens"):
-        safe.pop(key, None)
-
-    safe["summary"] = clean_log_msg(str(safe.get("summary") or "Working on the current request."), 86)
-    safe["detail"] = clean_log_msg(str(safe.get("detail") or safe["summary"]), 86)
-    safe["source"] = clean_log_msg(str(safe.get("source") or safe.get("session_label") or "Hermes session"), 48)
-    if safe.get("session_label"):
-        safe["session_label"] = clean_log_msg(str(safe.get("session_label")), 48)
-    if safe.get("tool"):
-        safe["tool"] = clean_log_msg(str(safe.get("tool")), 32)
-
-    safe.update(current_work_timing(safe.get("age_seconds")))
-    try:
-        raw_age = safe.get("age_seconds")
-        if raw_age is None:
-            raise ValueError("no age")
-        age = float(raw_age)
-        if age > CURRENT_WORK_MAX_AGE_SECONDS and safe.get("active"):
-            safe["active"] = False
-            safe["state"] = "quiet_watch"
-            safe["summary"] = "Quiet watch. No active turn is running."
-            safe["detail"] = "Recent activity expired from the display-safe current work window."
-            safe["expires_in_seconds"] = 0
-    except Exception:
-        pass
-
-    allowed = {
-        "active", "state", "kind", "summary", "detail", "tool", "source",
-        "visual_kind", "session_id", "session_label", "age_seconds",
-        "valid_for_seconds", "expires_in_seconds",
-    }
-    return {key: value for key, value in safe.items() if key in allowed}
+    return _sanitize_current_work(work, max_age_seconds=CURRENT_WORK_MAX_AGE_SECONDS)
 
 
 def recent_agent_work(path: Path, minutes: float = CURRENT_WORK_SECONDS / 60) -> dict:
@@ -975,7 +873,8 @@ def kanban_snapshot() -> dict:
             })
         return {"active": len(tasks), "summary": f"{len(tasks)} active task(s)", "tasks": tasks}
     except Exception as exc:
-        return {"active": 0, "summary": f"kanban read issue: {exc}", "tasks": []}
+        print(f"kanban read issue: {exc.__class__.__name__}", flush=True)
+        return {"active": 0, "summary": "kanban read issue", "tasks": []}
 
 
 FRESHNESS_ORDER = {"fresh": 0, "aging": 1, "stale": 2, "lost": 3}
@@ -1171,7 +1070,7 @@ def resolve_display_state(facts: dict, sys: dict, freshness: dict) -> dict:
 
 def state_copy(display_state: str, work: dict, sys: dict, freshness: dict, gateway_ok: bool, warn_lines: list[str]) -> tuple[str, str, str, str]:
     if display_state == "critical_local_issue":
-        return "blocked_annoyed", "retro-amber-watch", "Critical local issue needs attention.", scrub(warn_lines[-1])[:72] if warn_lines else "local issue detected"
+        return "blocked_annoyed", "retro-amber-watch", "Critical local issue needs attention.", clean_log_msg(warn_lines[-1], 72) if warn_lines else "local issue detected"
     if display_state == "blocked_user_task":
         return "blocked_annoyed", "retro-amber-watch", "Blocked user task needs Brian.", "Kanban card is blocked."
     if display_state == "needs_attention":
@@ -1239,7 +1138,7 @@ def load_manual_override(now: datetime | None = None) -> dict:
                 return {}
         allowed_modes = {"night", "quiet", "attention", "blocked", "complete", "work", "reasoning"}
         mode = str(raw.get("mode") or "").lower()
-        caption = scrub(raw.get("caption") or raw.get("status_line") or "")[:72]
+        caption = clean_log_msg(raw.get("caption") or raw.get("status_line") or "", 72)
         if mode not in allowed_modes and not caption:
             return {}
         sensitivity = str(raw.get("display_sensitivity") or raw.get("sensitivity") or "public_status")
@@ -1472,7 +1371,9 @@ def build_state_from_facts(facts: dict) -> dict:
     mood, skin, caption, snippet = state_copy(resolver["display_state"], work, sys, freshness, gateway_ok, warn_lines)
     state_preset = display_preset_for(resolver["display_state"], work, freshness)
     motion = dict(DISPLAY_PRESET_MOTION.get(state_preset, DISPLAY_PRESET_MOTION["quiet_watch"]))
-    manual = facts.get("manual_override") or {}
+    manual = dict(facts.get("manual_override") or {})
+    if manual.get("caption"):
+        manual["caption"] = clean_log_msg(manual.get("caption"), 72)
     manual_mode = str(manual.get("mode") or "")
     if manual.get("active") and manual_mode:
         override_preset = {
@@ -1514,7 +1415,7 @@ def build_state_from_facts(facts: dict) -> dict:
         work.setdefault("state", "current_work")
         if int(kanban.get("active") or 0):
             work["summary"] = caption
-            work.setdefault("detail", scrub(kanban["tasks"][0]["title"])[:52] if kanban.get("tasks") else caption)
+            work.setdefault("detail", clean_log_msg(kanban["tasks"][0]["title"], 52) if kanban.get("tasks") else caption)
         else:
             work.setdefault("summary", snippet)
             work.setdefault("detail", caption)
@@ -1705,21 +1606,6 @@ def format_temp(value) -> str:
         return "temp n/a"
 
 
-def scrub(text: str) -> str:
-    text = str(text or "")
-    risky_patterns = [
-        r"(?i)(token|secret|password|api[_-]?key|authorization|bearer)\s*[:=]\s*\S+",
-        r"(?i)\bCUI\b|controlled unclassified information",
-        r"(?i)(BEGIN|END) [A-Z ]*(PRIVATE KEY|TOKEN|CERTIFICATE)",
-        r"\b[A-Za-z0-9+/]{48,}={0,2}\b",  # likely base64 or opaque credential-like blob
-        r"(?:^|\s)(?:\.{0,2}/[\w.-]+|~/|/[\w.-]+(?:/[\w.-]+)+)",
-    ]
-    if any(re.search(pattern, text) for pattern in risky_patterns):
-        return "[display-safe detail hidden]"
-    text = re.sub(r"/home/[^/]+/[^\s]+", "~/…", text)
-    return text.replace("\n", " ")
-
-
 def entertainment_sequence_ids() -> set[str]:
     path = ROOT / "src" / "mascot" / "sequences.json"
     try:
@@ -1731,17 +1617,6 @@ def entertainment_sequence_ids() -> set[str]:
         } or {"curious_orb", "feathered_flyby", "mini_showtime", "peek_a_blink"}
     except Exception:
         return {"curious_orb", "feathered_flyby", "mini_showtime", "peek_a_blink"}
-
-
-def append_bounded_jsonl(path: Path, record: dict, max_lines: int = 500) -> None:
-    path.parent.mkdir(parents=True, exist_ok=True)
-    existing: list[str] = []
-    if path.is_file():
-        existing = path.read_text(encoding="utf-8", errors="replace").splitlines()[-max_lines + 1:]
-    existing.append(json.dumps(record, separators=(",", ":")))
-    tmp = path.with_suffix(path.suffix + ".tmp")
-    tmp.write_text("\n".join(existing) + "\n", encoding="utf-8")
-    os.replace(tmp, path)
 
 
 def _usage_today() -> str:
@@ -1962,7 +1837,8 @@ def handle_entertainment_line(payload: dict) -> dict:
     except Exception:
         cache = {}
     if cache_key in cache:
-        return {"ok": True, **cache[cache_key], "cache_key": cache_key, "cached": True}
+        cached = validate_entertainment_line(cache[cache_key])
+        return {"ok": True, **cached, "cache_key": cache_key, "cached": True}
     api_key = os.environ.get("OPENAI_API_KEY", "").strip()
     if not api_key or not entertainment_budget_allowed("line_generation"):
         fallback = validate_entertainment_line({"line": "Boop received!", "caption": "Boop received!", "emotion": "delighted", "sfx_hint": "boop", "particle_theme": "stars"})
@@ -2075,7 +1951,8 @@ def handle_entertainment_micro_show(payload: dict) -> dict:
     except Exception:
         cache = {}
     if cache_key in cache:
-        return {"ok": True, **cache[cache_key], "cache_key": cache_key, "cached": True}
+        cached = validate_micro_show(cache[cache_key])
+        return {"ok": True, **cached, "cache_key": cache_key, "cached": True}
     api_key = os.environ.get("OPENAI_API_KEY", "").strip()
     if not api_key or not entertainment_budget_allowed("micro_show"):
         return _fallback_micro_show("missing_openai_api_key" if not api_key else "server_micro_show_budget_exhausted")
@@ -2143,7 +2020,8 @@ def handle_daily_creature() -> dict:
     except Exception:
         cache = {}
     if cache.get("date") == today and isinstance(cache.get("creature"), dict):
-        return {"ok": True, "cached": True, **cache["creature"]}
+        creature = validate_daily_creature(cache["creature"], today)
+        return {"ok": True, "cached": True, **creature}
     api_key = os.environ.get("OPENAI_API_KEY", "").strip()
     if not api_key:
         creature = _deterministic_daily_creature(today)
@@ -2236,7 +2114,8 @@ class Handler(SimpleHTTPRequestHandler):
             try:
                 result = handle_daily_creature()
             except Exception as exc:
-                json_response(self, 400, {"ok": False, "error": "invalid_daily_creature", "reason": scrub(str(exc)), **_deterministic_daily_creature(_usage_today())})
+                print(f"Daily creature request failed: {exc.__class__.__name__}", flush=True)
+                json_response(self, 400, {"ok": False, "error": "invalid_daily_creature", "reason": "invalid_request", **_deterministic_daily_creature(_usage_today())})
                 return
             json_response(self, 200, result)
             return
@@ -2270,7 +2149,8 @@ class Handler(SimpleHTTPRequestHandler):
                 payload = _read_json_body(self, 512)
                 record = write_watch_animation_log(payload)
             except Exception as exc:
-                json_response(self, 400, {"error": "invalid_watch_animation_log", "reason": scrub(str(exc))})
+                print(f"Watch animation log rejected: {exc.__class__.__name__}", flush=True)
+                json_response(self, 400, {"error": "invalid_watch_animation_log", "reason": "invalid_request"})
                 return
             json_response(self, 202, {"ok": True, "sequence_id": record["sequence_id"], "aborted": record["aborted"]})
             return
@@ -2281,7 +2161,8 @@ class Handler(SimpleHTTPRequestHandler):
                 payload = _read_json_body(self, MAX_TTS_REQUEST_BYTES)
                 result = handle_entertainment_tts(payload)
             except Exception as exc:
-                json_response(self, 400, {"ok": False, "error": "invalid_tts_request", "reason": scrub(str(exc)), "fallback": "browser_tts"})
+                print(f"Entertainment TTS request rejected: {exc.__class__.__name__}", flush=True)
+                json_response(self, 400, {"ok": False, "error": "invalid_tts_request", "reason": "invalid_request", "fallback": "browser_tts"})
                 return
             json_response(self, 200, result)
             return
@@ -2292,7 +2173,8 @@ class Handler(SimpleHTTPRequestHandler):
                 payload = _read_json_body(self, MAX_LINE_REQUEST_BYTES)
                 result = handle_entertainment_line(payload)
             except Exception as exc:
-                json_response(self, 400, {"ok": False, "error": "invalid_line_request", "reason": scrub(str(exc)), "fallback": "curated"})
+                print(f"Entertainment line request rejected: {exc.__class__.__name__}", flush=True)
+                json_response(self, 400, {"ok": False, "error": "invalid_line_request", "reason": "invalid_request", "fallback": "curated"})
                 return
             json_response(self, 200, result)
             return
@@ -2303,7 +2185,8 @@ class Handler(SimpleHTTPRequestHandler):
                 payload = _read_json_body(self, MAX_LINE_REQUEST_BYTES)
                 result = handle_entertainment_micro_show(payload)
             except Exception as exc:
-                json_response(self, 400, {"ok": False, "error": "invalid_micro_show_request", "reason": scrub(str(exc)), **_fallback_micro_show("invalid_request")})
+                print(f"Entertainment micro-show request rejected: {exc.__class__.__name__}", flush=True)
+                json_response(self, 400, {"ok": False, "error": "invalid_micro_show_request", "reason": "invalid_request", **_fallback_micro_show("invalid_request")})
                 return
             json_response(self, 200, result)
             return
@@ -2326,19 +2209,20 @@ class Handler(SimpleHTTPRequestHandler):
         except ValidationError as exc:
             AVATAR_EVENT_BUS.record_drop(str(exc))
             print(f"Avatar event rejected: {scrub(str(exc))}", flush=True)
-            json_response(self, 400, {"error": "invalid_event", "reason": scrub(str(exc))})
+            json_response(self, 400, {"error": "invalid_event", "reason": "validation_failed"})
             return
         print(f"Avatar event accepted: {safe.get('event')} {safe.get('id')}", flush=True)
         json_response(self, 202, {"ok": True, "id": safe.get("id"), "event": safe.get("event")})
 
     def handle_avatar_event_stream(self) -> None:
-        subscriber = AVATAR_EVENT_BUS.subscribe()
-        self.send_response(200)
-        self.send_header("Content-Type", "text/event-stream")
-        self.send_header("Cache-Control", "no-store")
-        self.send_header("Connection", "keep-alive")
-        self.end_headers()
+        subscriber = None
         try:
+            subscriber = AVATAR_EVENT_BUS.subscribe()
+            self.send_response(200)
+            self.send_header("Content-Type", "text/event-stream")
+            self.send_header("Cache-Control", "no-store")
+            self.send_header("Connection", "keep-alive")
+            self.end_headers()
             self.wfile.write(b": hermes avatar event stream\n\n")
             self.wfile.flush()
             while True:
@@ -2354,7 +2238,8 @@ class Handler(SimpleHTTPRequestHandler):
         except (BrokenPipeError, ConnectionResetError):
             pass
         finally:
-            AVATAR_EVENT_BUS.unsubscribe(subscriber)
+            if subscriber is not None:
+                AVATAR_EVENT_BUS.unsubscribe(subscriber)
 
     def send_cache_control(self, value: str) -> None:
         self._hermes_cache_control_sent = True

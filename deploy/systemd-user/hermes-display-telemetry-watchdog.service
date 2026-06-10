@@ -1,0 +1,11 @@
+[Unit]
+Description=Watch Hermes display telemetry freshness and restart preview on sensor-decode failures
+Documentation=https://github.com/bgrablin/hermes-personal-display
+
+[Service]
+Type=oneshot
+EnvironmentFile=-%h/.config/hermes-personal-display.env
+ExecStart=%h/.hermes/projects/personal-display/scripts/display-telemetry-watchdog.sh
+Nice=10
+IOSchedulingClass=best-effort
+IOSchedulingPriority=7

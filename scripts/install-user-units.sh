@@ -8,7 +8,11 @@ mkdir -p "$TARGET_DIR"
 
 for unit in \
   hermes-personal-display-preview.service \
-  hermes-personal-display-kiosk.service
+  hermes-personal-display-kiosk.service \
+  hermes-route-rail-refresh.service \
+  hermes-route-rail-refresh.timer \
+  hermes-display-telemetry-watchdog.service \
+  hermes-display-telemetry-watchdog.timer
 do
   sed "s#@PROJECT_ROOT@#$ROOT#g" \
     "$ROOT/deploy/systemd-user/$unit" > "$TARGET_DIR/$unit"
@@ -29,3 +33,4 @@ echo "  2. Edit $ENV_TARGET with the detected DISPLAY/WAYLAND_DISPLAY values"
 echo "  3. systemctl --user daemon-reload"
 echo "  4. systemctl --user enable --now hermes-personal-display-preview.service"
 echo "  5. systemctl --user enable --now hermes-personal-display-kiosk.service"
+echo "  6. systemctl --user enable --now hermes-route-rail-refresh.timer hermes-display-telemetry-watchdog.timer"

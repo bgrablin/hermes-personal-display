@@ -69,6 +69,44 @@
 
   const DISPLAY_CONTRACT = window.HermesDisplayContract || {};
   const DISPLAY_PRESETS = DISPLAY_CONTRACT.DISPLAY_PRESETS || {};
+  const Z = window.Zod || null;
+  let liveStateDrops = 0;
+  let lastThermalLoad = { thermal: 'cool', temp_c: null, cpu_load: null };
+
+  function displayStateSchemaFromJsonSchema() {
+    // Derived from schemas/hermes-display-state.schema.json: required top-level
+    // display fields plus the safety object invariants. The schema intentionally
+    // passes through richer generated/live fields because the JSON schema is the
+    // privacy boundary floor, not the full browser packet shape.
+    if (!Z) return null;
+    return Z.object({
+      schema_version: Z.string(),
+      generated_at: Z.string().optional(),
+      mood: Z.string().optional(),
+      skin: Z.string().optional(),
+      state_preset: Z.string().optional(),
+      caption: Z.object({}).passthrough().optional(),
+      valid_for_seconds: Z.number().optional(),
+      motion: Z.object({}).passthrough().optional(),
+      snippet: Z.union([Z.object({}).passthrough(), Z.null()]).optional(),
+      safety: Z.object({
+        boundary: Z.literal('local_trusted_display').optional(),
+        redaction_level: Z.enum(['display_safe', 'public_status']).optional(),
+        contains_credentials: Z.literal(false).optional(),
+      }).passthrough().optional(),
+    }).passthrough();
+  }
+
+  const LIVE_DISPLAY_STATE_SCHEMA = displayStateSchemaFromJsonSchema();
+
+  function validateInboundDisplayStatePacket(packet) {
+    if (!LIVE_DISPLAY_STATE_SCHEMA) return { ok: true, packet, drops: liveStateDrops };
+    const result = LIVE_DISPLAY_STATE_SCHEMA.safeParse(packet);
+    if (result.success) return { ok: true, packet: result.data, drops: liveStateDrops };
+    liveStateDrops += 1;
+    console.warn('Hermes display state packet rejected', { drops: liveStateDrops, issues: result.error?.issues?.slice?.(0, 3) || [] });
+    return { ok: false, packet: null, drops: liveStateDrops, error: result.error };
+  }
 
   const PRESETS = {
     idle_watchful: {
@@ -260,15 +298,24 @@
 
   function thermalLoadForPacket(packet) {
     const sys = packet?.live?.system || {};
-    const temp = Number(sys.cpu_temp_c ?? sys.temp_c ?? sys.package_temp_c);
-    const cpuLoad = Number(sys.cpu ?? sys.cpu_load ?? sys.load);
-    const normalizedLoad = Number.isFinite(cpuLoad) ? (cpuLoad > 1 ? cpuLoad / 100 : cpuLoad) : NaN;
-    const loadAverage = Number(sys.load_average_1m ?? sys.load1 ?? sys.load_avg);
+    const parseFinite = (value) => {
+      const parsed = Number(value);
+      return Number.isFinite(parsed) ? parsed : null;
+    };
+    const temp = parseFinite(sys.cpu_temp_c ?? sys.temp_c ?? sys.package_temp_c);
+    const cpuLoad = parseFinite(sys.cpu ?? sys.cpu_load ?? sys.load);
+    const normalizedLoad = cpuLoad === null ? null : (cpuLoad > 1 ? cpuLoad / 100 : cpuLoad);
+    const loadAverage = parseFinite(sys.load_average_1m ?? sys.load1 ?? sys.load_avg);
+    if ((sys.cpu ?? sys.cpu_load ?? sys.load) !== undefined && normalizedLoad === null) {
+      console.warn('Hermes display state ignored non-finite CPU load', { cpu: sys.cpu, cpu_load: sys.cpu_load, load: sys.load });
+      return { ...lastThermalLoad };
+    }
     let thermal = 'cool';
-    if ((Number.isFinite(temp) && temp >= 88) || (Number.isFinite(normalizedLoad) && normalizedLoad >= 0.92) || (Number.isFinite(loadAverage) && loadAverage >= 5.5)) thermal = 'critical';
-    else if ((Number.isFinite(temp) && temp >= 80) || (Number.isFinite(normalizedLoad) && normalizedLoad >= 0.78) || (Number.isFinite(loadAverage) && loadAverage >= 4.0)) thermal = 'hot';
-    else if ((Number.isFinite(temp) && temp >= 72) || (Number.isFinite(normalizedLoad) && normalizedLoad >= 0.62) || (Number.isFinite(loadAverage) && loadAverage >= 2.5)) thermal = 'warm';
-    return { thermal, temp_c: Number.isFinite(temp) ? temp : null, cpu_load: Number.isFinite(normalizedLoad) ? normalizedLoad : null };
+    if ((temp !== null && temp >= 88) || (normalizedLoad !== null && normalizedLoad >= 0.92) || (loadAverage !== null && loadAverage >= 5.5)) thermal = 'critical';
+    else if ((temp !== null && temp >= 80) || (normalizedLoad !== null && normalizedLoad >= 0.78) || (loadAverage !== null && loadAverage >= 4.0)) thermal = 'hot';
+    else if ((temp !== null && temp >= 72) || (normalizedLoad !== null && normalizedLoad >= 0.62) || (loadAverage !== null && loadAverage >= 2.5)) thermal = 'warm';
+    lastThermalLoad = { thermal, temp_c: temp, cpu_load: normalizedLoad };
+    return { ...lastThermalLoad };
   }
 
   function deriveAdaptiveMotion(packet, liveStatus = {}, options = {}) {
@@ -527,6 +574,8 @@
     presetForResolverState,
     severityForPacket,
     thermalLoadForPacket,
+    validateInboundDisplayStatePacket,
+    liveStateDropCount: () => liveStateDrops,
     validateOpticStatePacket,
     validateOpticStatePacketFallback,
     opticPacketToPersonaPacket,

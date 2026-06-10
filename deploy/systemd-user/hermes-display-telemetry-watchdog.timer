@@ -1,0 +1,12 @@
+[Unit]
+Description=Check Hermes display telemetry every 2 minutes
+
+[Timer]
+OnBootSec=3min
+OnUnitActiveSec=2min
+AccuracySec=20s
+Unit=hermes-display-telemetry-watchdog.service
+Persistent=true
+
+[Install]
+WantedBy=timers.target

@@ -20,6 +20,7 @@ from typing import Any
 SCHEMA_VERSION = "0.1.0"
 MAX_EVENT_BYTES = 2048
 REPLAY_LIMIT = 100
+MAX_SUBSCRIBERS = 16
 
 EVENTS = {
     "assistant.started",
@@ -339,9 +340,10 @@ def load_event_json(raw: bytes) -> dict[str, Any]:
 
 
 class AvatarEventBus:
-    def __init__(self, replay_limit: int = REPLAY_LIMIT) -> None:
+    def __init__(self, replay_limit: int = REPLAY_LIMIT, max_subscribers: int = MAX_SUBSCRIBERS) -> None:
         self.replay: deque[dict[str, Any]] = deque(maxlen=replay_limit)
         self.subscribers: set[queue.Queue[dict[str, Any]]] = set()
+        self.max_subscribers = max(1, int(max_subscribers))
         self.lock = threading.Lock()
         self.accepted = 0
         self.dropped = 0
@@ -359,11 +361,16 @@ class AvatarEventBus:
             self.accepted += 1
             self.replay.append(safe)
             subscribers = list(self.subscribers)
+        stale_subscribers: list[queue.Queue[dict[str, Any]]] = []
         for subscriber in subscribers:
             try:
                 subscriber.put_nowait(safe)
             except queue.Full:
-                pass
+                stale_subscribers.append(subscriber)
+        if stale_subscribers:
+            with self.lock:
+                for subscriber in stale_subscribers:
+                    self.subscribers.discard(subscriber)
         return safe
 
     def record_drop(self, reason: str) -> None:
@@ -374,6 +381,10 @@ class AvatarEventBus:
     def subscribe(self) -> queue.Queue[dict[str, Any]]:
         subscriber: queue.Queue[dict[str, Any]] = queue.Queue(maxsize=25)
         with self.lock:
+            if len(self.subscribers) >= self.max_subscribers:
+                evicted = max(self.subscribers, key=lambda item: item.qsize(), default=None)
+                if evicted is not None:
+                    self.subscribers.discard(evicted)
             self.subscribers.add(subscriber)
             replay = list(self.replay)[-25:]
         for event in replay:

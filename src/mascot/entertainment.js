@@ -324,7 +324,10 @@
   async function loadCatalog() {
     if (state.loading) return state.loading;
     state.loading = fetch('./mascot/sequences.json', { cache: 'no-store' })
-      .then((r) => r.json()).then((json) => {
+      .then((r) => {
+        if (!r.ok) throw new Error(`sequences_json_${r.status}`);
+        return r.json().catch((error) => { throw new Error(`invalid_sequences_json: ${error?.message || 'parse failed'}`); });
+      }).then((json) => {
         const catalog = validateCatalog(json);
         state.catalog = catalog; state.sequences = catalog.sequences; state.voicePacks = catalog.voicePacks;
         window.dispatchEvent(new CustomEvent('hermes-entertainment-catalog-ready', { detail: { ids: Object.keys(state.sequences) } }));
@@ -380,6 +383,8 @@
   }
 
   function abortCurrent() {
+    window.clearTimeout(state.idleAttractTimer);
+    state.idleAttractTimer = 0;
     if (!state.current) return false;
     const seqId = state.current;
     clearTimers();
@@ -696,8 +701,10 @@
 
   function scheduleIdleAttract() {
     window.clearTimeout(state.idleAttractTimer);
+    state.idleAttractTimer = 0;
     const delay = 60000 + Math.round(Math.random() * 60000);
     state.idleAttractTimer = window.setTimeout(() => {
+      state.idleAttractTimer = 0;
       const now = Date.now();
       if (now - state.lastTouchAt > 20000 && now - state.lastIdleAttractAt > 55000 && safeForIdleAttract()) {
         state.lastIdleAttractAt = now;

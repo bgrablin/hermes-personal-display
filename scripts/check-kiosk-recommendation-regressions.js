@@ -12,6 +12,7 @@ const appSource = fs.readFileSync(path.join(projectRoot, 'src', 'mascot', 'app.j
 const cssSource = fs.readFileSync(path.join(projectRoot, 'src', 'styles.css'), 'utf8');
 const stateSource = fs.readFileSync(path.join(projectRoot, 'src', 'state.js'), 'utf8');
 const serverSource = fs.readFileSync(path.join(projectRoot, 'scripts', 'hermes_display_server.py'), 'utf8');
+const privacySource = fs.readFileSync(path.join(projectRoot, 'scripts', 'display_state', 'privacy.py'), 'utf8');
 const runtimeHtml = fs.readFileSync(path.join(projectRoot, 'src', 'character-runtime.html'), 'utf8');
 const buildIdSource = fs.readFileSync(path.join(projectRoot, 'src', 'generated', 'build-id.js'), 'utf8');
 const xsessionSource = fs.readFileSync(path.join(projectRoot, 'scripts', 'xsession-minix-kiosk.sh'), 'utf8');
@@ -19,6 +20,7 @@ const displayCliSource = fs.readFileSync(path.join(projectRoot, 'scripts', 'herm
 const audioSource = fs.readFileSync(path.join(projectRoot, 'src', 'mascot', 'audio.js'), 'utf8');
 const touchFxSource = fs.readFileSync(path.join(projectRoot, 'src', 'mascot', 'touch-fx.js'), 'utf8');
 const entertainmentSource = fs.readFileSync(path.join(projectRoot, 'src', 'mascot', 'entertainment.js'), 'utf8');
+const envExampleSource = fs.readFileSync(path.join(projectRoot, 'deploy', 'systemd-user', 'hermes-personal-display.env.example'), 'utf8');
 const watchSequencesSource = fs.readFileSync(path.join(projectRoot, 'src', 'mascot', 'watch-sequences.js'), 'utf8');
 const sequencesJson = JSON.parse(fs.readFileSync(path.join(projectRoot, 'src', 'mascot', 'sequences.json'), 'utf8'));
 
@@ -478,7 +480,7 @@ if (/standing by/i.test([appSource, stateSource].join('\n'))) {
   fail('Idle copy must avoid STANDING BY; use QUIET WATCH / SYSTEMS STEADY style wording.');
 }
 requireAll(appSource, ['safeDisplayText(value, maxLength = 64)', 'CUI', 'base64'], 'Frontend display-safe text scrubber must cover CUI and long encoded blobs');
-requireAll(serverSource, ['CUI', 'base64', 'display-safe detail hidden'], 'Backend scrubber must cover CUI and long encoded blobs');
+requireAll(privacySource, ['CUI', 'base64', 'display-safe detail hidden'], 'Backend scrubber must cover CUI and long encoded blobs');
 
 // Telemetry truthfulness and state freshness remain acceptance gates even in radial form.
 requireAll(appSource, [
@@ -694,7 +696,8 @@ if (/__lastMoteBucket[\s\S]{0,400}Math\.round\(seconds\s*\*\s*60\)/.test(appSour
   fail('Concept B mote bucket must throttle below per-frame; seconds * 60 changes every RAF and defeats the bucket.');
 }
 requireAll(cssSource, ['.cb-eye-gaze,', '.cb-eye-pupil-group {', 'will-change: transform;'], 'Hot Concept B gaze and pupil transform targets must retain compositor promotion hints.');
-requireAll(xsessionSource, ['--disable-backgrounding-occluded-windows', 'configure_audio', 'PERSONAL_DISPLAY_AUDIO_VOLUME', 'alsa_output\\.pci-0000_00_1f\\.3\\.hdmi-stereo'], 'Physical kiosk launcher must prevent Chromium from treating the kiosk as occluded/backgrounded and must pin SF10T/HDMI audio.');
+requireAll(xsessionSource, ['--disable-backgrounding-occluded-windows', 'configure_audio', 'PERSONAL_DISPLAY_AUDIO_VOLUME', 'PERSONAL_DISPLAY_AUDIO_SINK'], 'Physical kiosk launcher must prevent Chromium from treating the kiosk as occluded/backgrounded and must use env-configured SF10T/HDMI audio.');
+requireAll(envExampleSource, ['PERSONAL_DISPLAY_AUDIO_SINK=alsa_output.pci-0000_00_1f.3.hdmi-stereo', 'PERSONAL_DISPLAY_OUTPUT=DP-2'], 'Display/audio hardware defaults must live in the env template, not be hard-coded into launcher logic.');
 requireAll(displayCliSource, ['check_audio', 'configure_audio', 'HERMES_DISPLAY_AUDIO_VOLUME', 'setfacl -m', 'OK audio sink'], 'hermes-display CLI must verify and repair physical kiosk audio routing.');
 if (!appSource.includes('field.__tracePool')) {
   fail('Concept B gaze traces must reuse SVG path nodes instead of create/remove DOM nodes during RAF.');

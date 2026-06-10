@@ -124,6 +124,10 @@
     }
 
     startVoiceRms(source = 'tts') {
+      if (this.voiceRaf) {
+        window.cancelAnimationFrame(this.voiceRaf);
+        this.voiceRaf = 0;
+      }
       if (source === 'browser_tts') {
         const started = performance.now();
         const tick = () => {

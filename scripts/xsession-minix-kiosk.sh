@@ -31,6 +31,11 @@ CHROME="${PERSONAL_DISPLAY_CHROME:-/usr/bin/chromium-browser}"
 # chromium-browser is a snap on this host. Keep the profile under ~/snap/chromium/common
 # so AppArmor allows it; hidden ~/.cache/.hermes paths trigger denials.
 WINDOW_SIZE="${PERSONAL_DISPLAY_WINDOW_SIZE:-1920,1280}"
+DISPLAY_OUTPUT="${PERSONAL_DISPLAY_OUTPUT:-}"
+DISPLAY_MODE="${PERSONAL_DISPLAY_OUTPUT_MODE:-1920x1280}"
+DISPLAY_ROTATE="${PERSONAL_DISPLAY_OUTPUT_ROTATE:-inverted}"
+DISPLAY_POS="${PERSONAL_DISPLAY_OUTPUT_POS:-0x0}"
+AUDIO_SINK="${PERSONAL_DISPLAY_AUDIO_SINK:-}"
 PROFILE_DIR="${PERSONAL_DISPLAY_CHROME_PROFILE:-$HOME/snap/chromium/common/hermes-personal-display-profile}"
 LOG_DIR="$HOME/.hermes/logs"
 LOG_FILE="$LOG_DIR/personal-display-kiosk.log"
@@ -51,33 +56,43 @@ wait_for_x() {
   return 1
 }
 
+detect_output() {
+  local xr="$1"
+  if [[ -n "$DISPLAY_OUTPUT" ]] && printf '%s\n' "$xr" | grep -q "^${DISPLAY_OUTPUT} connected"; then
+    printf '%s\n' "$DISPLAY_OUTPUT"
+    return 0
+  fi
+  printf '%s\n' "$xr" | awk '/^DP-[0-9]+ connected/ {print $1; exit} /^HDMI-[0-9]+ connected/ {print $1; exit} / connected/ {print $1; exit}'
+}
+
 configure_outputs() {
-  local xr
+  local xr output
   xr="$(xrandr --query 2>&1 || true)"
   log "xrandr before: $(printf '%s' "$xr" | tr '\n' ' ' | sed 's/  */ /g')"
 
   xset s off -dpms s noblank >/dev/null 2>&1 || true
 
-  # MINIX SF10T presents as DP-2 on the NUC USB-C/TB3 DisplayPort path.
-  # Brian wants the panel physically rotated to landscape with the USB-C cable on the right,
-  # so keep the native landscape mode and make DP-2 the primary output.
-  if printf '%s\n' "$xr" | grep -q '^DP-2 connected'; then
-    if printf '%s\n' "$xr" | grep -q '^DP-2 connected.*1920x1280'; then
-      xrandr --output DP-2 --mode 1920x1280 --rotate inverted --primary --pos 0x0 || true
+  output="$(detect_output "$xr")"
+  if [[ -n "$output" ]]; then
+    DISPLAY_OUTPUT="$output"
+    # MINIX SF10T currently presents as DP-2 on Brian's NUC, but keep this
+    # env-driven so disaster recovery is not tied to one connector name.
+    if printf '%s\n' "$xr" | grep -q "^${output} connected.*${DISPLAY_MODE}"; then
+      xrandr --output "$output" --mode "$DISPLAY_MODE" --rotate "$DISPLAY_ROTATE" --primary --pos "$DISPLAY_POS" || true
     else
-      xrandr --output DP-2 --auto --rotate inverted --primary --pos 0x0 || true
+      xrandr --output "$output" --auto --rotate "$DISPLAY_ROTATE" --primary --pos "$DISPLAY_POS" || true
     fi
     if printf '%s\n' "$xr" | grep -q '^DP-1 connected'; then
       if [[ "${PERSONAL_DISPLAY_ENABLE_DP1:-0}" == "1" ]]; then
         log "DP-1 connected; enabling because PERSONAL_DISPLAY_ENABLE_DP1=1"
-        xrandr --output DP-1 --auto --right-of DP-2 || true
+        xrandr --output DP-1 --auto --right-of "$output" || true
       else
         log "DP-1 connected; disabling for MINIX kiosk thermal reduction (set PERSONAL_DISPLAY_ENABLE_DP1=1 to keep it on)"
         xrandr --output DP-1 --off || true
       fi
     fi
   else
-    log "DP-2 not connected according to xrandr; leaving default output layout"
+    log "No connected kiosk output found according to xrandr; leaving default output layout"
   fi
 
   xrandr --query 2>&1 | tee -a "$LOG_FILE" || true
@@ -85,8 +100,12 @@ configure_outputs() {
   if command -v xinput >/dev/null 2>&1; then
     while IFS= read -r device_name; do
       [ -n "$device_name" ] || continue
-      log "mapping touch input to DP-2: $device_name"
-      xinput --map-to-output "$device_name" DP-2 >>"$LOG_FILE" 2>&1 || true
+      log "mapping touch input to ${DISPLAY_OUTPUT:-default output}: $device_name"
+      if [[ -n "${DISPLAY_OUTPUT:-}" ]]; then
+        xinput --map-to-output "$device_name" "$DISPLAY_OUTPUT"
+      else
+        xinput --map-to-output "$device_name" "$(xrandr --query | awk '/ connected/ {print $1; exit}')"
+      fi >>"$LOG_FILE" 2>&1 || true
       xinput --list-props "$device_name" >>"$LOG_FILE" 2>&1 || true
     done < <(xinput list --name-only 2>/dev/null | grep -Ei 'touch|SiS HID' || true)
   fi
@@ -96,8 +115,12 @@ configure_audio() {
   # Keep the physical kiosk on the SF10T/HDMI sink after display restarts. This is
   # best-effort because PipeWire may still be coming up while X starts.
   if command -v pactl >/dev/null 2>&1; then
-    local sink
-    sink="$(pactl list short sinks 2>/dev/null | awk '/alsa_output\.pci-0000_00_1f\.3\.hdmi-stereo/ {print $2; exit}' || true)"
+    local sink target
+    target="$AUDIO_SINK"
+    if [[ -z "$target" ]]; then
+      target="$(pactl list short sinks 2>/dev/null | awk '/hdmi-stereo/ {print $2; exit}' || true)"
+    fi
+    sink="$(pactl list short sinks 2>/dev/null | awk -v target="$target" '$2 == target {print $2; exit}' || true)"
     if [[ -n "$sink" ]]; then
       pactl set-default-sink "$sink" >/dev/null 2>&1 || true
       pactl set-sink-mute "$sink" 0 >/dev/null 2>&1 || true

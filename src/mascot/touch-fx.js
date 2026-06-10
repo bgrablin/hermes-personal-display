@@ -72,6 +72,7 @@
     let fxCount = 0;
     let disposed = false;
     let touchIdleTimer = 0;
+    let statusInterval = 0;
 
     const acceptsPointer = (event) => event.pointerType !== 'mouse' || allowMouseTouchTest;
     const isReducedMotion = () => window.matchMedia?.('(prefers-reduced-motion: reduce)')?.matches;
@@ -634,6 +635,8 @@
       fxLayer.remove();
       feedBadge.remove();
       window.clearTimeout(touchIdleTimer);
+      window.clearInterval(statusInterval);
+      statusInterval = 0;
     }
 
     document.body.addEventListener('pointerdown', onFxPointerDown, { passive: false });
@@ -680,7 +683,7 @@
     };
 
     window.HermesTouchFxController = api;
-    window.setInterval(() => { updateTheme(); updateFeedBadge(); }, 1000);
+    statusInterval = window.setInterval(() => { updateTheme(); updateFeedBadge(); }, 1000);
     return api;
   }
 

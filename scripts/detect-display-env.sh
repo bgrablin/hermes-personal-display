@@ -72,6 +72,24 @@ else
   say "wlr-randr unavailable"
 fi
 
+section "recommended env overrides"
+if command -v xrandr >/dev/null 2>&1; then
+  output="$(xrandr --query 2>/dev/null | awk '/^DP-[0-9]+ connected/ {print $1; exit} /^HDMI-[0-9]+ connected/ {print $1; exit} / connected/ {print $1; exit}')"
+  if [[ -n "$output" ]]; then
+    say "PERSONAL_DISPLAY_OUTPUT=$output"
+  fi
+fi
+if command -v pactl >/dev/null 2>&1; then
+  sink="$(pactl list short sinks 2>/dev/null | awk '/hdmi-stereo/ {print $2; exit}')"
+  if [[ -n "$sink" ]]; then
+    say "PERSONAL_DISPLAY_AUDIO_SINK=$sink"
+  fi
+fi
+say "PERSONAL_DISPLAY_WINDOW_SIZE=${PERSONAL_DISPLAY_WINDOW_SIZE:-1920,1280}"
+say "PERSONAL_DISPLAY_OUTPUT_MODE=${PERSONAL_DISPLAY_OUTPUT_MODE:-1920x1280}"
+say "PERSONAL_DISPLAY_OUTPUT_ROTATE=${PERSONAL_DISPLAY_OUTPUT_ROTATE:-inverted}"
+say "PERSONAL_DISPLAY_OUTPUT_POS=${PERSONAL_DISPLAY_OUTPUT_POS:-0x0}"
+
 section "preview + kiosk prerequisites"
 say "preview_url=${PERSONAL_DISPLAY_URL:-http://127.0.0.1:8770/src/character-runtime.html?kiosk=1}"
 say "has_display_env=$([[ -n "${DISPLAY:-}" || -n "${WAYLAND_DISPLAY:-}" ]] && echo yes || echo no)"

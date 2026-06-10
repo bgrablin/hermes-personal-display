@@ -2,6 +2,13 @@
 set -euo pipefail
 
 PROJECT="${HERMES_PERSONAL_DISPLAY_PROJECT:-$HOME/.hermes/projects/personal-display}"
+ENV_FILE="${HERMES_DISPLAY_ENV_FILE:-$HOME/.config/hermes-personal-display.env}"
+if [[ -r "$ENV_FILE" ]]; then
+  set -a
+  # shellcheck disable=SC1090
+  source "$ENV_FILE"
+  set +a
+fi
 DISPLAY_NUM="${HERMES_DISPLAY_NUM:-:0}"
 SYSTEM_SERVICE="${HERMES_DISPLAY_SYSTEM_SERVICE:-hermes-personal-display-minix.service}"
 PREVIEW_SERVICE="${HERMES_DISPLAY_PREVIEW_SERVICE:-hermes-personal-display-preview.service}"
@@ -9,8 +16,9 @@ STATE_URL="${HERMES_DISPLAY_STATE_URL:-http://127.0.0.1:8770/api/hermes-state}"
 RUNTIME_PATH="/src/character-runtime.html"
 LOG_DIR="${HERMES_DISPLAY_LOG_DIR:-$HOME/.hermes/logs}"
 LOG_FILE="$LOG_DIR/hermes-display.log"
-AUDIO_SINK="${HERMES_DISPLAY_AUDIO_SINK:-alsa_output.pci-0000_00_1f.3.hdmi-stereo}"
-AUDIO_VOLUME="${HERMES_DISPLAY_AUDIO_VOLUME:-90%}"
+DISPLAY_OUTPUT="${HERMES_DISPLAY_OUTPUT:-${PERSONAL_DISPLAY_OUTPUT:-}}"
+AUDIO_SINK="${HERMES_DISPLAY_AUDIO_SINK:-${PERSONAL_DISPLAY_AUDIO_SINK:-}}"
+AUDIO_VOLUME="${HERMES_DISPLAY_AUDIO_VOLUME:-${PERSONAL_DISPLAY_AUDIO_VOLUME:-90%}}"
 XAUTH_GLOB="/tmp/serverauth.*"
 mkdir -p "$LOG_DIR"
 
@@ -23,11 +31,11 @@ usage() {
 Usage: hermes-display [verify|fix|restart|status|screenshot|build-id|url]
 
 Commands:
-  verify      Check preview API, system service, live Chromium URL/build, and DP-2 layout.
+  verify      Check preview API, system service, live Chromium URL/build, display layout, thermal policy, and audio.
   fix         Repair the display path: restart preview if needed, restart the real system kiosk, then verify.
   restart     Force a full preview + system kiosk restart, then verify.
-  status      Show service, process, URL, and DP-2 status.
-  screenshot  Capture a DP-2 screenshot under docs/review-artifacts/.
+  status      Show service, process, URL, display, thermal-policy, and audio status.
+  screenshot  Capture the kiosk display screenshot under docs/review-artifacts/.
   build-id    Print the expected display build id from src/generated/build-id.js.
   url         Print the canonical kiosk URL using the current build id.
 
@@ -127,15 +135,56 @@ except Exception as exc:
 PY
 }
 
-check_dp2() {
-  local line
-  line="$(xrun xrandr --query 2>/dev/null | grep '^DP-2 connected' || true)"
+detect_display_output() {
+  if [[ -n "$DISPLAY_OUTPUT" ]]; then
+    printf '%s\n' "$DISPLAY_OUTPUT"
+    return 0
+  fi
+  xrun xrandr --query 2>/dev/null | awk '/ connected/ {print $1; exit}'
+}
+
+check_display_output() {
+  local output line expected_mode expected_rotate expected_pos
+  output="$(detect_display_output)"
+  expected_mode="${HERMES_DISPLAY_OUTPUT_MODE:-${PERSONAL_DISPLAY_OUTPUT_MODE:-1920x1280}}"
+  expected_rotate="${HERMES_DISPLAY_OUTPUT_ROTATE:-${PERSONAL_DISPLAY_OUTPUT_ROTATE:-inverted}}"
+  expected_pos="${HERMES_DISPLAY_OUTPUT_POS:-${PERSONAL_DISPLAY_OUTPUT_POS:-0x0}}"
+  local geometry_pos="${expected_pos/x/+}"
+  line="$(xrun xrandr --query 2>/dev/null | grep "^${output} connected" || true)"
   if [[ -z "$line" ]]; then
-    echo "DP-2 not connected"
+    echo "${output:-display output} not connected"
     return 1
   fi
   echo "$line"
-  [[ "$line" == *"primary"* && "$line" == *"1920x1280+0+0"* && "$line" == *"inverted"* ]]
+  [[ "$line" == *"primary"* && "$line" == *"${expected_mode}+${geometry_pos}"* && "$line" == *"$expected_rotate"* ]]
+}
+
+check_dp2() {
+  check_display_output
+}
+
+detect_audio_sink() {
+  if [[ -n "$AUDIO_SINK" ]]; then
+    printf '%s\n' "$AUDIO_SINK"
+    return 0
+  fi
+  pactl list short sinks 2>/dev/null | awk '/hdmi-stereo/ {print $2; exit} END {if (NR == 0) exit 1}' || pactl get-default-sink 2>/dev/null || true
+}
+
+check_thermal_policy() {
+  local path="/sys/devices/system/cpu/intel_pstate/max_perf_pct" value expected
+  expected="${HERMES_DISPLAY_MAX_PERF_PCT:-${PERSONAL_DISPLAY_MAX_PERF_PCT:-80}}"
+  if [[ ! -r "$path" ]]; then
+    echo "WARN thermal policy: $path unavailable"
+    return 0
+  fi
+  value="$(tr -d '[:space:]' < "$path")"
+  if [[ "$value" =~ ^[0-9]+$ && "$value" -le "$expected" ]]; then
+    echo "max_perf_pct=$value (target <= $expected)"
+    return 0
+  fi
+  echo "WARN thermal policy inactive: max_perf_pct=$value target<=$expected"
+  return 0
 }
 
 check_audio() {
@@ -143,14 +192,15 @@ check_audio() {
     echo "pactl unavailable"
     return 1
   fi
-  local default mute volume sinks desired_pct
+  local default mute volume sinks desired_pct sink_name
+  sink_name="$(detect_audio_sink)"
   sinks="$(pactl list short sinks 2>/dev/null || true)"
   default="$(pactl get-default-sink 2>/dev/null || true)"
   mute="$(pactl get-sink-mute "${default:-@DEFAULT_SINK@}" 2>/dev/null || true)"
   volume="$(pactl get-sink-volume "${default:-@DEFAULT_SINK@}" 2>/dev/null | head -1 || true)"
   desired_pct="${AUDIO_VOLUME%%%}"
   echo "default=${default:-unknown} mute=${mute:-unknown} volume=${volume:-unknown} desired=${desired_pct}%"
-  [[ "$sinks" == *"$AUDIO_SINK"* && "$default" == "$AUDIO_SINK" && "$mute" == *"no"* && "$volume" == *" ${desired_pct}%"* ]]
+  [[ -n "$sink_name" && "$sinks" == *"$sink_name"* && "$default" == "$sink_name" && "$mute" == *"no"* && "$volume" == *" ${desired_pct}%"* ]]
 }
 
 repair_audio_access() {
@@ -166,13 +216,15 @@ configure_audio() {
     log "pactl unavailable; skipping audio routing"
     return 0
   fi
-  local sink
-  sink="$(pactl list short sinks 2>/dev/null | awk -v target="$AUDIO_SINK" '$2 == target {print $2; exit}' || true)"
+  local sink target
+  target="$(detect_audio_sink)"
+  sink="$(pactl list short sinks 2>/dev/null | awk -v target="$target" '$2 == target {print $2; exit}' || true)"
   if [[ -z "$sink" ]]; then
     repair_audio_access
     systemctl --user restart wireplumber pipewire-pulse pipewire >/dev/null 2>&1 || true
     sleep 2
-    sink="$(pactl list short sinks 2>/dev/null | awk -v target="$AUDIO_SINK" '$2 == target {print $2; exit}' || true)"
+    target="$(detect_audio_sink)"
+    sink="$(pactl list short sinks 2>/dev/null | awk -v target="$target" '$2 == target {print $2; exit}' || true)"
   fi
   if [[ -n "$sink" ]]; then
     pactl set-default-sink "$sink" >/dev/null 2>&1 || true
@@ -204,15 +256,18 @@ status_kiosk() {
   echo "URL match:"
   canonical_url_status "$live" "$build" || true
   echo
-  echo "DP-2:"
-  check_dp2 || true
+  echo "Display output (${DISPLAY_OUTPUT:-auto}):"
+  check_display_output || true
+  echo
+  echo "Thermal policy:"
+  check_thermal_policy || true
   echo
   echo "Audio:"
   check_audio || true
 }
 
 verify_kiosk() {
-  local ok=0 build live state dp2
+  local ok=0 build live state display_status
   build="$(build_id)"
   echo "Expected build: $build"
 
@@ -248,12 +303,14 @@ verify_kiosk() {
     ok=1
   fi
 
-  if dp2="$(check_dp2 2>&1)"; then
-    echo "OK DP-2 layout: $dp2"
+  if display_status="$(check_display_output 2>&1)"; then
+    echo "OK display layout: $display_status"
   else
-    echo "FAIL DP-2 layout: $dp2"
+    echo "FAIL display layout: $display_status"
     ok=1
   fi
+
+  echo "Thermal policy: $(check_thermal_policy)"
 
   if audio="$(check_audio 2>&1)"; then
     echo "OK audio sink: $audio"
@@ -310,7 +367,7 @@ screenshot_dp2() {
   mkdir -p "$out_dir"
   ts="$(date +%Y%m%d-%H%M%S)"
   full="$out_dir/hermes-display-full-$ts.png"
-  crop="$out_dir/hermes-display-dp2-$ts.png"
+  crop="$out_dir/hermes-display-${DISPLAY_OUTPUT:-display}-$ts.png"
   xrun scrot "$full"
   python3 - "$full" "$crop" <<'PY'
 import sys

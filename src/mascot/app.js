@@ -1,5 +1,5 @@
 (() => {
-  const { PRESETS, clone, normalizePersonaPacket, deriveAdaptiveMotion } = window.HermesDisplayState;
+  const { PRESETS, clone, normalizePersonaPacket, deriveAdaptiveMotion, validateInboundDisplayStatePacket } = window.HermesDisplayState;
   const { NUDGES } = window.HermesDisplayStates;
   const textarea = document.querySelector('#state-json');
   const output = document.querySelector('#status-output');
@@ -582,7 +582,9 @@
 
     document.body.style.touchAction = 'none';
     document.body.addEventListener('contextmenu', (event) => event.preventDefault());
-    let toastTimer = window.setTimeout(() => touchHint.classList.add('quiet'), 5200);
+    let toastTimer = 0;
+    window.clearTimeout(toastTimer);
+    toastTimer = window.setTimeout(() => touchHint.classList.add('quiet'), 5200);
     let longPressTimer = null;
     let longPressArmed = false;
     let longPressPointerCount = 0;
@@ -1175,7 +1177,10 @@
       try {
         const response = await fetch(stateUrl, { cache: 'no-store', signal: controller.signal });
         if (!response.ok) throw new Error(`state ${response.status}`);
-        const packet = await response.json();
+        const rawPacket = await response.json();
+        const validation = validateInboundDisplayStatePacket(rawPacket);
+        if (!validation.ok) throw new Error(`state packet validation failed (${validation.drops})`);
+        const packet = validation.packet;
         const hadFeedFailures = liveStatus.failures > 0;
         liveStatus.failures = 0;
         liveStatus.lastError = '';
