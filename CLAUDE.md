@@ -24,6 +24,7 @@ npm run check:kiosk          # kiosk regression guard (pattern-matches source)
 npm run check:client-events  # client avatar-event validator guard
 npm run check:augury-feed    # Augury feed privacy check
 npm run generate:contract    # regenerate contract bindings from schemas/
+npm run generate:build-id    # regenerate content-hash cache keys for first-party runtime assets
 npm run test:all             # full local gate incl. both Playwright projects
 npm run install:hooks        # point git at .githooks (do this once per clone)
 ```
@@ -43,6 +44,9 @@ generated constants → `scripts/hermes_display_server.py` (`/api/hermes-state`,
 - `src/generated/display-contract.js` and `scripts/generated/display_contract.py` — **generated, never
   hand-edit**. After any `schemas/` change run `python3 scripts/generate_display_contract.py` and commit
   both outputs (they are committed deliberately so runtime/tests share constants without a build step).
+- `src/generated/build-id.js` — **generated, never hand-edit**. `npm run generate:build-id` computes a
+  deterministic content hash from first-party runtime assets and synchronizes the first-party `?v=` cache
+  keys in `src/character-runtime.html`.
 - `scripts/display_state/` — server-side module boundary: collector, resolver, contract, privacy,
   persistence, route rail, remote memory, entertainment, fixtures.
 - `src/mascot/` — character runtime: `app.js` (entry, kiosk/family mode, hold gestures),
@@ -63,10 +67,11 @@ Local services bind loopback by default.
 
 ## Conventions that will bite you
 
-- **Build-id cache keys:** `DISPLAY_BUILD_ID` in `src/mascot/app.js` must match the `?v=` cache keys on
-  all first-party asset refs in `src/character-runtime.html` (vendor refs keep their own keys). Bump the
-  build id on any user-visible runtime change; `hermes-display verify` checks the live Chromium command
-  line for `v=<build>`.
+- **Build-id cache keys:** do not hand-edit runtime build ids or first-party `?v=` query strings.
+  Run `npm run generate:build-id` after visual/runtime asset changes. The generated content hash in
+  `src/generated/build-id.js` is the single source of truth used by `src/mascot/app.js`, first-party
+  asset cache keys in `src/character-runtime.html`, and `hermes-display verify`. Vendor refs keep their
+  own stable cache pins unless re-vendored.
 - **check scripts are intentional stiffness:** `scripts/check-kiosk-recommendation-regressions.js` and
   friends pattern-match exact source lines and numeric constants. Refactoring guarded code requires
   updating the guard in the same change — that is by design, not an accident to work around.

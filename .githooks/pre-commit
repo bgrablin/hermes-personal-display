@@ -18,9 +18,13 @@ if [[ -z "$changed" ]]; then
   exit 0
 fi
 
-if ! printf '%s\n' "$changed" | grep -Eq '^(src/|public/|package(-lock)?\.json$|vite\.config\.[cm]?js$|playwright\.config\.[cm]?js$|tests/e2e/|scripts/xsession-minix-kiosk\.sh$|scripts/hermes_display_server\.py$)'; then
+if ! printf '%s\n' "$changed" | grep -Eq '^(src/|public/|package(-lock)?\.json$|vite\.config\.[cm]?js$|playwright\.config\.[cm]?js$|tests/e2e/|scripts/xsession-minix-kiosk\.sh$|scripts/hermes_display_server\.py$|scripts/generate-build-id\.js$)'; then
   exit 0
 fi
+
+echo "Build-id hook: frontend change detected; refreshing generated build/cache key"
+npm run generate:build-id >/dev/null
+git add src/generated/build-id.js src/character-runtime.html
 
 if [[ ! -x scripts/capture-current-dashboard.sh ]]; then
   echo "Dashboard capture hook: scripts/capture-current-dashboard.sh is not executable" >&2

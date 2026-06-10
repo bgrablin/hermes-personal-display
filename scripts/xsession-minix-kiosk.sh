@@ -10,7 +10,7 @@ SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd -P)"
 BUILD_ID="${PERSONAL_DISPLAY_BUILD_ID:-$($SCRIPT_DIR/hermes-display build-id)}"
 URL="${PERSONAL_DISPLAY_URL:-$($SCRIPT_DIR/hermes-display url)}"
 # Cache-bust the kiosk shell on each frontend runtime revision. The system unit may
-# still pass an older v=... URL, so normalize here from the runtime's DISPLAY_BUILD_ID.
+# still pass an older v=... URL, so normalize here from the generated build id.
 if [[ "$URL" == *"character-runtime.html"* ]]; then
   if [[ "$URL" == *"v="* ]]; then
     URL="$(python3 - "$URL" "$BUILD_ID" <<'PY'

@@ -6,6 +6,7 @@ import path from 'node:path';
 function copyClassicRuntimeAssets() {
   const copies = [
     ['src/vendor', 'dist/src/vendor'],
+    ['src/generated/build-id.js', 'dist/src/generated/build-id.js'],
     ['src/generated/display-contract.js', 'dist/src/generated/display-contract.js'],
     ['src/mascot/sanitize.js', 'dist/src/mascot/sanitize.js'],
     ['src/mascot/behavior-machine.js', 'dist/src/mascot/behavior-machine.js'],

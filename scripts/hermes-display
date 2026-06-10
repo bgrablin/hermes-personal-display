@@ -28,7 +28,7 @@ Commands:
   restart     Force a full preview + system kiosk restart, then verify.
   status      Show service, process, URL, and DP-2 status.
   screenshot  Capture a DP-2 screenshot under docs/review-artifacts/.
-  build-id    Print the expected display build id from src/mascot/app.js.
+  build-id    Print the expected display build id from src/generated/build-id.js.
   url         Print the canonical kiosk URL using the current build id.
 
 This command is intentionally service-aware. It uses hermes-personal-display-minix.service
@@ -37,13 +37,13 @@ EOF
 }
 
 build_id() {
-  python3 - "$PROJECT/src/mascot/app.js" <<'PY'
+  python3 - "$PROJECT/src/generated/build-id.js" <<'PY'
 import re, sys
 path = sys.argv[1]
 text = open(path, encoding='utf-8').read()
-match = re.search(r"const\s+DISPLAY_BUILD_ID\s*=\s*['\"]([^'\"]+)['\"]", text)
+match = re.search(r"window\.__HERMES_DISPLAY_BUILD_ID\s*=\s*['\"]([^'\"]+)['\"]", text)
 if not match:
-    raise SystemExit(f"could not find DISPLAY_BUILD_ID in {path}")
+    raise SystemExit(f"could not find __HERMES_DISPLAY_BUILD_ID in {path}; run npm run generate:build-id")
 print(match.group(1))
 PY
 }

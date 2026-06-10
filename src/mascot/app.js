@@ -23,7 +23,7 @@
   const skinOrder = ['retro-robot-core', 'retro-terminal-focus', 'retro-night-watch', 'retro-amber-watch', 'retro-hermes-accent'];
   const liveStatus = { lastGoodAt: null, failures: 0, lastError: '', staleSince: null };
   const avatarEventStatus = { connected: false, accepted: 0, dropped: 0, lastError: '', lastEventAt: null, recent: [] };
-  const DISPLAY_BUILD_ID = 'route-whisker-restore1';
+  const DISPLAY_BUILD_ID = String(window.__HERMES_DISPLAY_BUILD_ID || 'dev-unversioned');
   const STATUS_TICK_MIN_GAP_MS = 4000;
   const ROUTE_HEADROOM_LOW_THRESHOLD = 0.15;
   let statusTicksArmed = false;

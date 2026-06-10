@@ -10,6 +10,7 @@ This repository is intentionally trimmed to the files needed to run, test, and o
 - `src/state.js` — display-state normalization and contract consumption.
 - `src/vendor/` — vendored browser libraries used directly by the runtime.
 - `src/generated/display-contract.js` — generated browser contract constants.
+- `src/generated/build-id.js` — generated content-hash build id used by the runtime, cache keys, and kiosk verification.
 
 ## Server and state contract
 
@@ -28,6 +29,7 @@ This repository is intentionally trimmed to the files needed to run, test, and o
 - `scripts/hermes-display` — local status/restart/verify helper for the live kiosk.
 - `scripts/serve-preview.sh` — preview server entrypoint used by systemd.
 - `scripts/xsession-minix-kiosk.sh` — current MINIX/SF10T X11 Chromium kiosk session.
+- `scripts/generate-build-id.js` — synchronizes `src/generated/build-id.js` and first-party runtime `?v=` cache keys.
 - `deploy/systemd-user/` — preview and generic user-kiosk templates.
 - `deploy/systemd-system/` — accepted MINIX/thermal system snippets.
 - `docs/minix-sf10t-bringup.md` and `docs/systemd-user-units.md` — current operational notes.

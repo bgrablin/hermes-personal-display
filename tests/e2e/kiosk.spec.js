@@ -8,9 +8,9 @@ const root = path.resolve(import.meta.dirname, '../..');
 const EXPECTED_BUILD_ID = readDisplayBuildId();
 
 function readDisplayBuildId() {
-  const appSource = fs.readFileSync(path.join(root, 'src/mascot/app.js'), 'utf8');
-  const match = appSource.match(/const DISPLAY_BUILD_ID = '([^']+)'/);
-  if (!match) throw new Error('DISPLAY_BUILD_ID not found in src/mascot/app.js');
+  const buildIdSource = fs.readFileSync(path.join(root, 'src/generated/build-id.js'), 'utf8');
+  const match = buildIdSource.match(/window\.__HERMES_DISPLAY_BUILD_ID\s*=\s*['"]([^'"]+)['"]/);
+  if (!match) throw new Error('__HERMES_DISPLAY_BUILD_ID not found in src/generated/build-id.js; run npm run generate:build-id');
   return match[1];
 }
 

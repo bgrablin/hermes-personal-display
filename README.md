@@ -73,6 +73,7 @@ Core paths:
 - `src/mascot/` - character runtime, behavior machine, touch effects, audio hooks, sanitization.
 - `schemas/` - public display-state/avatar-event/optic-state contract sources plus shared presets/postures.
 - `src/generated/display-contract.js` - generated browser contract constants.
+- `src/generated/build-id.js` - generated browser build/cache identity for first-party runtime assets.
 - `scripts/generated/display_contract.py` - generated Python contract constants.
 - `src/state.js` - display packet handling that consumes the generated contract.
 - `scripts/hermes_display_server.py` - compatibility HTTP route boundary for the local static server plus display-state API.
@@ -124,6 +125,20 @@ python3 scripts/generate_display_contract.py
 ```
 
 Do not hand-edit `src/generated/display-contract.js` or `scripts/generated/display_contract.py`.
+
+### Runtime build/cache identity
+
+The physical kiosk URL includes `v=<build>` so Chromium refreshes changed first-party assets after a
+restart. Do not edit that value by hand. The source of truth is generated:
+
+```bash
+npm run generate:build-id
+```
+
+That command computes a deterministic content hash of first-party runtime assets, writes
+`src/generated/build-id.js`, and synchronizes first-party `?v=` cache keys in
+`src/character-runtime.html`. Vendor asset pins are intentionally stable and are not changed unless the
+vendored asset changes. `npm run check:kiosk` fails if the generated id or first-party cache keys drift.
 
 ### Display operating modes
 
@@ -182,7 +197,7 @@ Physical panel:
   DP-2, 1920x1280, inverted, primary, position 0x0
 ```
 
-`hermes-display verify` checks the live Chromium command line for the full operator URL shape, including the build cache key (`v=<build>`). `audience=family` or `family=1` suppresses private/operator overlays such as Augury.
+`hermes-display verify` checks the live Chromium command line for the full operator URL shape, including the generated build cache key (`v=<build>`). `audience=family` or `family=1` suppresses private/operator overlays such as Augury.
 
 The Python display server is also available for local state API work:
 
