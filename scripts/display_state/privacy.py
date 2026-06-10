@@ -12,8 +12,6 @@ AUGURY_REDACTED_PLACEHOLDER = "[redacted]"
 
 AUGURY_HARD_REDACT_PATTERNS: list[re.Pattern[str]] = [
     *SECRET_PATTERNS,
-    re.compile(r"/home/[^/]+/[^\s]+"),
-    re.compile(r"(?:^|\s)(?:\.{0,2}/[\w.-]+|~/|/[\w.-]+(?:/[\w.-]+)+)"),
     re.compile(r"(?i)\bbearer\s+[A-Za-z0-9._~\-+/=]{16,}\b"),
     re.compile(r"(?i)\bauthorization\s*[:=]\s*[^\s'\"]{12,}"),
     re.compile(r"(?i)\b(?:api[_-]?key|access[_-]?key|secret[_-]?key|client[_-]?secret)\s+[A-Za-z0-9._~\-+/=]{12,}\b"),

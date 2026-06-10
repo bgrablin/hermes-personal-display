@@ -342,7 +342,7 @@ def load_event_json(raw: bytes) -> dict[str, Any]:
 class AvatarEventBus:
     def __init__(self, replay_limit: int = REPLAY_LIMIT, max_subscribers: int = MAX_SUBSCRIBERS) -> None:
         self.replay: deque[dict[str, Any]] = deque(maxlen=replay_limit)
-        self.subscribers: set[queue.Queue[dict[str, Any]]] = set()
+        self.subscribers: set[queue.Queue[Any]] = set()
         self.max_subscribers = max(1, int(max_subscribers))
         self.lock = threading.Lock()
         self.accepted = 0
@@ -361,25 +361,42 @@ class AvatarEventBus:
             self.accepted += 1
             self.replay.append(safe)
             subscribers = list(self.subscribers)
-        stale_subscribers: list[queue.Queue[dict[str, Any]]] = []
+        stale_subscribers: list[queue.Queue[Any]] = []
         for subscriber in subscribers:
             try:
                 subscriber.put_nowait(safe)
             except queue.Full:
                 stale_subscribers.append(subscriber)
         if stale_subscribers:
+            for subscriber in stale_subscribers:
+                self._signal_close(subscriber)
             with self.lock:
                 for subscriber in stale_subscribers:
                     self.subscribers.discard(subscriber)
         return safe
+
+    @staticmethod
+    def _signal_close(subscriber: queue.Queue[Any]) -> None:
+        """Tell a subscriber stream to close so EventSource reconnects."""
+        attempts = max(1, getattr(subscriber, "maxsize", 1) or 1) + 1
+        for _ in range(attempts):
+            try:
+                subscriber.put_nowait(None)
+                return
+            except queue.Full:
+                try:
+                    subscriber.get_nowait()
+                except queue.Empty:
+                    return
 
     def record_drop(self, reason: str) -> None:
         with self.lock:
             self.dropped += 1
             self.last_rejection = str(reason or "invalid_event")[:120]
 
-    def subscribe(self) -> queue.Queue[dict[str, Any]]:
-        subscriber: queue.Queue[dict[str, Any]] = queue.Queue(maxsize=25)
+    def subscribe(self) -> queue.Queue[Any]:
+        subscriber: queue.Queue[Any] = queue.Queue(maxsize=25)
+        evicted: queue.Queue[Any] | None = None
         with self.lock:
             if len(self.subscribers) >= self.max_subscribers:
                 evicted = max(self.subscribers, key=lambda item: item.qsize(), default=None)
@@ -387,6 +404,8 @@ class AvatarEventBus:
                     self.subscribers.discard(evicted)
             self.subscribers.add(subscriber)
             replay = list(self.replay)[-25:]
+        if evicted is not None:
+            self._signal_close(evicted)
         for event in replay:
             try:
                 subscriber.put_nowait(event)

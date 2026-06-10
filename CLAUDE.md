@@ -60,6 +60,11 @@ answers, raw logs/tracebacks/tool output, private file paths, URLs with tokens, 
 strings, CUI/customer/government terms, or unbounded free text. Validators and checks reject these —
 treat a check failure as a design signal, not an obstacle to pattern around.
 
+Augury is an operator-only private overlay, so its redaction policy is intentionally narrower than
+browser-facing display-state cards: redact credential/token/CUI/log-payload shapes, but preserve normal
+file paths when they are useful operational context. Do not apply blanket path redaction to Augury
+without also updating privacy tests and this policy.
+
 Operating modes: Safe Display Mode is the default. Family/Entertainment mode
 (`audience=family` or `family=1`) suppresses operator overlays (Augury) and receives no work/personal
 data; exiting family mode back to operator is a privacy boundary (hence the longer exit hold).

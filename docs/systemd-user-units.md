@@ -69,13 +69,12 @@ Do not confuse `launch-kiosk.sh` with the live `xsession-minix-kiosk.sh` path. T
 The live kiosk unit is system-level because it owns tty7/startx and conflicts with the display manager. To restore it on the NUC:
 
 ```bash
-sudo install -m 0644 deploy/systemd-system/hermes-personal-display-minix.service /etc/systemd/system/hermes-personal-display-minix.service
-sudo install -d -m 0755 /etc/systemd/system/hermes-personal-display-minix.service.d
-sudo install -m 0644 deploy/systemd-system/hermes-personal-display-minix.service.d/*.conf /etc/systemd/system/hermes-personal-display-minix.service.d/
+./scripts/install-system-unit.sh
 sudo install -m 0644 deploy/systemd-system/hermes-nuc-thermal-policy.service /etc/systemd/system/hermes-nuc-thermal-policy.service
 sudo systemctl daemon-reload
 sudo systemctl enable --now hermes-nuc-thermal-policy.service
-sudo systemctl enable --now hermes-personal-display-minix.service
+sudo systemctl restart hermes-personal-display-minix.service
+./scripts/hermes-display verify
 ```
 
 Machine-specific display/audio choices belong in `~/.config/hermes-personal-display.env`; the scripts fall back to auto-detection where possible.

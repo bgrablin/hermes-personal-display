@@ -1837,8 +1837,13 @@ def handle_entertainment_line(payload: dict) -> dict:
     except Exception:
         cache = {}
     if cache_key in cache:
-        cached = validate_entertainment_line(cache[cache_key])
-        return {"ok": True, **cached, "cache_key": cache_key, "cached": True}
+        try:
+            cached = validate_entertainment_line(cache[cache_key])
+        except Exception:
+            cache.pop(cache_key, None)
+            atomic_json_write(ENTERTAINMENT_LINE_CACHE_PATH, cache)
+        else:
+            return {"ok": True, **cached, "cache_key": cache_key, "cached": True}
     api_key = os.environ.get("OPENAI_API_KEY", "").strip()
     if not api_key or not entertainment_budget_allowed("line_generation"):
         fallback = validate_entertainment_line({"line": "Boop received!", "caption": "Boop received!", "emotion": "delighted", "sfx_hint": "boop", "particle_theme": "stars"})
@@ -1951,8 +1956,13 @@ def handle_entertainment_micro_show(payload: dict) -> dict:
     except Exception:
         cache = {}
     if cache_key in cache:
-        cached = validate_micro_show(cache[cache_key])
-        return {"ok": True, **cached, "cache_key": cache_key, "cached": True}
+        try:
+            cached = validate_micro_show(cache[cache_key])
+        except Exception:
+            cache.pop(cache_key, None)
+            atomic_json_write(ENTERTAINMENT_LINE_CACHE_PATH, cache)
+        else:
+            return {"ok": True, **cached, "cache_key": cache_key, "cached": True}
     api_key = os.environ.get("OPENAI_API_KEY", "").strip()
     if not api_key or not entertainment_budget_allowed("micro_show"):
         return _fallback_micro_show("missing_openai_api_key" if not api_key else "server_micro_show_budget_exhausted")
@@ -2001,7 +2011,17 @@ def _deterministic_daily_creature(today: str) -> dict:
     return {"ok": False, "fallback": "deterministic", "date": today, "name": name, "color_theme": themes[idx % len(themes)], "sound": "chirp", "favorite_motion": "spiral", "line": f"{name} found a sparkle!", "sequence_hint": "daily_creature_visit"}
 
 
-def validate_daily_creature(payload: dict, today: str) -> dict:
+def validate_daily_creature(payload: dict, today: str, *, strict: bool = False) -> dict:
+    if strict:
+        required = {"name", "color_theme", "sound", "favorite_motion", "line", "sequence_hint"}
+        if not isinstance(payload, dict) or not required <= payload.keys():
+            raise ValueError("invalid_daily_creature_cache")
+        for key in required:
+            value = payload.get(key)
+            if not isinstance(value, str) or not value.strip():
+                raise ValueError("invalid_daily_creature_cache")
+        if payload.get("sequence_hint") not in entertainment_sequence_ids():
+            raise ValueError("invalid_daily_creature_sequence")
     name = _normalize_entertainment_text(payload.get("name") or "Zibble", 24)
     color_theme = _normalize_entertainment_text(payload.get("color_theme") or "moon cyan", 32)
     sound = str(payload.get("sound") or "chirp").strip().lower()[:24]
@@ -2020,8 +2040,13 @@ def handle_daily_creature() -> dict:
     except Exception:
         cache = {}
     if cache.get("date") == today and isinstance(cache.get("creature"), dict):
-        creature = validate_daily_creature(cache["creature"], today)
-        return {"ok": True, "cached": True, **creature}
+        try:
+            creature = validate_daily_creature(cache["creature"], today, strict=True)
+        except Exception:
+            cache = {}
+            atomic_json_write(ENTERTAINMENT_DAILY_CACHE_PATH, cache)
+        else:
+            return {"ok": True, "cached": True, **creature}
     api_key = os.environ.get("OPENAI_API_KEY", "").strip()
     if not api_key:
         creature = _deterministic_daily_creature(today)
@@ -2228,6 +2253,8 @@ class Handler(SimpleHTTPRequestHandler):
             while True:
                 try:
                     event = subscriber.get(timeout=15)
+                    if event is None:
+                        break
                     self.wfile.write(sse_frame(event))
                 except Exception as exc:
                     if exc.__class__.__name__ == "Empty":

@@ -26,6 +26,8 @@ SENSITIVE_CASES = [
     "A" * 96,
 ]
 
+AUGURY_SENSITIVE_CASES = [case for case in SENSITIVE_CASES if not case.startswith("/home/")]
+
 
 @pytest.mark.parametrize("text", SENSITIVE_CASES)
 def test_scrub_redacts_private_or_credential_shaped_text(text: str) -> None:
@@ -46,13 +48,23 @@ def test_clean_log_msg_redacts_and_caps(text: str) -> None:
     assert FAKE_SECRET not in cleaned
 
 
-@pytest.mark.parametrize("text", SENSITIVE_CASES)
+@pytest.mark.parametrize("text", AUGURY_SENSITIVE_CASES)
 def test_augury_clean_redacts_and_caps(text: str) -> None:
     cleaned = augury_clean(f"prefix {text}\nsecond line", 40)
     assert len(cleaned) <= 40
     assert "\n" not in cleaned
     assert "brian" not in cleaned.lower()
     assert FAKE_SECRET not in cleaned
+
+
+def test_augury_preserves_normal_file_paths_but_redacts_url_tokens() -> None:
+    normal_path = "/home/brian/.hermes/projects/personal-display/src/state.js"
+    cleaned = augury_clean(f"edited {normal_path}", 160)
+    assert normal_path in cleaned
+    token_url = "https://example.test/callback?" + "tok" + "en=" + FAKE_SECRET
+    assert "[redacted]" in augury_clean(token_url, 160)
+    assert FAKE_SECRET not in augury_clean(token_url, 160)
+    assert scrub(normal_path) == "[display-safe detail hidden]"
 
 
 def test_sanitize_current_work_strips_forbidden_keys_and_caps_text() -> None:

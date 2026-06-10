@@ -1,6 +1,6 @@
 [Unit]
 Description=Hermes Personal Display MINIX SF10T X11 kiosk
-Documentation=file:%h/.hermes/projects/personal-display/docs/systemd-user-units.md
+Documentation=file:/home/brian/.hermes/projects/personal-display/docs/systemd-user-units.md
 After=network-online.target
 Wants=network-online.target
 Conflicts=display-manager.service
@@ -10,7 +10,7 @@ Type=simple
 User=brian
 WorkingDirectory=/home/brian/.hermes/projects/personal-display
 Environment=HOME=/home/brian
-Environment=XDG_RUNTIME_DIR=/run/user/%U
+Environment=XDG_RUNTIME_DIR=/run/user/1000
 EnvironmentFile=-/home/brian/.config/hermes-personal-display.env
 PAMName=login
 TTYPath=/dev/tty7
