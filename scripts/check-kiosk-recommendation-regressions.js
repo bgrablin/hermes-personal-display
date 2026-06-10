@@ -517,8 +517,33 @@ if (/fps[=')\"]|FPS_LIMIT|applyExplicitFrameCap/.test(runtimeHtml + '\n' + xsess
 const buildIdMatch = appSource.match(/const\s+DISPLAY_BUILD_ID\s*=\s*['"]([^'"]+)['"]/);
 if (!buildIdMatch) fail('Runtime app must declare DISPLAY_BUILD_ID.');
 const expectedAssetVersion = buildIdMatch[1];
-if (!runtimeHtml.includes(`?v=${expectedAssetVersion}`) || !appSource.includes(`__HERMES_DISPLAY_BUILD_ID = DISPLAY_BUILD_ID`)) {
-  fail(`Runtime HTML and app build id must share ${expectedAssetVersion}.`);
+if (!appSource.includes('__HERMES_DISPLAY_BUILD_ID = DISPLAY_BUILD_ID')) {
+  fail('Runtime app must publish DISPLAY_BUILD_ID on window.__HERMES_DISPLAY_BUILD_ID.');
+}
+// Every first-party static asset in the runtime HTML must carry ?v=<DISPLAY_BUILD_ID>
+// so one build-id bump in app.js force-refreshes every first-party module on the
+// physical kiosk. Vendor bundles may keep their own pinned ?v= (they change on
+// re-vendoring, not on app builds), but must never ship unversioned.
+const runtimeAssetRefs = [...runtimeHtml.matchAll(/<(?:script[^>]*\ssrc|link[^>]*\shref)="([^"]+)"/g)]
+  .map((match) => match[1])
+  .filter((ref) => ref.startsWith('./'));
+const firstPartyRefs = runtimeAssetRefs.filter((ref) => !ref.startsWith('./vendor/'));
+const vendorRefs = runtimeAssetRefs.filter((ref) => ref.startsWith('./vendor/'));
+if (firstPartyRefs.length < 12 || vendorRefs.length < 4) {
+  fail(`Runtime asset extraction regressed: found ${firstPartyRefs.length} first-party / ${vendorRefs.length} vendor refs; expected >= 12 / >= 4. Update the guard if the asset list intentionally changed.`);
+}
+for (const required of ['./styles.css', './mascot/app.js', './generated/display-contract.js']) {
+  if (!firstPartyRefs.some((ref) => ref.split('?')[0] === required)) {
+    fail(`Runtime HTML must still reference ${required} as a first-party static asset.`);
+  }
+}
+const wrongFirstParty = firstPartyRefs.filter((ref) => ref.split('?')[1] !== `v=${expectedAssetVersion}`);
+if (wrongFirstParty.length) {
+  fail(`First-party assets must use ?v=${expectedAssetVersion} (DISPLAY_BUILD_ID) so one bump invalidates kiosk caches; offenders: ${wrongFirstParty.join(', ')}`);
+}
+const unversionedVendor = vendorRefs.filter((ref) => !/^v=[\w.-]+$/.test(ref.split('?')[1] || ''));
+if (unversionedVendor.length) {
+  fail(`Vendor assets must keep an explicit ?v= cache pin; offenders: ${unversionedVendor.join(', ')}`);
 }
 requireAll(xsessionSource, ['BUILD_ID="${PERSONAL_DISPLAY_BUILD_ID:-$($SCRIPT_DIR/hermes-display build-id)}"', 'query.append((\'v\', build))'], 'Physical xsession launcher must derive the kiosk URL build id from the runtime');
 requireAll(displayCliSource, ['verify)', 'fix)', 'systemctl is-active --quiet "$SYSTEM_SERVICE"', 'sudo -n systemctl restart "$SYSTEM_SERVICE"', 'DISPLAY_BUILD_ID'], 'hermes-display CLI must verify/fix the real service-owned physical kiosk');
