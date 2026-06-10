@@ -222,13 +222,15 @@ test.describe('Hermes kiosk smoke and visual regression anchors', () => {
     let auguryFetches = 0;
     await page.route('**/api/augury-feed**', async (route) => {
       auguryFetches += 1;
-      await route.fulfill({ status: 500, body: 'family mode should not fetch augury' });
+      await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ schema_version: '0.1.0', items: [{ text: 'PRIVATE_AUGURY_SENTINEL_TOKEN' }] }) });
     });
     await page.goto(`${runtimeUrl('idle_watch', testInfo)}&augury=1&family=1&debug=1`);
     await expect(page.locator('body.family-theater[data-audience="family"]')).toBeVisible();
     await expect(page.locator('.augury-ambient')).toHaveCount(0);
     await expect(page.locator('.augury-proof')).toHaveCount(0);
     expect(await page.evaluate(() => document.body.dataset.auguryPresence)).toBe('hidden');
+    expect(await page.evaluate(() => document.documentElement.outerHTML.includes('PRIVATE_AUGURY_SENTINEL_TOKEN'))).toBe(false);
+    expect(await page.evaluate(() => JSON.stringify(window.__HERMES_AUGURY_FEED__ || '').includes('PRIVATE_AUGURY_SENTINEL_TOKEN'))).toBe(false);
     expect(auguryFetches).toBe(0);
   });
 

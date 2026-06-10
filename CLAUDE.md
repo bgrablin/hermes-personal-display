@@ -47,8 +47,9 @@ generated constants → `scripts/hermes_display_server.py` (`/api/hermes-state`,
 - `src/generated/build-id.js` — **generated, never hand-edit**. `npm run generate:build-id` computes a
   deterministic content hash from first-party runtime assets and synchronizes the first-party `?v=` cache
   keys in `src/character-runtime.html`.
-- `scripts/display_state/` — server-side module boundary: collector, resolver, contract, privacy,
-  persistence, route rail, remote memory, entertainment, fixtures.
+- `scripts/display_state/` — server-side helper boundary: collector, resolver, contract, privacy,
+  persistence, route rail, remote memory, entertainment, fixtures. Extraction is incremental;
+  `scripts/hermes_display_server.py` still owns the HTTP route surface and some orchestration glue.
 - `src/mascot/` — character runtime: `app.js` (entry, kiosk/family mode, hold gestures),
   `behavior-machine.js`, `states.js`, `touch-fx.js`, `sanitize.js`, `entertainment.js`.
 - `tests/fixtures/` — synthetic display-safe fixtures only; see `tests/fixtures/README.md` before adding.

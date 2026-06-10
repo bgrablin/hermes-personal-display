@@ -18,6 +18,7 @@ from pathlib import Path
 from typing import Any
 
 SCHEMA_VERSION = "0.1.0"
+ID_PATTERN = re.compile(r"^[A-Za-z0-9_.:-]{1,96}$")
 MAX_EVENT_BYTES = 2048
 REPLAY_LIMIT = 100
 MAX_SUBSCRIBERS = 16
@@ -230,8 +231,9 @@ def validation_errors(event: dict[str, Any], *, max_bytes: int = MAX_EVENT_BYTES
 
     if event.get("schema_version") != SCHEMA_VERSION:
         errors.append(f"schema_version must be {SCHEMA_VERSION}")
-    if not isinstance(event.get("id"), str) or not 1 <= len(event.get("id", "")) <= 96:
-        errors.append("id must be 1..96 chars")
+    event_id = event.get("id")
+    if not isinstance(event_id, str) or not ID_PATTERN.fullmatch(event_id):
+        errors.append("id must be 1..96 safe SSE id chars")
     if event.get("event") not in EVENTS:
         errors.append(f"event not allowlisted: {event.get('event')!r}")
     if not isinstance(event.get("source"), str) or not 1 <= len(event.get("source", "")) <= 80:

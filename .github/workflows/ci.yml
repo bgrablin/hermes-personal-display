@@ -50,3 +50,10 @@ jobs:
 
       - name: Run non-Playwright test gate
         run: npm test
+
+      - name: Run privacy and kiosk guards
+        run: |
+          npm run check:client-events
+          npm run check:kiosk
+          npm run check:augury-feed
+          ./scripts/verify-project.sh

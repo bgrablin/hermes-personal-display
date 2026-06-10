@@ -31,7 +31,7 @@ This repository is intentionally trimmed to the files needed to run, test, and o
 - `scripts/xsession-minix-kiosk.sh` — current MINIX/SF10T X11 Chromium kiosk session.
 - `scripts/generate-build-id.js` — synchronizes `src/generated/build-id.js` and first-party runtime `?v=` cache keys.
 - `deploy/systemd-user/` — preview and generic user-kiosk templates.
-- `deploy/systemd-system/` — accepted MINIX/thermal system snippets.
+- `deploy/systemd-system/` — MINIX/thermal system unit templates and drop-ins; install/render live kiosk unit via `scripts/install-system-unit.sh`.
 - `docs/minix-sf10t-bringup.md` and `docs/systemd-user-units.md` — current operational notes.
 
 ## Tests and quality gates

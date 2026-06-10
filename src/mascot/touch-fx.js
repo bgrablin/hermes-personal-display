@@ -73,6 +73,21 @@
     let disposed = false;
     let touchIdleTimer = 0;
     let statusInterval = 0;
+    let cachedOpticRect = null;
+    let cachedOpticRectAt = 0;
+
+    function invalidateOpticRect() {
+      cachedOpticRect = null;
+      cachedOpticRectAt = 0;
+    }
+
+    function opticRect() {
+      const now = performance.now();
+      if (cachedOpticRect && now - cachedOpticRectAt < 120) return cachedOpticRect;
+      cachedOpticRect = document.querySelector('.cb-radial-stage')?.getBoundingClientRect() || null;
+      cachedOpticRectAt = now;
+      return cachedOpticRect;
+    }
 
     const acceptsPointer = (event) => event.pointerType !== 'mouse' || allowMouseTouchTest;
     const isReducedMotion = () => window.matchMedia?.('(prefers-reduced-motion: reduce)')?.matches;
@@ -183,7 +198,7 @@
     }
 
     function touchVectorFromOptic(x, y) {
-      const optic = document.querySelector('.cb-radial-stage')?.getBoundingClientRect();
+      const optic = opticRect();
       const cx = optic ? optic.left + optic.width / 2 : window.innerWidth / 2;
       const cy = optic ? optic.top + optic.height / 2 : window.innerHeight / 2;
       const dx = x - cx;
@@ -553,6 +568,7 @@
     function onFxPointerDown(event) {
       if (!acceptsPointer(event)) return;
       event.preventDefault();
+      invalidateOpticRect();
       const zone = classifyTouchFx(event);
       const state = {
         x: event.clientX,
@@ -610,6 +626,7 @@
       const releasedCharge = releaseChargeOrb(event.pointerId, event.clientX, event.clientY);
       const duration = performance.now() - state.startedAt;
       activeTouches.delete(event.pointerId);
+      invalidateOpticRect();
       if (!releasedCharge && duration < 360 && !state.moved && !state.hadMultitouch && !state.emittedMultiTouch && !state.emittedThreeFinger) {
         const remaining = Array.from(activeTouches.values());
         if (remaining.length >= 2) spawnPartyBurst(event.clientX, event.clientY);
@@ -621,6 +638,7 @@
       const state = activeTouches.get(event.pointerId);
       if (state) window.clearTimeout(state.chargeTimer);
       activeTouches.delete(event.pointerId);
+      invalidateOpticRect();
       activeCharges.get(event.pointerId)?.remove();
       activeCharges.delete(event.pointerId);
     }
@@ -632,6 +650,7 @@
       document.body.removeEventListener('pointerup', onFxPointerUp);
       document.body.removeEventListener('pointercancel', onFxPointerCancel);
       document.body.removeEventListener('pointerleave', onFxPointerCancel);
+      window.removeEventListener('resize', invalidateOpticRect);
       fxLayer.remove();
       feedBadge.remove();
       window.clearTimeout(touchIdleTimer);
@@ -644,6 +663,7 @@
     document.body.addEventListener('pointerup', onFxPointerUp, { passive: false });
     document.body.addEventListener('pointercancel', onFxPointerCancel, { passive: false });
     document.body.addEventListener('pointerleave', onFxPointerCancel, { passive: false });
+    window.addEventListener('resize', invalidateOpticRect, { passive: true });
 
     window.addEventListener('hermes-live-packet', () => { updateTheme(); updateFeedBadge(); });
     if (typeof options.updateAudioBadge === 'function') {

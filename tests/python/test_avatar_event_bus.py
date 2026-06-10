@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 import sys
+
+import pytest
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -9,7 +11,7 @@ SCRIPTS = ROOT / "scripts"
 if str(SCRIPTS) not in sys.path:
     sys.path.insert(0, str(SCRIPTS))
 
-from avatar_event_bus import AvatarEventBus  # noqa: E402
+from avatar_event_bus import AvatarEventBus, ValidationError, validate_event  # noqa: E402
 
 
 def sample_event(event_id: str = "evt-1") -> dict:
@@ -39,6 +41,13 @@ def drain_until_close(subscriber, limit: int = 40) -> bool:
         if subscriber.get_nowait() is None:
             return True
     return False
+
+
+def test_event_id_rejects_crlf_sse_frame_injection() -> None:
+    with pytest.raises(ValidationError, match='safe SSE id'):
+        validate_event(sample_event('evt-1\nid: injected'))
+    with pytest.raises(ValidationError, match='safe SSE id'):
+        validate_event(sample_event('evt-1\r\nevent: injected'))
 
 
 def test_full_slow_subscriber_is_closed_on_publish() -> None:

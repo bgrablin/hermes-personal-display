@@ -76,6 +76,22 @@ describe('adopted stack contracts', () => {
     expect(rejected.packet.mode).toBe('idle_watch');
   });
 
+  it('redacts credential-like browser captions and suppresses snippets', () => {
+    const window = runScripts(['src/state.js']);
+    const packet = window.HermesDisplayState.normalizePersonaPacket({
+      mood: 'idle',
+      skin: 'retro-robot-core',
+      caption: { text: 'token=ghp_1234567890abcdef1234567890abcdef123456' },
+      display: { text: 'api_key=sk-test-1234567890abcdef' },
+      snippet: 'password=hunter2',
+    });
+    expect(packet.caption.text).toBe('[redacted credential-like text]');
+    expect(packet.display.text).toBe('[redacted credential-like text]');
+    expect(packet.snippet).toBeNull();
+    expect(JSON.stringify(packet)).not.toContain('ghp_');
+    expect(JSON.stringify(packet)).not.toContain('hunter2');
+  });
+
   it('maps optic behavior modes to display presets before rendering', () => {
     const window = runScripts(['src/mascot/behavior-machine.js', 'src/state.js']);
 

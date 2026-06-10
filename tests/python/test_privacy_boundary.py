@@ -24,9 +24,21 @@ SENSITIVE_CASES = [
     "https://example.test/callback?" + "tok" + "en=" + FAKE_SECRET + "&ok=1",
     "line one\nline two\n" + "sec" + "ret=" + FAKE_SECRET,
     "A" * 96,
+    r"C:\\Users\\Brian\\secrets\\notes.txt",
+    r"..\\private\\notes.txt",
+    "src/private/customer-notes.md",
+    "government customer status should never be browser-facing",
 ]
 
-AUGURY_SENSITIVE_CASES = [case for case in SENSITIVE_CASES if not case.startswith("/home/")]
+AUGURY_SENSITIVE_CASES = [
+    "author" + "ization: " + FAKE_SECRET,
+    "tok" + "en=" + FAKE_SECRET,
+    "api_" + "key=" + FAKE_SECRET,
+    "https://example.test/callback?" + "tok" + "en=" + FAKE_SECRET,
+    "BEGIN PRIVATE KEY " + FAKE_SECRET,
+    "CUI " + FAKE_SECRET,
+    "A" * 96,
+]
 
 
 @pytest.mark.parametrize("text", SENSITIVE_CASES)
@@ -111,7 +123,16 @@ def test_build_state_from_hostile_facts_contains_only_allowlisted_top_fields() -
         "system": {"cpu": "nope", "memory": "bad", "temp_c": "nan"},
         "gateway_ok": True,
         "warn_lines": ["2026-01-01 00:00:00 INFO " + "tok" + "en=" + FAKE_SECRET],
-        "kanban": {"active": 0, "tasks": []},
+        "kanban": {
+            "active": 1,
+            "summary": "customer path src/private/plan.md",
+            "tasks": [{
+                "title": r"Fix government customer issue at C:\\Users\\Brian\\secret.txt",
+                "status": "blocked",
+                "assignee": "Brian /home/brian/private/context",
+                "step": "send customer token",
+            }],
+        },
         "manual_override": {"caption": "sec" + "ret=" + FAKE_SECRET},
         "resident_agents": 0,
         "malicious_top_level": "not allowed",
@@ -128,5 +149,9 @@ def test_build_state_from_hostile_facts_contains_only_allowlisted_top_fields() -
     assert "raw prompt" not in rendered
     assert "raw output" not in rendered
     assert "id_rsa" not in rendered
+    assert "government" not in rendered.lower()
+    assert "customer" not in rendered.lower()
+    assert "private/context" not in rendered
+    assert "secret.txt" not in rendered
     assert FAKE_SECRET not in rendered
     assert "\n" not in packet["caption"]["text"]

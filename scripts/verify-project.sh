@@ -63,7 +63,7 @@ npm run build
 
 say '== http, if preview server is running =='
 python3 - <<'PY' "$BASE_URL"
-import json, sys, urllib.request
+import json, sys, urllib.error, urllib.request
 base=sys.argv[1].rstrip('/') + '/'
 paths=[
   'api/hermes-state',
@@ -91,17 +91,22 @@ retired_paths = [
   'src/character-runtime-v2.html?kiosk=1&legacy-check=1',
   'src/mascot-v2-debug.html?health=1',
 ]
+retired_failed = False
 for old_path in retired_paths:
     try:
         opener.open(base + old_path, timeout=3)
-        print('WARN retired path served unexpectedly', old_path)
+        print('FAIL retired path served unexpectedly', old_path)
+        retired_failed = True
     except urllib.error.HTTPError as exc:
         if exc.code == 404:
             print('OK retired path 404', old_path)
         else:
-            print('WARN retired path unexpected status', old_path, exc.code, exc.headers.get('Location') or '')
+            print('FAIL retired path unexpected status', old_path, exc.code, exc.headers.get('Location') or '')
+            retired_failed = True
     except Exception as exc:
         print('WARN retired path check unavailable', old_path, exc)
+if retired_failed:
+    raise SystemExit(1)
 PY
 
 exit "$fail"

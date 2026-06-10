@@ -13,6 +13,7 @@ import re
 import sqlite3
 import subprocess
 import tempfile
+import threading
 import time
 import urllib.error
 import urllib.request
@@ -74,6 +75,10 @@ ENTERTAINMENT_ALLOWED_TRIGGERS = {"boop", "tap", "long_press", "constellation", 
 ENTERTAINMENT_ALLOWED_MODES = {"idle_watch", "reasoning", "searching", "tool_shell", "waiting_user", "complete", "blocked", "degraded_offline", "family"}
 ENTERTAINMENT_ALLOWED_EMOTIONS = {"curious", "delighted", "sleepy", "silly", "proud", "gentle"}
 ENTERTAINMENT_ALLOWED_SFX = {"sparkle", "chime", "boop", "whoosh", "pop", "none"}
+DEFAULT_BIND_HOST = "127.0.0.1"
+REQUEST_SOCKET_TIMEOUT_SECONDS = 15
+HERMES_STATE_CACHE_TTL_SECONDS = 1.0
+PERSONA_HISTORY_MAX_LINES = 1000
 ENTERTAINMENT_ALLOWED_PARTICLES = {"fireflies", "stars", "comets", "bubbles", "confetti", "rings"}
 MICRO_SHOW_ALLOWED_EVENTS = {"PARTICLE", "RIPPLE", "GAZE", "SFX", "COMET", "ORBIT", "CAPTION", "BLINK", "GLOW"}
 MICRO_SHOW_ALLOWED_SFX = {"sfx-chime-1", "sfx-chime-soft", "sfx-whoosh", "sfx-hop1", "sfx-hop2", "sfx-hop3", "sfx-inhale-soft", "sfx-step", "sfx-giggle-mini", "sfx-applause-short"}
@@ -147,6 +152,9 @@ TOOL_ACTIVITY_SUMMARIES = {
 CURRENT_WORK_SECONDS = 4 * 60
 CURRENT_WORK_MAX_AGE_SECONDS = CURRENT_WORK_SECONDS
 AVATAR_EVENT_BUS = AvatarEventBus()
+_STATE_CACHE_LOCK = threading.Lock()
+_STATE_CACHE: dict[str, object] = {"at": 0.0, "state": None}
+_ENTERTAINMENT_USAGE_LOCK = threading.Lock()
 
 # Augury ambient log feed. The Hermes physical display is a private,
 # home-LAN-only appliance, so this feed intentionally allows real prompt/log
@@ -439,6 +447,28 @@ def session_label(session_id: str | None, platform: str | None = None) -> str:
 def sanitize_current_work(work: dict) -> dict:
     return _sanitize_current_work(work, max_age_seconds=CURRENT_WORK_MAX_AGE_SECONDS)
 
+
+def sanitize_kanban_snapshot(kanban: dict) -> dict:
+    raw = kanban or {}
+    tasks = []
+    for task in list(raw.get("tasks") or [])[:3]:
+        if not isinstance(task, dict):
+            continue
+        tasks.append({
+            "title": clean_log_msg(task.get("title") or "task", 54) or "task",
+            "status": clean_log_msg(task.get("status") or "unknown", 24),
+            "assignee": clean_log_msg(task.get("assignee") or "", 32),
+            "step": clean_log_msg(task.get("step") or task.get("current_step_key") or "", 32),
+        })
+    try:
+        active = max(0, int(raw.get("active") or len(tasks) or 0))
+    except Exception:
+        active = len(tasks)
+    return {
+        "active": min(len(tasks), active),
+        "summary": clean_log_msg(raw.get("summary") or f"{len(tasks)} active task(s)", 54),
+        "tasks": tasks,
+    }
 
 def recent_agent_work(path: Path, minutes: float = CURRENT_WORK_SECONDS / 60) -> dict:
     """Return display-safe current-work detail from recent Hermes agent logs."""
@@ -864,12 +894,12 @@ def kanban_snapshot() -> dict:
             ).fetchall()
         tasks = []
         for r in rows:
-            title = (r["title"] or "task")[:54]
+            title = clean_log_msg(r["title"] or "task", 54) or "task"
             tasks.append({
                 "title": title,
-                "status": r["status"],
-                "assignee": r["assignee"],
-                "step": r["current_step_key"],
+                "status": clean_log_msg(r["status"] or "unknown", 24),
+                "assignee": clean_log_msg(r["assignee"] or "", 32),
+                "step": clean_log_msg(r["current_step_key"] or "", 32),
             })
         return {"active": len(tasks), "summary": f"{len(tasks)} active task(s)", "tasks": tasks}
     except Exception as exc:
@@ -1208,9 +1238,7 @@ def persist_display_bus(state: dict, display_state: dict, optic_state: dict) -> 
     atomic_json_write(OPTIC_STATE_PATH, optic_state)
     atomic_json_write(PUPPET_STATE_PATH, optic_state)
     try:
-        PERSONA_HISTORY_PATH.parent.mkdir(parents=True, exist_ok=True)
-        with PERSONA_HISTORY_PATH.open("a", encoding="utf-8") as fh:
-            fh.write(json.dumps({"at": state["generated_at"], "mood": state.get("mood"), "skin": state.get("skin"), "state_preset": state.get("state_preset"), "optic_mode": optic_state.get("mode")}, sort_keys=True) + "\n")
+        append_bounded_jsonl(PERSONA_HISTORY_PATH, {"at": state["generated_at"], "mood": state.get("mood"), "skin": state.get("skin"), "state_preset": state.get("state_preset"), "optic_mode": optic_state.get("mode")}, max_lines=PERSONA_HISTORY_MAX_LINES)
     except Exception as exc:
         print(f"Display persona history write failed: {scrub(exc.__class__.__name__)}", flush=True)
 
@@ -1361,7 +1389,7 @@ def build_state_from_facts(facts: dict) -> dict:
     facts = {**facts, "work": work}
     active_summary = facts.get("active_summary") or {"count": 0, "sessions": []}
     agents = int(facts.get("resident_agents") or 0)
-    kanban = facts.get("kanban") or {"active": 0, "summary": "0 active task(s)", "tasks": []}
+    kanban = sanitize_kanban_snapshot(facts.get("kanban") or {"active": 0, "summary": "0 active task(s)", "tasks": []})
     system_input = facts.get("system") or {}
     sys, freshness = normalize_system_freshness(system_input)
     gateway_ok = bool(facts.get("gateway_ok"))
@@ -1529,6 +1557,26 @@ def build_state() -> dict:
     return build_state_from_facts(facts)
 
 
+def cached_build_state() -> dict:
+    now = time.monotonic()
+    with _STATE_CACHE_LOCK:
+        cached = _STATE_CACHE.get("state")
+        cached_at = float(_STATE_CACHE.get("at") or 0.0)
+        if isinstance(cached, dict) and now - cached_at < HERMES_STATE_CACHE_TTL_SECONDS:
+            return json.loads(json.dumps(cached))
+    state = build_state()
+    with _STATE_CACHE_LOCK:
+        _STATE_CACHE["at"] = now
+        _STATE_CACHE["state"] = json.loads(json.dumps(state))
+    return state
+
+
+def clear_state_cache() -> None:
+    with _STATE_CACHE_LOCK:
+        _STATE_CACHE["at"] = 0.0
+        _STATE_CACHE["state"] = None
+
+
 def degraded_state(reason: str = "state_api_error") -> dict:
     """Return display-safe degraded state when live collection fails."""
     facts = {
@@ -1644,8 +1692,7 @@ def entertainment_usage() -> dict:
     return usage
 
 
-def entertainment_budget_allowed(kind: str) -> bool:
-    usage = entertainment_usage()
+def _usage_allowed(usage: dict, kind: str) -> bool:
     hour = usage.get("hours", {}).get(_usage_hour(), {})
     if kind == "tts_cache_miss":
         return (
@@ -1659,8 +1706,7 @@ def entertainment_budget_allowed(kind: str) -> bool:
     return False
 
 
-def record_entertainment_usage(kind: str) -> None:
-    usage = entertainment_usage()
+def _increment_usage(usage: dict, kind: str) -> None:
     hour = usage.setdefault("hours", {}).setdefault(_usage_hour(), {"tts_cache_misses": 0})
     if kind == "tts_cache_miss":
         usage["tts_requests"] = int(usage.get("tts_requests", 0)) + 1
@@ -1670,7 +1716,28 @@ def record_entertainment_usage(kind: str) -> None:
         usage["line_requests"] = int(usage.get("line_requests", 0)) + 1
     elif kind == "micro_show":
         usage["micro_show_requests"] = int(usage.get("micro_show_requests", 0)) + 1
-    atomic_json_write(ENTERTAINMENT_USAGE_PATH, usage)
+
+
+def entertainment_budget_allowed(kind: str) -> bool:
+    with _ENTERTAINMENT_USAGE_LOCK:
+        return _usage_allowed(entertainment_usage(), kind)
+
+
+def reserve_entertainment_budget(kind: str) -> bool:
+    with _ENTERTAINMENT_USAGE_LOCK:
+        usage = entertainment_usage()
+        if not _usage_allowed(usage, kind):
+            return False
+        _increment_usage(usage, kind)
+        atomic_json_write(ENTERTAINMENT_USAGE_PATH, usage)
+        return True
+
+
+def record_entertainment_usage(kind: str) -> None:
+    with _ENTERTAINMENT_USAGE_LOCK:
+        usage = entertainment_usage()
+        _increment_usage(usage, kind)
+        atomic_json_write(ENTERTAINMENT_USAGE_PATH, usage)
 
 
 def write_watch_animation_log(payload: dict) -> dict:
@@ -1790,7 +1857,7 @@ def handle_entertainment_tts(payload: dict) -> dict:
     api_key = os.environ.get("OPENAI_API_KEY", "").strip()
     if not api_key:
         return {"ok": False, "fallback": "browser_tts", "reason": "missing_openai_api_key"}
-    if not entertainment_budget_allowed("tts_cache_miss"):
+    if not reserve_entertainment_budget("tts_cache_miss"):
         return {"ok": False, "fallback": "browser_tts", "reason": "server_tts_budget_exhausted"}
     ENTERTAINMENT_TTS_CACHE_DIR.mkdir(parents=True, exist_ok=True)
     speech_payload = {"model": model, "voice": voice, "input": text, "instructions": instructions, "response_format": "mp3"}
@@ -1802,7 +1869,6 @@ def handle_entertainment_tts(payload: dict) -> dict:
         tmp.write(audio)
     os.replace(tmp_name, mp3_path)
     atomic_json_write(meta_path, {"text": text, "voice": voice, "model": model, "instructions": instructions, "line_id": line_id, "sequence_id": sequence_id, "created_at": datetime.now(timezone.utc).isoformat(), "schema_version": ENTERTAINMENT_SCHEMA_VERSION})
-    record_entertainment_usage("tts_cache_miss")
     return {"ok": True, "audio_url": f"/api/hermes-entertainment/tts-cache/{cache_key}.mp3", "cache_key": cache_key, "cached": False, "duration_hint_ms": max(700, min(3500, len(text) * 75))}
 
 
@@ -1845,7 +1911,7 @@ def handle_entertainment_line(payload: dict) -> dict:
         else:
             return {"ok": True, **cached, "cache_key": cache_key, "cached": True}
     api_key = os.environ.get("OPENAI_API_KEY", "").strip()
-    if not api_key or not entertainment_budget_allowed("line_generation"):
+    if not api_key or not reserve_entertainment_budget("line_generation"):
         fallback = validate_entertainment_line({"line": "Boop received!", "caption": "Boop received!", "emotion": "delighted", "sfx_hint": "boop", "particle_theme": "stars"})
         reason = "missing_openai_api_key" if not api_key else "server_line_budget_exhausted"
         return {"ok": False, "fallback": "curated", "reason": reason, **fallback}
@@ -1876,7 +1942,6 @@ def handle_entertainment_line(payload: dict) -> dict:
     generated = validate_entertainment_line(json.loads(output_text))
     cache[cache_key] = generated
     atomic_json_write(ENTERTAINMENT_LINE_CACHE_PATH, cache)
-    record_entertainment_usage("line_generation")
     return {"ok": True, **generated, "cache_key": cache_key, "cached": False}
 
 
@@ -1964,7 +2029,7 @@ def handle_entertainment_micro_show(payload: dict) -> dict:
         else:
             return {"ok": True, **cached, "cache_key": cache_key, "cached": True}
     api_key = os.environ.get("OPENAI_API_KEY", "").strip()
-    if not api_key or not entertainment_budget_allowed("micro_show"):
+    if not api_key or not reserve_entertainment_budget("micro_show"):
         return _fallback_micro_show("missing_openai_api_key" if not api_key else "server_micro_show_budget_exhausted")
     schema = {
         "type": "object", "additionalProperties": False,
@@ -1999,7 +2064,6 @@ def handle_entertainment_micro_show(payload: dict) -> dict:
     show = validate_micro_show(json.loads(output_text))
     cache[cache_key] = show
     atomic_json_write(ENTERTAINMENT_LINE_CACHE_PATH, cache)
-    record_entertainment_usage("micro_show")
     return {"ok": True, **show, "cache_key": cache_key, "cached": False}
 
 
@@ -2076,10 +2140,17 @@ class Handler(SimpleHTTPRequestHandler):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, directory=str(ROOT), **kwargs)
 
-    def loopback_only(self) -> bool:
+    def setup(self) -> None:
+        super().setup()
+        try:
+            self.request.settimeout(REQUEST_SOCKET_TIMEOUT_SECONDS)
+        except Exception:
+            pass
+
+    def loopback_only(self, message: str = "operator-only endpoint accepts localhost requests only") -> bool:
         if is_loopback_request(self.client_address[0], self.headers.get("Host")):
             return True
-        json_response(self, 403, {"error": "loopback_only", "message": "avatar event bus accepts localhost requests only"})
+        json_response(self, 403, {"error": "loopback_only", "message": message})
         return False
 
     def do_GET(self):
@@ -2088,7 +2159,7 @@ class Handler(SimpleHTTPRequestHandler):
             params = parse_qs(parsed.query)
             fixture = params.get("fixture", [None])[0]
             try:
-                state = build_state_from_fixture_name(fixture) if fixture else build_state()
+                state = build_state_from_fixture_name(fixture) if fixture else cached_build_state()
             except FixtureLookupError:
                 json_response(self, 404, {
                     "error": "fixture_not_found",
@@ -2103,6 +2174,8 @@ class Handler(SimpleHTTPRequestHandler):
             json_response(self, 200, state)
             return
         if parsed.path == "/api/augury-feed":
+            if not self.loopback_only("Augury feed is operator-only and accepts localhost requests only"):
+                return
             params = parse_qs(parsed.query)
             limit_raw = params.get("limit", [str(AUGURY_DEFAULT_LIMIT)])[0]
             minutes_raw = params.get("minutes", [str(AUGURY_DEFAULT_MINUTES)])[0]
@@ -2281,7 +2354,7 @@ class Handler(SimpleHTTPRequestHandler):
 
 def main() -> int:
     os.chdir(ROOT)
-    host = os.environ.get("PERSONAL_DISPLAY_BIND", "0.0.0.0")
+    host = os.environ.get("PERSONAL_DISPLAY_BIND", DEFAULT_BIND_HOST)
     port = int(os.environ.get("PERSONAL_DISPLAY_PORT", "8770"))
     server = ThreadingHTTPServer((host, port), Handler)
     print(f"Hermes display server listening on {host}:{port} root={ROOT}", flush=True)

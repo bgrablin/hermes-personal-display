@@ -66,7 +66,7 @@ Do not confuse `launch-kiosk.sh` with the live `xsession-minix-kiosk.sh` path. T
 
 ## System kiosk recovery install
 
-The live kiosk unit is system-level because it owns tty7/startx and conflicts with the display manager. To restore it on the NUC:
+The live kiosk unit is system-level because it owns tty7/startx and conflicts with the display manager. The checked-in `hermes-personal-display-minix.service` is a template containing `@PROJECT_ROOT@`, `@USER@`, `@HOME@`, and `@UID@`; do not copy it directly into `/etc/systemd/system`. To restore it on the NUC, render/install it with the helper:
 
 ```bash
 ./scripts/install-system-unit.sh

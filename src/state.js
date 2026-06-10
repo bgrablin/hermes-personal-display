@@ -389,6 +389,10 @@
         ...(combined.caption || {}),
         text: containsCredentials ? '[redacted credential-like text]' : safeText(combined.caption?.text, preset.caption?.text, 72)
       },
+      display: combined.display && typeof combined.display === 'object' ? {
+        ...combined.display,
+        text: containsCredentials ? '[redacted credential-like text]' : safeText(combined.display.text, combined.display.text, 72)
+      } : combined.display,
       snippet: combined.snippet && !containsCredentials ? {
         ...combined.snippet,
         text: safeText(combined.snippet.text, '', 64)

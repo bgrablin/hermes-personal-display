@@ -22,11 +22,11 @@ AUGURY_HARD_REDACT_PATTERNS: list[re.Pattern[str]] = [
 
 SCRUB_RISKY_PATTERNS: list[re.Pattern[str]] = [
     re.compile(r"(?i)(token|secret|password|api[_-]?key|authorization|bearer)\s*[:=]\s*\S+"),
-    re.compile(r"(?i)\bCUI\b|controlled unclassified information"),
+    re.compile(r"(?i)\b(?:CUI|ITAR|NOFORN|FOUO)\b|controlled unclassified information|\b(?:government|customer|contractor?|DoD|MDA)\b"),
     re.compile(r"(?i)(BEGIN|END) [A-Z ]*(PRIVATE KEY|TOKEN|CERTIFICATE)"),
     # Long base64-like encoded blobs are often logs, payloads, or secrets; hide them.
     re.compile(r"\b[A-Za-z0-9+/]{48,}={0,2}\b"),
-    re.compile(r"(?:^|\s)(?:\.{0,2}/[\w.-]+|~/|/[\w.-]+(?:/[\w.-]+)+)"),
+    re.compile(r"(?:^|\s)(?:[A-Za-z]:\\|\\\\[\w.$-]+\\[\w.$-]+|~[/\\]|/[^\s]+|\.\.?[/\\][^\s]+|(?:[\w.-]+[/\\]){1,}[\w.-]+)"),
     re.compile(r"https?://[^\s?]+\?[^\s]*(?:token|secret|key|auth|signature|sig)=[^\s]+", re.I),
 ]
 

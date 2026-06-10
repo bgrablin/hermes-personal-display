@@ -1,17 +1,17 @@
 [Unit]
 Description=Hermes Personal Display MINIX SF10T X11 kiosk
-Documentation=file:/home/brian/.hermes/projects/personal-display/docs/systemd-user-units.md
+Documentation=file:@PROJECT_ROOT@/docs/systemd-user-units.md
 After=network-online.target
 Wants=network-online.target
 Conflicts=display-manager.service
 
 [Service]
 Type=simple
-User=brian
-WorkingDirectory=/home/brian/.hermes/projects/personal-display
-Environment=HOME=/home/brian
-Environment=XDG_RUNTIME_DIR=/run/user/1000
-EnvironmentFile=-/home/brian/.config/hermes-personal-display.env
+User=@USER@
+WorkingDirectory=@PROJECT_ROOT@
+Environment=HOME=@HOME@
+Environment=XDG_RUNTIME_DIR=/run/user/@UID@
+EnvironmentFile=-@HOME@/.config/hermes-personal-display.env
 PAMName=login
 TTYPath=/dev/tty7
 TTYReset=yes
@@ -19,7 +19,7 @@ TTYVHangup=yes
 StandardInput=tty
 StandardOutput=journal
 StandardError=journal
-ExecStart=/usr/bin/startx /home/brian/.hermes/projects/personal-display/scripts/xsession-minix-kiosk.sh -- :0 vt7 -nolisten tcp -s 0 -dpms
+ExecStart=/usr/bin/startx @PROJECT_ROOT@/scripts/xsession-minix-kiosk.sh -- :0 vt7 -nolisten tcp -s 0 -dpms
 Restart=always
 RestartSec=5
 TimeoutStopSec=20

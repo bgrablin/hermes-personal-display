@@ -77,7 +77,7 @@ Core paths:
 - `scripts/generated/display_contract.py` - generated Python contract constants.
 - `src/state.js` - display packet handling that consumes the generated contract.
 - `scripts/hermes_display_server.py` - compatibility HTTP route boundary for the local static server plus display-state API.
-- `scripts/display_state/` - focused module boundary for collector, resolver, contract, privacy, persistence, route rail, remote memory, entertainment, and fixtures.
+- `scripts/display_state/` - focused helper boundary for collector, resolver, contract, privacy, persistence, route rail, remote memory, entertainment, and fixtures. Extraction is incremental: `scripts/hermes_display_server.py` still owns the HTTP route surface and some orchestration glue, so treat the package as the active seam rather than a fully isolated service layer.
 - `scripts/avatar_event_bus.py` - avatar event validation and SSE helpers.
 - `tests/fixtures/` - synthetic display-safe preview and regression fixtures; see `tests/fixtures/README.md`.
 - `deploy/systemd-user/` - preview/kiosk user service templates; see `docs/systemd-user-units.md`.

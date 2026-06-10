@@ -222,11 +222,17 @@
     return enriched;
   }
 
+  function syncPacketEditor(packet) {
+    if (!kioskMode || urlParams.get('debug') === '1') {
+      textarea.value = JSON.stringify(packet, null, 2);
+    }
+  }
+
   function writePacket(packet, message) {
     const enriched = ensureRichBehaviorPacket(packet);
     currentPacket = normalizePersonaPacket(enriched);
     applyMotionVars(currentPacket);
-    textarea.value = JSON.stringify(currentPacket, null, 2);
+    syncPacketEditor(currentPacket);
     skinSelect.value = currentPacket.skin;
     renderer.setPacket(currentPacket);
     output.value = message || `Applied ${currentPacket.mood} / ${currentPacket.skin}.`;
@@ -447,7 +453,7 @@
     nudged.impatience = clamp01(nudged.impatience + (Math.random() - 0.5) * 0.26);
     nudged.caption = { ...(nudged.caption || {}), text: chooseQuip(nudged) };
     currentPacket = normalizePersonaPacket(nudged);
-    textarea.value = JSON.stringify(currentPacket, null, 2);
+    syncPacketEditor(currentPacket);
     skinSelect.value = currentPacket.skin;
     renderer.setPacket(currentPacket);
     const intent = renderer.triggerIntent();

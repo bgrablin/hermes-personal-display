@@ -233,6 +233,20 @@ body.kiosk-mode .display-frame {
   border-radius: 0;
   background: #000;
   box-shadow: none;
+  animation: kiosk-burnin-drift 900s steps(1, end) infinite;
+}
+
+@keyframes kiosk-burnin-drift {
+  0%, 100% { transform: translate3d(0, 0, 0); }
+  25% { transform: translate3d(1px, 0, 0); }
+  50% { transform: translate3d(1px, 1px, 0); }
+  75% { transform: translate3d(0, 1px, 0); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  body.kiosk-mode .display-frame {
+    animation: none;
+  }
 }
 
 body.kiosk-mode #display-root,
