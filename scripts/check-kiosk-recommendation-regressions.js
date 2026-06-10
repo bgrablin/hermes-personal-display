@@ -387,6 +387,20 @@ requireAll(cssSource, ['right: 44px', 'width: 390px', 'width: 40px', 'transform:
 if (/right:\s*calc\(72px \+ 118px \* var\(--route-headroom\)\)/.test(cssSource)) {
   fail('Route percentage text must not shift horizontally by headroom; keep values fixed and move only the whisker/bar.');
 }
+requireAll(appSource, [
+  "setConceptBDataset(row, 'headroomTier', headroomTier)",
+  'const ROUTE_HEADROOM_LOW_THRESHOLD',
+  'playConceptBStatusTick(entry.labelWrap',
+  'playConceptBStatusTick(entry.glyph',
+  'cb-route-track',
+], 'Route rail provider state/active/low-headroom changes must read as throttled event ticks over a fixed headroom reference track.');
+requireAll(cssSource, [
+  '.cb-route-track',
+  '.cb-route-row[data-state="unknown"] .cb-route-track',
+  '[data-headroom-tier="low"] .cb-route-label span',
+  'transform: translateY(calc(var(--route-active-y, -100px) + 45px))',
+  'transition: transform 650ms ease, opacity 450ms ease',
+], 'Route headroom must render fill-vs-track with honest hiding for unknown routes, low-band ochre values, and a transform-driven active hairline.');
 if (!serverSource.includes('actionable_warn_lines')) {
   fail('Routine provider/tool warnings must be filtered before driving the physical attention state.');
 }

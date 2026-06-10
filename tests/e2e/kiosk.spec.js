@@ -500,17 +500,20 @@ test.describe('Hermes kiosk smoke and visual regression anchors', () => {
         glyph: node.querySelector('[data-route-glyph]')?.textContent,
         state: node.dataset.state,
         active: node.dataset.active,
+        headroomTier: node.dataset.headroomTier,
         whiskerWidth: Number.parseFloat(style.width),
         whiskerTransform: style.transform,
         whiskerOpacity: Number.parseFloat(style.opacity),
+        trackOpacity: Number.parseFloat(getComputedStyle(node.querySelector('.cb-route-track')).opacity),
       };
     }));
     expect(snapshot.map((row) => row.label)).toEqual(['CHATGPT', 'CLAUDE', 'GEMINI', 'COPILOT']);
     for (const row of snapshot) {
-      expect(row).toMatchObject({ value: 'UNK', glyph: '○', state: 'unknown', active: 'false' });
+      expect(row).toMatchObject({ value: 'UNK', glyph: '○', state: 'unknown', active: 'false', headroomTier: 'none' });
       expect(row.whiskerWidth).toBeGreaterThan(38);
       expect(row.whiskerTransform).toBe('matrix(0, 0, 0, 1, 0, 0)');
       expect(row.whiskerOpacity).toBe(0);
+      expect(row.trackOpacity).toBe(0);
     }
     expect(Number(await page.locator('.cb-route-active-hairline').evaluate((node) => window.getComputedStyle(node).opacity))).toBe(0);
     const unsafeText = await page.locator('.cb-route-rail').textContent();
@@ -578,6 +581,76 @@ test.describe('Hermes kiosk smoke and visual regression anchors', () => {
       }
       expect(row.valueRight).toBeLessThanOrEqual(row.nodeLeft - 8);
     }
+  });
+
+  test('Concept B route rail provider handoff reads as a row event', async ({ page }, testInfo) => {
+    test.skip(testInfo.project.name !== 'minix-sf10t-landscape', 'MINIX-only landscape project');
+    const railPacket = (activeId, claudeHeadroom) => ({
+      schema_version: '0.4.0',
+      generated_at: new Date().toISOString(),
+      mood: 'idle_watchful',
+      skin: 'retro-robot-core',
+      state_preset: 'quiet_watch',
+      caption: { text: 'Systems steady.', tone: 'calm', priority: 'ambient' },
+      snippet: { id: 'test', text: 'display-safe route handoff test', kind: 'system', sensitivity: 'display_safe' },
+      live: {
+        gateway_ok: true,
+        tasks: 0,
+        freshness: { tier: 'fresh', valid_measurements: 5, stale_measurements: [] },
+        system: { cpu: 0.12, memory: 0.30, temp_c: 52, cpu_temp_c: 52, uptime: '3h' },
+        current_work: { active: false, summary: 'Systems steady.', age_seconds: 0, source: 'local' },
+        route_rail: {
+          as_of_ms: Date.now(),
+          age_seconds: 0,
+          active_provider_id: activeId,
+          providers: [
+            { id: 'openai-codex', label: 'CHATGPT', tier_label: 'PRO', state: 'confirmed', headroom: 0.40, reachable: true },
+            { id: 'anthropic', label: 'CLAUDE', tier_label: 'MAX', state: 'confirmed', headroom: claudeHeadroom, reachable: true },
+            { id: 'google-gemini-cli', label: 'GEMINI', tier_label: 'CLI', state: 'inferred', headroom: 0.55, reachable: true },
+            { id: 'copilot', label: 'COPILOT', tier_label: '', state: 'unknown', headroom: null, reachable: true },
+          ],
+        },
+      },
+      safety: { boundary: 'local_trusted_display', contains_credentials: false },
+    });
+    let requestCount = 0;
+    await page.route('**/api/hermes-state', async (route) => {
+      requestCount += 1;
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify(requestCount <= 2 ? railPacket('anthropic', 0.62) : railPacket('openai-codex', 0.08)),
+      });
+    });
+    await page.goto(`${runtimeUrl('idle_watch', testInfo)}&live=1`);
+    const rows = page.locator('.cb-route-row');
+    const hairlineY = () => page.locator('.cb-route-active-hairline').evaluate((node) => {
+      const transform = window.getComputedStyle(node).transform;
+      return transform.startsWith('matrix(') ? Number.parseFloat(transform.slice(7, -1).split(',')[5]) : NaN;
+    });
+
+    await expect(rows.nth(1)).toHaveAttribute('data-active', 'true');
+    await expect(rows.nth(1)).toHaveAttribute('data-headroom-tier', 'ok');
+    await expect.poll(hairlineY).toBe(294);
+    const ticksBeforeHandoff = await page.evaluate(() => window.__HERMES_STATUS_TICKS);
+
+    await expect(rows.nth(0)).toHaveAttribute('data-active', 'true', { timeout: 15000 });
+    await expect(rows.nth(1)).toHaveAttribute('data-active', 'false');
+    await expect(rows.nth(1)).toHaveAttribute('data-headroom-tier', 'low');
+    await expect(rows.nth(1).locator('[data-route-value]')).toHaveText('8%');
+    await expect.poll(hairlineY).toBe(142);
+    expect(await page.evaluate(() => window.__HERMES_STATUS_TICKS)).toBeGreaterThan(ticksBeforeHandoff);
+
+    const lanes = await rows.evaluateAll((nodes) => nodes.map((node) => {
+      const track = node.querySelector('.cb-route-track').getBoundingClientRect();
+      const whisker = node.querySelector('.cb-route-whisker').getBoundingClientRect();
+      return { trackWidth: track.width, trackRight: track.right, whiskerRight: whisker.right, tier: node.dataset.headroomTier };
+    }));
+    for (const lane of lanes.slice(0, 3)) {
+      expect(lane.trackWidth).toBeGreaterThan(38);
+      expect(Math.abs(lane.trackRight - lane.whiskerRight)).toBeLessThanOrEqual(1);
+    }
+    expect(lanes.map((lane) => lane.tier)).toEqual(['ok', 'low', 'ok', 'none']);
   });
 
   test('Concept B remote memory cell defaults to honest Honcho unknown state', async ({ page }, testInfo) => {

@@ -23,8 +23,9 @@
   const skinOrder = ['retro-robot-core', 'retro-terminal-focus', 'retro-night-watch', 'retro-amber-watch', 'retro-hermes-accent'];
   const liveStatus = { lastGoodAt: null, failures: 0, lastError: '', staleSince: null };
   const avatarEventStatus = { connected: false, accepted: 0, dropped: 0, lastError: '', lastEventAt: null, recent: [] };
-  const DISPLAY_BUILD_ID = 'augury-trace-restore1';
+  const DISPLAY_BUILD_ID = 'route-event-motion1';
   const STATUS_TICK_MIN_GAP_MS = 4000;
+  const ROUTE_HEADROOM_LOW_THRESHOLD = 0.15;
   let statusTicksArmed = false;
   window.__HERMES_STATUS_TICKS = 0;
   const CONCEPT_B_BIO_MOTION = Object.freeze({
@@ -2001,6 +2002,7 @@
       row.dataset.index = String(i);
       row.innerHTML = `
         <div class="cb-route-label"><strong data-route-label>—</strong><span data-route-value>—</span><em data-route-tier></em></div>
+        <div class="cb-route-track" aria-hidden="true"></div>
         <div class="cb-route-whisker"></div>
         <i class="cb-route-node" aria-hidden="true"></i>
         <b class="cb-route-glyph" data-route-glyph>○</b>
@@ -2031,6 +2033,7 @@
     const glyphs = { confirmed: '●', inferred: '◉', stale: '◐', unknown: '○', error: '!', disabled: '×' };
     const rows = root.__cbRouteRows ||= Array.from(root.querySelectorAll('.cb-route-row')).map((row) => ({
       row,
+      labelWrap: row.querySelector('.cb-route-label'),
       label: row.querySelector('[data-route-label]'),
       value: row.querySelector('[data-route-value]'),
       tier: row.querySelector('[data-route-tier]'),
@@ -2060,12 +2063,39 @@
       const state = allowedStates.has(String(provider.state)) ? String(provider.state) : 'unknown';
       const isActive = provider.id === activeId && ['confirmed', 'inferred'].includes(state) && provider.reachable !== false;
       if (isActive) activeIndex = idx;
+      const prevState = row.dataset.state || '';
+      const prevActive = row.dataset.active || '';
+      const prevHeadroomTier = row.dataset.headroomTier || '';
       setConceptBDataset(row, 'state', state);
       setConceptBDataset(row, 'active', isActive ? 'true' : 'false');
       const headroom = Number(provider.headroom);
       const knownHeadroom = Number.isFinite(headroom) && !['unknown', 'error', 'disabled'].includes(state);
       const clamped = knownHeadroom ? Math.max(0, Math.min(1, headroom)) : null;
+      const headroomTier = knownHeadroom ? (clamped <= ROUTE_HEADROOM_LOW_THRESHOLD ? 'low' : 'ok') : 'none';
+      setConceptBDataset(row, 'headroomTier', headroomTier);
       setConceptBStyleProperty(row, '--route-headroom', knownHeadroom ? clamped.toFixed(3) : '0');
+      // Provider flips read as events at the row itself: label settle on a state change,
+      // glyph pulse when a provider takes the route, value nudge when known headroom first
+      // enters the low band. Plain headroom drift stays silent so polling cannot strobe rows.
+      if (prevState && prevState !== state) {
+        playConceptBStatusTick(entry.labelWrap, [
+          { opacity: 0.25, transform: 'translateY(6px)' },
+          { opacity: 1, transform: 'translateY(0)' },
+        ], 360);
+      }
+      if (prevActive === 'false' && isActive) {
+        playConceptBStatusTick(entry.glyph, [
+          { transform: 'scale(1)' },
+          { transform: 'scale(1.55)', offset: 0.4 },
+          { transform: 'scale(1)' },
+        ], 540);
+      }
+      if (prevHeadroomTier && prevHeadroomTier !== headroomTier && headroomTier === 'low') {
+        playConceptBStatusTick(entry.value, [
+          { opacity: 0.25, transform: 'translateY(6px)' },
+          { opacity: 1, transform: 'translateY(0)' },
+        ], 360);
+      }
       setConceptBText(entry.label, safeDisplayText(provider.label || 'ROUTE', 8).toUpperCase());
       const unknownRouteCopy = state === 'disabled' ? 'OFF' : state === 'error' ? 'ERR' : 'UNK';
       setConceptBText(entry.value, knownHeadroom ? `${state === 'inferred' ? '~' : ''}${Math.round(clamped * 100)}%` : unknownRouteCopy);

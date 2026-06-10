@@ -2113,6 +2113,26 @@ body.kiosk-mode.kiosk-landscape.claude-concept-b .cb-route-label em {
   white-space: nowrap;
 }
 
+/* Fixed reference lane behind the headroom whisker so fill reads as a ratio at desk
+   distance instead of an absolute bar length. Hidden whenever the whisker is hidden:
+   unknown/error/disabled rows must not render an empty gauge they cannot back up. */
+body.kiosk-mode.kiosk-landscape.claude-concept-b .cb-route-track {
+  position: absolute;
+  right: 46px;
+  top: 15px;
+  width: 40px;
+  height: 1px;
+  background: color-mix(in srgb, currentColor 36%, transparent);
+  opacity: 0.62;
+  transition: opacity 450ms ease;
+}
+
+body.kiosk-mode.kiosk-landscape.claude-concept-b .cb-route-row[data-state="unknown"] .cb-route-track,
+body.kiosk-mode.kiosk-landscape.claude-concept-b .cb-route-row[data-state="error"] .cb-route-track,
+body.kiosk-mode.kiosk-landscape.claude-concept-b .cb-route-row[data-state="disabled"] .cb-route-track {
+  opacity: 0;
+}
+
 body.kiosk-mode.kiosk-landscape.claude-concept-b .cb-route-whisker {
   position: absolute;
   right: 46px;
@@ -2138,6 +2158,16 @@ body.kiosk-mode.kiosk-landscape.claude-concept-b .cb-route-row[data-state="error
 body.kiosk-mode.kiosk-landscape.claude-concept-b .cb-route-row[data-state="disabled"] .cb-route-whisker {
   transform: scaleX(0);
   opacity: 0;
+}
+
+/* Known headroom in the low band is a watch condition, not an alarm: ochre value text
+   plus a fully opaque whisker stub, same semantics as the watch/stale dots elsewhere. */
+body.kiosk-mode.kiosk-landscape.claude-concept-b .cb-route-row[data-headroom-tier="low"] .cb-route-label span {
+  color: var(--cb-ochre);
+}
+
+body.kiosk-mode.kiosk-landscape.claude-concept-b .cb-route-row[data-headroom-tier="low"] .cb-route-whisker {
+  opacity: 1;
 }
 
 body.kiosk-mode.kiosk-landscape.claude-concept-b .cb-route-node {
@@ -2183,14 +2213,16 @@ body.kiosk-mode.kiosk-landscape.claude-concept-b .cb-route-row[data-active="true
 body.kiosk-mode.kiosk-landscape.claude-concept-b .cb-route-active-hairline {
   position: absolute;
   right: 46px;
-  top: var(--route-active-y, -100px);
+  top: 0;
   width: 440px;
   height: 2px;
-  transform: translateY(45px);
+  /* Travel via transform so a provider handoff glides on the compositor; JS only
+     writes the --route-active-y custom property. */
+  transform: translateY(calc(var(--route-active-y, -100px) + 45px));
   background: linear-gradient(90deg, transparent, color-mix(in srgb, var(--cb-amber) 16%, transparent) 18%, color-mix(in srgb, var(--cb-amber) 20%, transparent) 100%);
   opacity: 0.78;
   overflow: hidden;
-  transition: top 650ms ease, opacity 450ms ease;
+  transition: transform 650ms ease, opacity 450ms ease;
 }
 
 body.kiosk-mode.kiosk-landscape.claude-concept-b .cb-route-rail[data-active-index="none"] .cb-route-active-hairline {
@@ -2323,6 +2355,12 @@ body.kiosk-mode.kiosk-landscape.claude-concept-b.taste-prototype .cb-route-label
 body.kiosk-mode.kiosk-landscape.claude-concept-b.taste-prototype .cb-route-label em {
   color: color-mix(in srgb, var(--cb-fg-1) 76%, transparent);
   font-size: 16px;
+}
+
+body.kiosk-mode.kiosk-landscape.claude-concept-b.taste-prototype .cb-route-track {
+  right: 52px;
+  top: 17px;
+  width: 104px;
 }
 
 body.kiosk-mode.kiosk-landscape.claude-concept-b.taste-prototype .cb-route-whisker {
