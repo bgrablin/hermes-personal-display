@@ -23,7 +23,7 @@
   const skinOrder = ['retro-robot-core', 'retro-terminal-focus', 'retro-night-watch', 'retro-amber-watch', 'retro-hermes-accent'];
   const liveStatus = { lastGoodAt: null, failures: 0, lastError: '', staleSince: null };
   const avatarEventStatus = { connected: false, accepted: 0, dropped: 0, lastError: '', lastEventAt: null, recent: [] };
-  const DISPLAY_BUILD_ID = 'route-event-motion1';
+  const DISPLAY_BUILD_ID = 'family-hold-toggle1';
   const STATUS_TICK_MIN_GAP_MS = 4000;
   const ROUTE_HEADROOM_LOW_THRESHOLD = 0.15;
   let statusTicksArmed = false;
@@ -460,6 +460,7 @@
 
   installTouchControls();
   installLandscapePanels();
+  installFamilyModeToggle();
   installLiveHermesState();
   installAvatarEventBus();
   installAuguryOverlay();
@@ -959,6 +960,139 @@
     };
 
     window.setInterval(updateFeedBadge, 1000);
+  }
+
+  function installFamilyModeToggle() {
+    const params = new URLSearchParams(window.location.search);
+    const kiosk = ['1', 'true', 'yes'].includes((params.get('kiosk') || '').toLowerCase());
+    if (!kiosk) return;
+
+    const FAMILY_HOLD_MS = 1200;
+    const HOLD_CANCEL_DISTANCE_PX = 14;
+    const REDUCED_HOLD_STEPS = 4;
+
+    // Mode switching is a pure URL rewrite. Entering family mode adds audience=family on
+    // top of the live operator query, so the operator setup (augury flags included)
+    // round-trips through the URL itself and the return hold restores it exactly.
+    // No browser storage of any kind: the only "state" is the display mode in the URL.
+    // Privacy holds because every family gate (Augury install, overlay chrome, text
+    // swaps) keys off the audience param before any private feature reads its own flag.
+    const modeTargetUrl = (toFamily) => {
+      const url = new URL(window.location.href);
+      ['audience', 'family', 'view'].forEach((key) => url.searchParams.delete(key));
+      if (toFamily) url.searchParams.set('audience', 'family');
+      return url.toString();
+    };
+
+    const chip = document.createElement('button');
+    chip.type = 'button';
+    chip.className = 'cb-mode-hold';
+    chip.dataset.holdState = 'idle';
+    chip.dataset.modeTarget = familyAudience ? 'operator' : 'family';
+    chip.setAttribute('aria-label', familyAudience ? 'Hold to return to operator mode' : 'Hold to switch to family mode');
+    chip.innerHTML = '<span class="cb-mode-hold-ring" aria-hidden="true"></span><span class="cb-mode-hold-label"></span>';
+    const label = chip.querySelector('.cb-mode-hold-label');
+    const idleLabel = familyAudience ? 'OPERATOR HOLD' : 'FAMILY HOLD';
+    const engagedLabel = familyAudience ? 'OPERATOR MODE' : 'FAMILY MODE';
+    label.textContent = idleLabel;
+    document.body.appendChild(chip);
+
+    let holdPointerId = null;
+    let holdRaf = 0;
+    let holdStepTimer = 0;
+    let holdStartAt = 0;
+    let holdStartX = 0;
+    let holdStartY = 0;
+    let navigated = false;
+
+    const setProgress = (value) => chip.style.setProperty('--cb-hold-progress', String(clamp01(value)));
+    setProgress(0);
+
+    const resetHold = () => {
+      if (navigated) return;
+      holdPointerId = null;
+      window.cancelAnimationFrame(holdRaf);
+      window.clearTimeout(holdStepTimer);
+      chip.dataset.holdState = 'idle';
+      label.textContent = idleLabel;
+      setProgress(0);
+    };
+
+    const engage = () => {
+      if (navigated) return;
+      navigated = true;
+      window.cancelAnimationFrame(holdRaf);
+      window.clearTimeout(holdStepTimer);
+      setProgress(1);
+      chip.dataset.holdState = 'engaged';
+      label.textContent = engagedLabel;
+      renderer.triggerIntent?.('tiny_perk');
+      window.setTimeout(() => window.location.replace(modeTargetUrl(!familyAudience)), prefersReducedMotion ? 80 : 420);
+    };
+
+    const smoothTick = (now) => {
+      if (holdPointerId === null || navigated) return;
+      const t = (now - holdStartAt) / FAMILY_HOLD_MS;
+      if (t >= 1) {
+        engage();
+        return;
+      }
+      setProgress(t);
+      holdRaf = window.requestAnimationFrame(smoothTick);
+    };
+
+    // Reduced motion: no continuous ring sweep. Progress lands in four discrete
+    // quarter steps and stops the moment the hold ends, so nothing keeps animating.
+    const reducedStep = (step) => {
+      holdStepTimer = window.setTimeout(() => {
+        if (holdPointerId === null || navigated) return;
+        setProgress(step / REDUCED_HOLD_STEPS);
+        if (step >= REDUCED_HOLD_STEPS) engage();
+        else reducedStep(step + 1);
+      }, FAMILY_HOLD_MS / REDUCED_HOLD_STEPS);
+    };
+
+    chip.addEventListener('pointerdown', (event) => {
+      // Own the gesture completely so touch FX, entertainment gestures, and legacy
+      // zone handlers on document.body never see presses on the mode control.
+      event.preventDefault();
+      event.stopPropagation();
+      if (holdPointerId !== null || navigated) return;
+      holdPointerId = event.pointerId;
+      holdStartX = event.clientX;
+      holdStartY = event.clientY;
+      holdStartAt = performance.now();
+      chip.setPointerCapture?.(event.pointerId);
+      chip.dataset.holdState = 'holding';
+      setProgress(0);
+      if (prefersReducedMotion) reducedStep(1);
+      else holdRaf = window.requestAnimationFrame(smoothTick);
+    });
+
+    chip.addEventListener('pointermove', (event) => {
+      if (event.pointerId !== holdPointerId) return;
+      event.stopPropagation();
+      if (Math.hypot(event.clientX - holdStartX, event.clientY - holdStartY) > HOLD_CANCEL_DISTANCE_PX) resetHold();
+    });
+
+    chip.addEventListener('pointerup', (event) => {
+      if (event.pointerId !== holdPointerId) return;
+      event.preventDefault();
+      event.stopPropagation();
+      resetHold();
+    });
+
+    chip.addEventListener('pointercancel', (event) => {
+      if (event.pointerId === holdPointerId) resetHold();
+    });
+
+    window.__HERMES_FAMILY_TOGGLE = {
+      holdMs: FAMILY_HOLD_MS,
+      mode: () => (familyAudience ? 'family' : 'operator'),
+      state: () => chip.dataset.holdState,
+      progress: () => Number(chip.style.getPropertyValue('--cb-hold-progress') || 0),
+      targetUrl: () => modeTargetUrl(!familyAudience),
+    };
   }
 
   function publishLifecycleEffectForPacket(packet, previousMood) {

@@ -3287,3 +3287,64 @@ body.kiosk-mode.kiosk-landscape.claude-concept-b.family-theater .cb-line {
 body.kiosk-mode.kiosk-landscape.claude-concept-b.family-theater .cb-source {
   color: rgba(132,238,255,.72);
 }
+
+/* Family mode hold toggle: one deliberate corner control, not dashboard chrome.
+   Idle state is fully static (no keyframes, no idle pulse) so reduced motion has
+   nothing to suppress; the only motion is the progress ring fill during an active
+   press, driven by the --cb-hold-progress custom property from app.js. */
+body.kiosk-mode.kiosk-landscape.claude-concept-b .cb-mode-hold {
+  position: fixed;
+  left: 96px;
+  bottom: 36px;
+  z-index: 8;
+  display: inline-flex;
+  align-items: center;
+  gap: 11px;
+  height: 48px;
+  padding: 0 18px 0 13px;
+  border: 1px solid color-mix(in srgb, var(--cb-fg-readable) 16%, transparent);
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--cb-bg) 74%, transparent);
+  color: var(--cb-fg-2);
+  font: 590 13px/1 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  opacity: 0.56;
+  touch-action: none;
+  -webkit-tap-highlight-color: transparent;
+  user-select: none;
+  cursor: pointer;
+  transition: opacity 240ms ease, border-color 240ms ease, box-shadow 240ms ease, color 240ms ease;
+}
+
+body.kiosk-mode.kiosk-landscape.claude-concept-b .cb-mode-hold-ring {
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: conic-gradient(var(--cb-accent) calc(var(--cb-hold-progress, 0) * 360deg), color-mix(in srgb, var(--cb-fg-readable) 16%, transparent) 0);
+  -webkit-mask: radial-gradient(closest-side, transparent 55%, #000 59%);
+  mask: radial-gradient(closest-side, transparent 55%, #000 59%);
+}
+
+body.kiosk-mode.kiosk-landscape.claude-concept-b .cb-mode-hold[data-hold-state="holding"] {
+  opacity: 0.94;
+  color: var(--cb-fg-readable);
+  border-color: color-mix(in srgb, var(--cb-accent) 42%, transparent);
+}
+
+body.kiosk-mode.kiosk-landscape.claude-concept-b .cb-mode-hold[data-hold-state="engaged"] {
+  opacity: 1;
+  color: var(--cb-fg-readable);
+  border-color: color-mix(in srgb, var(--cb-accent) 62%, transparent);
+  box-shadow: 0 0 22px color-mix(in srgb, var(--cb-accent) 30%, transparent);
+}
+
+/* Family audience: keep the return control present but quieter than the show. */
+body.kiosk-mode.kiosk-landscape.claude-concept-b.family-theater .cb-mode-hold {
+  opacity: 0.34;
+}
+
+body.kiosk-mode.kiosk-landscape.claude-concept-b.family-theater .cb-mode-hold[data-hold-state="holding"],
+body.kiosk-mode.kiosk-landscape.claude-concept-b.family-theater .cb-mode-hold[data-hold-state="engaged"] {
+  opacity: 0.94;
+}

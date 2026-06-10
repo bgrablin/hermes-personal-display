@@ -671,4 +671,46 @@ if (/\.cb-iris[^{]*\{[^}]*(animation:|transform-box)/.test(cssSource)) {
   fail('Iris lattice rotation/light must stay with the anime.js scalars and the RAF writer; CSS animation or transform-box on .cb-iris-* re-introduces drift.');
 }
 
+// Family mode hold toggle: the on-screen mode switch must stay a deliberate
+// hold-gated gesture that rewrites only the URL audience params. Entering family
+// mode layers audience=family over the live operator query (so the return hold
+// restores the exact operator setup), and no interaction state is ever persisted.
+requireAll(appSource, [
+  'function installFamilyModeToggle()',
+  'FAMILY_HOLD_MS = 1200',
+  'HOLD_CANCEL_DISTANCE_PX',
+  "['audience', 'family', 'view'].forEach((key) => url.searchParams.delete(key))",
+  "url.searchParams.set('audience', 'family')",
+  'window.location.replace(modeTargetUrl(!familyAudience))',
+  'cb-mode-hold',
+  "familyAudience ? 'OPERATOR HOLD' : 'FAMILY HOLD'",
+  "familyAudience ? 'OPERATOR MODE' : 'FAMILY MODE'",
+  'chip.setPointerCapture?.(event.pointerId)',
+  'window.__HERMES_FAMILY_TOGGLE',
+], 'Family mode toggle must be a hold-gated URL rewrite control with both directions labeled.');
+const familyToggleStart = appSource.indexOf('function installFamilyModeToggle()');
+const familyToggleEnd = appSource.indexOf('window.__HERMES_FAMILY_TOGGLE');
+const familyToggleBlock = appSource.slice(familyToggleStart, familyToggleEnd);
+if (/localStorage|sessionStorage|indexedDB|document\.cookie|navigator\.sendBeacon|fetch\(/.test(familyToggleBlock)) {
+  fail('Family mode toggle must not persist or transmit interaction state; mode lives in the URL only.');
+}
+if (!familyToggleBlock.includes('event.stopPropagation();')) {
+  fail('Family mode toggle must stop pointer propagation so touch FX and legacy zone handlers never see mode presses.');
+}
+if (!familyToggleBlock.includes('if (prefersReducedMotion) reducedStep(1);')) {
+  fail('Family mode toggle must use discrete reduced-motion progress steps instead of the continuous RAF ring sweep.');
+}
+requireAll(cssSource, [
+  '.cb-mode-hold',
+  '.cb-mode-hold-ring',
+  '--cb-hold-progress',
+  'conic-gradient(var(--cb-accent) calc(var(--cb-hold-progress, 0) * 360deg)',
+  '[data-hold-state="holding"]',
+  '[data-hold-state="engaged"]',
+  'family-theater .cb-mode-hold',
+], 'Family hold chip must render the progress ring and stay visible (quieter) in family mode.');
+if (/\.cb-mode-hold[^{]*\{[^}]*animation:/.test(cssSource)) {
+  fail('Family hold chip must have no idle keyframe animation; the only motion is the press-driven ring fill.');
+}
+
 console.log('OK kiosk recommendation regression checks.');

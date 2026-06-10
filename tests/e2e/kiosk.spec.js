@@ -232,6 +232,111 @@ test.describe('Hermes kiosk smoke and visual regression anchors', () => {
     expect(auguryFetches).toBe(0);
   });
 
+  test.describe('family mode hold toggle', () => {
+    const holdChip = async (page) => {
+      const box = await page.locator('.cb-mode-hold').boundingBox();
+      await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
+      await page.mouse.down();
+    };
+
+    test('hold gesture rewrites the URL into family mode and keeps Augury suppressed', async ({ page }, testInfo) => {
+      test.skip(testInfo.project.name !== 'minix-sf10t-landscape', 'MINIX-only Concept B family mode');
+      let auguryFetches = 0;
+      await page.route('**/api/augury-feed**', async (route) => {
+        auguryFetches += 1;
+        await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ schema_version: '0.1.0', items: [] }) });
+      });
+      await page.goto(`${runtimeUrl('idle_watch', testInfo)}&augury=1`);
+      await expect(page.locator('body[data-audience="operator"]')).toBeVisible();
+      const chip = page.locator('.cb-mode-hold');
+      await expect(chip).toHaveAttribute('data-mode-target', 'family');
+      await expect(chip.locator('.cb-mode-hold-label')).toHaveText('FAMILY HOLD');
+
+      // A short press must not switch modes; the hold gate is the safety.
+      await holdChip(page);
+      await page.waitForTimeout(350);
+      await page.mouse.up();
+      await page.waitForTimeout(400);
+      expect(page.url()).not.toContain('audience=family');
+      await expect(chip).toHaveAttribute('data-hold-state', 'idle');
+
+      // A full hold shows progress, engages, and navigates into family mode.
+      await holdChip(page);
+      await expect(chip).toHaveAttribute('data-hold-state', 'holding');
+      await page.waitForURL(/audience=family/);
+      await page.mouse.up();
+      await expect(page.locator('body.family-theater[data-audience="family"]')).toBeVisible();
+      // Operator query round-trips through the URL; the family gate keeps augury inert.
+      expect(page.url()).toContain('augury=1');
+      await expect(page.locator('.cb-topbar')).toBeHidden();
+      await expect(page.locator('.cb-bottom-rail')).toBeHidden();
+      await expect(page.locator('.augury-ambient')).toHaveCount(0);
+      expect(await page.evaluate(() => document.body.dataset.auguryPresence)).toBe('hidden');
+      auguryFetches = 0;
+      await page.waitForTimeout(900);
+      expect(auguryFetches).toBe(0);
+      await expect(page.locator('.cb-mode-hold-label')).toHaveText('OPERATOR HOLD');
+    });
+
+    test('operator hold returns from family mode and restores operator chrome and Augury', async ({ page }, testInfo) => {
+      test.skip(testInfo.project.name !== 'minix-sf10t-landscape', 'MINIX-only Concept B family mode');
+      let auguryFetches = 0;
+      await page.route('**/api/augury-feed**', async (route) => {
+        auguryFetches += 1;
+        await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ schema_version: '0.1.0', items: [] }) });
+      });
+      await page.goto(`${runtimeUrl('idle_watch', testInfo)}&augury=1&audience=family`);
+      await expect(page.locator('body.family-theater[data-audience="family"]')).toBeVisible();
+      expect(auguryFetches).toBe(0);
+      const chip = page.locator('.cb-mode-hold');
+      await expect(chip).toHaveAttribute('data-mode-target', 'operator');
+      await expect(chip.locator('.cb-mode-hold-label')).toHaveText('OPERATOR HOLD');
+
+      await holdChip(page);
+      await page.waitForURL((url) => !url.search.includes('audience=family'));
+      await page.mouse.up();
+      await expect(page.locator('body[data-audience="operator"]')).toBeVisible();
+      expect(page.url()).toContain('augury=1');
+      await expect(page.locator('.cb-topbar')).toBeVisible();
+      await expect(page.locator('.cb-bottom-rail')).toBeVisible();
+      await expect(chip.locator('.cb-mode-hold-label')).toHaveText('FAMILY HOLD');
+      await expect.poll(() => auguryFetches).toBeGreaterThan(0);
+    });
+
+    test('reduced motion hold uses discrete progress and leaves no running animation after cancel', async ({ page }, testInfo) => {
+      test.skip(testInfo.project.name !== 'minix-sf10t-landscape', 'MINIX-only Concept B family mode');
+      await page.emulateMedia({ reducedMotion: 'reduce' });
+      await page.goto(runtimeUrl('idle_watch', testInfo));
+      const chip = page.locator('.cb-mode-hold');
+
+      await holdChip(page);
+      await expect(chip).toHaveAttribute('data-hold-state', 'holding');
+      await page.waitForTimeout(700);
+      // Discrete quarter steps, not a continuous RAF sweep.
+      const midProgress = await page.evaluate(() => window.__HERMES_FAMILY_TOGGLE.progress());
+      expect([0.25, 0.5, 0.75]).toContain(midProgress);
+      await page.mouse.up();
+      await expect(chip).toHaveAttribute('data-hold-state', 'idle');
+      const snapshot = await page.evaluate(() => {
+        const el = document.querySelector('.cb-mode-hold');
+        return {
+          progress: window.__HERMES_FAMILY_TOGGLE.progress(),
+          runningAnimations: el.getAnimations({ subtree: true }).filter((a) => a.playState === 'running').length,
+          ringAnimationName: getComputedStyle(el.querySelector('.cb-mode-hold-ring')).animationName,
+        };
+      });
+      expect(snapshot.progress).toBe(0);
+      expect(snapshot.runningAnimations).toBe(0);
+      expect(snapshot.ringAnimationName).toBe('none');
+
+      // A full hold still activates family mode under reduced motion.
+      await holdChip(page);
+      await page.waitForURL(/audience=family/);
+      await page.mouse.up();
+      await expect(page.locator('body.family-theater[data-audience="family"]')).toBeVisible();
+    });
+  });
+
   test('Augury is private by default, hidden for critical states, and raw text requires auguryText=1', async ({ page }, testInfo) => {
     test.skip(testInfo.project.name !== 'minix-sf10t-landscape', 'MINIX-only Concept B Augury mode');
     const feed = {
