@@ -289,6 +289,8 @@ test.describe('Hermes kiosk smoke and visual regression anchors', () => {
       const chip = page.locator('.cb-mode-hold');
       await expect(chip).toHaveAttribute('data-mode-target', 'family');
       await expect(chip.locator('.cb-mode-hold-label')).toHaveText('FAMILY HOLD');
+      // Operator -> family is the harmless direction and uses the shorter entry hold.
+      expect(await page.evaluate(() => window.__HERMES_FAMILY_TOGGLE.holdMs === window.__HERMES_FAMILY_TOGGLE.enterHoldMs)).toBe(true);
 
       // A short press must not switch modes; the hold gate is the safety.
       await holdChip(page);
@@ -329,6 +331,28 @@ test.describe('Hermes kiosk smoke and visual regression anchors', () => {
       const chip = page.locator('.cb-mode-hold');
       await expect(chip).toHaveAttribute('data-mode-target', 'operator');
       await expect(chip.locator('.cb-mode-hold-label')).toHaveText('OPERATOR HOLD');
+
+      // The operator return is the privacy boundary: its hold must be materially
+      // longer than the harmless family entry hold, and the active duration must
+      // be the exit one while in family mode.
+      const holds = await page.evaluate(() => ({
+        holdMs: window.__HERMES_FAMILY_TOGGLE.holdMs,
+        enterHoldMs: window.__HERMES_FAMILY_TOGGLE.enterHoldMs,
+        exitHoldMs: window.__HERMES_FAMILY_TOGGLE.exitHoldMs,
+      }));
+      expect(holds.exitHoldMs).toBeGreaterThan(holds.enterHoldMs);
+      expect(holds.holdMs).toBe(holds.exitHoldMs);
+
+      // A partial hold that would already satisfy the entry duration must NOT
+      // restore operator mode; only the full longer exit hold may.
+      await holdChip(page);
+      await page.waitForTimeout(holds.enterHoldMs + 400);
+      await page.mouse.up();
+      await page.waitForTimeout(400);
+      expect(page.url()).toContain('audience=family');
+      await expect(chip).toHaveAttribute('data-hold-state', 'idle');
+      expect(await page.evaluate(() => window.__HERMES_FAMILY_TOGGLE.progress())).toBe(0);
+      expect(auguryFetches).toBe(0);
 
       await holdChip(page);
       await page.waitForURL((url) => !url.search.includes('audience=family'));
@@ -372,6 +396,41 @@ test.describe('Hermes kiosk smoke and visual regression anchors', () => {
       await page.waitForURL(/audience=family/);
       await page.mouse.up();
       await expect(page.locator('body.family-theater[data-audience="family"]')).toBeVisible();
+    });
+
+    test('reduced motion exit hold paces discrete steps over the longer exit duration', async ({ page }, testInfo) => {
+      test.skip(testInfo.project.name !== 'minix-sf10t-landscape', 'MINIX-only Concept B family mode');
+      await page.emulateMedia({ reducedMotion: 'reduce' });
+      await page.goto(`${runtimeUrl('idle_watch', testInfo)}&audience=family`);
+      await expect(page.locator('body.family-theater[data-audience="family"]')).toBeVisible();
+      const chip = page.locator('.cb-mode-hold');
+      const holds = await page.evaluate(() => ({
+        enterHoldMs: window.__HERMES_FAMILY_TOGGLE.enterHoldMs,
+        exitHoldMs: window.__HERMES_FAMILY_TOGGLE.exitHoldMs,
+      }));
+
+      // Hold past the full ENTRY duration: the exit direction must still be
+      // mid-step (not engaged), because its steps pace over the longer duration.
+      await holdChip(page);
+      await expect(chip).toHaveAttribute('data-hold-state', 'holding');
+      await page.waitForTimeout(holds.enterHoldMs + 400);
+      const midProgress = await page.evaluate(() => window.__HERMES_FAMILY_TOGGLE.progress());
+      expect([0.25, 0.5, 0.75]).toContain(midProgress);
+      expect(page.url()).toContain('audience=family');
+      await page.mouse.up();
+      await expect(chip).toHaveAttribute('data-hold-state', 'idle');
+
+      // Cancel must leave no pending step timer: progress stays 0 and the URL
+      // stays family even after another step interval would have fired.
+      await page.waitForTimeout(holds.exitHoldMs / 4 + 300);
+      expect(await page.evaluate(() => window.__HERMES_FAMILY_TOGGLE.progress())).toBe(0);
+      expect(page.url()).toContain('audience=family');
+
+      // A full exit hold still restores operator mode under reduced motion.
+      await holdChip(page);
+      await page.waitForURL((url) => !url.search.includes('audience=family'));
+      await page.mouse.up();
+      await expect(page.locator('body[data-audience="operator"]')).toBeVisible();
     });
   });
 

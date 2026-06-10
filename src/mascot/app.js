@@ -23,7 +23,7 @@
   const skinOrder = ['retro-robot-core', 'retro-terminal-focus', 'retro-night-watch', 'retro-amber-watch', 'retro-hermes-accent'];
   const liveStatus = { lastGoodAt: null, failures: 0, lastError: '', staleSince: null };
   const avatarEventStatus = { connected: false, accepted: 0, dropped: 0, lastError: '', lastEventAt: null, recent: [] };
-  const DISPLAY_BUILD_ID = 'audience-parser-unify1';
+  const DISPLAY_BUILD_ID = 'family-exit-hold1';
   const STATUS_TICK_MIN_GAP_MS = 4000;
   const ROUTE_HEADROOM_LOW_THRESHOLD = 0.15;
   let statusTicksArmed = false;
@@ -967,7 +967,12 @@
     const kiosk = ['1', 'true', 'yes'].includes((params.get('kiosk') || '').toLowerCase());
     if (!kiosk) return;
 
-    const FAMILY_HOLD_MS = 1200;
+    // Asymmetric privacy boundary: entering family mode only hides chrome, but
+    // returning to operator mode restores operator chrome and (with augury=1)
+    // Augury, so the exit hold must be materially longer than the entry hold.
+    const FAMILY_ENTER_HOLD_MS = 1200;
+    const FAMILY_EXIT_HOLD_MS = 3000;
+    const activeHoldMs = familyAudience ? FAMILY_EXIT_HOLD_MS : FAMILY_ENTER_HOLD_MS;
     const HOLD_CANCEL_DISTANCE_PX = 14;
     const REDUCED_HOLD_STEPS = 4;
 
@@ -1019,7 +1024,7 @@
 
     const smoothTick = (now) => {
       if (holdPointerId === null || navigated) return;
-      const t = (now - holdStartAt) / FAMILY_HOLD_MS;
+      const t = (now - holdStartAt) / activeHoldMs;
       if (t >= 1) {
         engage();
         return;
@@ -1036,7 +1041,7 @@
         setProgress(step / REDUCED_HOLD_STEPS);
         if (step >= REDUCED_HOLD_STEPS) engage();
         else reducedStep(step + 1);
-      }, FAMILY_HOLD_MS / REDUCED_HOLD_STEPS);
+      }, activeHoldMs / REDUCED_HOLD_STEPS);
     };
 
     chip.addEventListener('pointerdown', (event) => {
@@ -1074,7 +1079,9 @@
     });
 
     window.__HERMES_FAMILY_TOGGLE = {
-      holdMs: FAMILY_HOLD_MS,
+      holdMs: activeHoldMs,
+      enterHoldMs: FAMILY_ENTER_HOLD_MS,
+      exitHoldMs: FAMILY_EXIT_HOLD_MS,
       mode: () => (familyAudience ? 'family' : 'operator'),
       state: () => chip.dataset.holdState,
       progress: () => Number(chip.style.getPropertyValue('--cb-hold-progress') || 0),

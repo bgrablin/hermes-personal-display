@@ -733,9 +733,17 @@ if (/\.cb-iris[^{]*\{[^}]*(animation:|transform-box)/.test(cssSource)) {
 // hold-gated gesture that rewrites only the URL audience params. Entering family
 // mode layers audience=family over the live operator query (so the return hold
 // restores the exact operator setup), and no interaction state is ever persisted.
+// The hold is directional: returning to operator mode is the privacy boundary
+// (it restores operator chrome and Augury), so the exit hold must be materially
+// longer than the harmless entry hold.
 requireAll(appSource, [
   'function installFamilyModeToggle()',
-  'FAMILY_HOLD_MS = 1200',
+  'FAMILY_ENTER_HOLD_MS = ',
+  'FAMILY_EXIT_HOLD_MS = ',
+  'const activeHoldMs = familyAudience ? FAMILY_EXIT_HOLD_MS : FAMILY_ENTER_HOLD_MS;',
+  'enterHoldMs: FAMILY_ENTER_HOLD_MS',
+  'exitHoldMs: FAMILY_EXIT_HOLD_MS',
+  'activeHoldMs / REDUCED_HOLD_STEPS',
   'HOLD_CANCEL_DISTANCE_PX',
   'FAMILY_AUDIENCE_PARAMS.forEach((key) => url.searchParams.delete(key))',
   "url.searchParams.set('audience', 'family')",
@@ -746,6 +754,20 @@ requireAll(appSource, [
   'chip.setPointerCapture?.(event.pointerId)',
   'window.__HERMES_FAMILY_TOGGLE',
 ], 'Family mode toggle must be a hold-gated URL rewrite control with both directions labeled.');
+const familyEnterHoldMatch = appSource.match(/const\s+FAMILY_ENTER_HOLD_MS\s*=\s*(\d+);/);
+const familyExitHoldMatch = appSource.match(/const\s+FAMILY_EXIT_HOLD_MS\s*=\s*(\d+);/);
+if (!familyEnterHoldMatch || !familyExitHoldMatch) {
+  fail('Family mode toggle must declare numeric FAMILY_ENTER_HOLD_MS and FAMILY_EXIT_HOLD_MS constants.');
+} else {
+  const enterHoldMs = Number(familyEnterHoldMatch[1]);
+  const exitHoldMs = Number(familyExitHoldMatch[1]);
+  if (enterHoldMs < 800) {
+    fail(`FAMILY_ENTER_HOLD_MS (${enterHoldMs}) must stay a deliberate hold of at least 800ms.`);
+  }
+  if (exitHoldMs < enterHoldMs * 2) {
+    fail(`FAMILY_EXIT_HOLD_MS (${exitHoldMs}) must be at least 2x FAMILY_ENTER_HOLD_MS (${enterHoldMs}); the operator return is the privacy boundary and needs the materially longer hold.`);
+  }
+}
 const familyToggleStart = appSource.indexOf('function installFamilyModeToggle()');
 const familyToggleEnd = appSource.indexOf('window.__HERMES_FAMILY_TOGGLE');
 const familyToggleBlock = appSource.slice(familyToggleStart, familyToggleEnd);
