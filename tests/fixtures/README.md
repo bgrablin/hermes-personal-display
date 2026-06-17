@@ -14,7 +14,7 @@ These fixtures are display-safe inputs used by the local preview server and regr
 
 ## Safety expectations
 
-Fixtures should be representative, not realistic dumps. Do not paste raw Hermes conversations, raw logs, stack traces, file paths from private work, URLs with tokens, API keys, credentials, CUI/customer/government terms, or other sensitive operational data into these files.
+Fixtures should be representative, not realistic dumps. Do not paste raw Hermes conversations, raw logs, stack traces, file paths from private work, URLs with tokens, API keys, credentials, private operational terms, or other sensitive operational data into these files.
 
 If a fixture needs to exercise privacy rejection, use synthetic values that are obviously fake and scoped to the test. Keep those examples small and make sure the relevant validator rejects them.
 

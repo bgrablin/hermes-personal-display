@@ -9,9 +9,17 @@ from avatar_event_bus import SECRET_PATTERNS
 CURRENT_WORK_MAX_AGE_SECONDS = 4 * 60
 AUGURY_MAX_ITEM_CHARS = 320
 AUGURY_REDACTED_PLACEHOLDER = "[redacted]"
+AUGURY_REDACTION_POLICY = "credentials_log_payloads_preserve_paths"
 
 AUGURY_HARD_REDACT_PATTERNS: list[re.Pattern[str]] = [
     *SECRET_PATTERNS,
+    # Augury is operator-only and intentionally keeps useful operational text,
+    # including normal file paths. Redact raw payload-shaped fields that are
+    # likely to contain prompts/log bodies, plus hard credential shapes below.
+    re.compile(
+        r"(?i)\b(?:raw[_-]?)?(?:prompt|messages?|tool[_-]?output|traceback|log[_-]?payload|payload|request[_-]?body|response[_-]?body|headers?)\s*[:=]\s*"
+        r"(?:\{[^\n{}]{0,240}\}|\[[^\n\[\]]{0,240}\]|\"[^\n\"]{0,240}\"|'[^\n']{0,240}'|\S{12,})"
+    ),
     re.compile(r"(?i)\bbearer\s+[A-Za-z0-9._~\-+/=]{16,}\b"),
     re.compile(r"(?i)\bauthorization\s*[:=]\s*[^\s'\"]{12,}"),
     re.compile(r"(?i)\b(?:api[_-]?key|access[_-]?key|secret[_-]?key|client[_-]?secret)\s+[A-Za-z0-9._~\-+/=]{12,}\b"),
@@ -22,7 +30,6 @@ AUGURY_HARD_REDACT_PATTERNS: list[re.Pattern[str]] = [
 
 SCRUB_RISKY_PATTERNS: list[re.Pattern[str]] = [
     re.compile(r"(?i)(token|secret|password|api[_-]?key|authorization|bearer)\s*[:=]\s*\S+"),
-    re.compile(r"(?i)\b(?:CUI|ITAR|NOFORN|FOUO)\b|controlled unclassified information|\b(?:government|customer|contractor?|DoD|MDA)\b"),
     re.compile(r"(?i)(BEGIN|END) [A-Z ]*(PRIVATE KEY|TOKEN|CERTIFICATE)"),
     # Long base64-like encoded blobs are often logs, payloads, or secrets; hide them.
     re.compile(r"\b[A-Za-z0-9+/]{48,}={0,2}\b"),
@@ -42,7 +49,7 @@ CURRENT_WORK_FORBIDDEN_KEYS = {
 
 
 def augury_redact(text: str) -> str:
-    """Mask hard credentials but leave normal log/prompt text intact."""
+    """Mask hard credentials and payload-shaped fields while preserving useful operator text."""
     if not text:
         return ""
     redacted = str(text)

@@ -3,7 +3,6 @@
 
 const fs = require('fs');
 const path = require('path');
-const { chromium } = require('playwright');
 
 const MODES = [
   'idle_watch',
@@ -19,13 +18,14 @@ const MODES = [
 
 const URL_BASE = process.env.PERSONAL_DISPLAY_URL_BASE || 'http://127.0.0.1:8770';
 function readDisplayBuildId() {
-  const appSource = fs.readFileSync(path.resolve(__dirname, '..', 'src', 'mascot', 'app.js'), 'utf8');
-  const match = appSource.match(/const DISPLAY_BUILD_ID = '([^']+)'/);
-  if (!match) throw new Error('DISPLAY_BUILD_ID not found in src/mascot/app.js');
+  const buildIdPath = path.resolve(__dirname, '..', 'src', 'generated', 'build-id.js');
+  const buildIdSource = fs.readFileSync(buildIdPath, 'utf8');
+  const match = buildIdSource.match(/window\.__HERMES_DISPLAY_BUILD_ID\s*=\s*['"]([^'"]+)['"]/);
+  if (!match) throw new Error(`__HERMES_DISPLAY_BUILD_ID not found in ${buildIdPath}; run npm run generate:build-id`);
   return match[1];
 }
 
-const BUILD = process.env.PERSONAL_DISPLAY_BUILD || readDisplayBuildId();
+const BUILD = process.env.PERSONAL_DISPLAY_BUILD_ID || process.env.PERSONAL_DISPLAY_BUILD || readDisplayBuildId();
 
 const OUT_DIR = path.resolve(__dirname, '..', 'docs', 'review-artifacts', 'modes');
 
@@ -43,6 +43,12 @@ const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
 (async () => {
   try {
+    if (process.argv.includes('--print-build-id')) {
+      console.log(BUILD);
+      process.exit(0);
+    }
+
+    const { chromium } = require('playwright');
     fs.mkdirSync(OUT_DIR, { recursive: true });
 
     const browser = await chromium.launch({

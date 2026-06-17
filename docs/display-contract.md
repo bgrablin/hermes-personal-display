@@ -60,7 +60,7 @@ The contract allows display-safe state only. It should not carry:
 - private file paths
 - credential-shaped strings
 - URLs carrying tokens
-- CUI/customer/government terms
+- private operational terms
 - unbounded free-text diagnostic payloads
 
 Use `tests/fixtures/README.md` when adding fixtures so examples stay synthetic and auditable.

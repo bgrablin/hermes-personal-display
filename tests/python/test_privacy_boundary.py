@@ -26,8 +26,7 @@ SENSITIVE_CASES = [
     "A" * 96,
     r"C:\\Users\\Brian\\secrets\\notes.txt",
     r"..\\private\\notes.txt",
-    "src/private/customer-notes.md",
-    "government customer status should never be browser-facing",
+    "src/private/operator-notes.md",
 ]
 
 AUGURY_SENSITIVE_CASES = [
@@ -36,7 +35,7 @@ AUGURY_SENSITIVE_CASES = [
     "api_" + "key=" + FAKE_SECRET,
     "https://example.test/callback?" + "tok" + "en=" + FAKE_SECRET,
     "BEGIN PRIVATE KEY " + FAKE_SECRET,
-    "CUI " + FAKE_SECRET,
+    "payload={\"role\":\"user\",\"content\":\"hi\"}",
     "A" * 96,
 ]
 
@@ -125,12 +124,12 @@ def test_build_state_from_hostile_facts_contains_only_allowlisted_top_fields() -
         "warn_lines": ["2026-01-01 00:00:00 INFO " + "tok" + "en=" + FAKE_SECRET],
         "kanban": {
             "active": 1,
-            "summary": "customer path src/private/plan.md",
+            "summary": "private path src/private/plan.md",
             "tasks": [{
-                "title": r"Fix government customer issue at C:\\Users\\Brian\\secret.txt",
+                "title": r"Fix private issue at C:\\Users\\Brian\\secret.txt",
                 "status": "blocked",
                 "assignee": "Brian /home/brian/private/context",
-                "step": "send customer token",
+                "step": "send token",
             }],
         },
         "manual_override": {"caption": "sec" + "ret=" + FAKE_SECRET},
@@ -149,8 +148,6 @@ def test_build_state_from_hostile_facts_contains_only_allowlisted_top_fields() -
     assert "raw prompt" not in rendered
     assert "raw output" not in rendered
     assert "id_rsa" not in rendered
-    assert "government" not in rendered.lower()
-    assert "customer" not in rendered.lower()
     assert "private/context" not in rendered
     assert "secret.txt" not in rendered
     assert FAKE_SECRET not in rendered

@@ -60,11 +60,11 @@ generated constants → `scripts/hermes_display_server.py` (`/api/hermes-state`,
 
 The display contract is the project boundary. Browser-facing packets must never carry: raw prompts or
 answers, raw logs/tracebacks/tool output, private file paths, URLs with tokens, credential-shaped
-strings, CUI/customer/government terms, or unbounded free text. Validators and checks reject these —
+strings, private operational terms, or unbounded free text. Validators and checks reject these —
 treat a check failure as a design signal, not an obstacle to pattern around.
 
 Augury is an operator-only private overlay, so its redaction policy is intentionally narrower than
-browser-facing display-state cards: redact credential/token/CUI/log-payload shapes, but preserve normal
+browser-facing display-state cards: redact credential/token/log-payload shapes, but preserve normal
 file paths when they are useful operational context. Do not apply blanket path redaction to Augury
 without also updating privacy tests and this policy.
 

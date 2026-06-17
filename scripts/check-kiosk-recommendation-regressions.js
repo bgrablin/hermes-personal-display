@@ -17,6 +17,7 @@ const runtimeHtml = fs.readFileSync(path.join(projectRoot, 'src', 'character-run
 const buildIdSource = fs.readFileSync(path.join(projectRoot, 'src', 'generated', 'build-id.js'), 'utf8');
 const xsessionSource = fs.readFileSync(path.join(projectRoot, 'scripts', 'xsession-minix-kiosk.sh'), 'utf8');
 const displayCliSource = fs.readFileSync(path.join(projectRoot, 'scripts', 'hermes-display'), 'utf8');
+const captureModesSource = fs.readFileSync(path.join(projectRoot, 'scripts', 'capture-mode-artifacts.cjs'), 'utf8');
 const audioSource = fs.readFileSync(path.join(projectRoot, 'src', 'mascot', 'audio.js'), 'utf8');
 const touchFxSource = fs.readFileSync(path.join(projectRoot, 'src', 'mascot', 'touch-fx.js'), 'utf8');
 const entertainmentSource = fs.readFileSync(path.join(projectRoot, 'src', 'mascot', 'entertainment.js'), 'utf8');
@@ -479,8 +480,8 @@ requireAll(serverSource, ['Only show BLOCKED when the current', 'if blocked and 
 if (/standing by/i.test([appSource, stateSource].join('\n'))) {
   fail('Idle copy must avoid STANDING BY; use QUIET WATCH / SYSTEMS STEADY style wording.');
 }
-requireAll(appSource, ['safeDisplayText(value, maxLength = 64)', 'CUI', 'base64'], 'Frontend display-safe text scrubber must cover CUI and long encoded blobs');
-requireAll(privacySource, ['CUI', 'base64', 'display-safe detail hidden'], 'Backend scrubber must cover CUI and long encoded blobs');
+requireAll(appSource, ['safeDisplayText(value, maxLength = 64)', 'base64', 'display-safe detail hidden'], 'Frontend display-safe text scrubber must cover long encoded blobs');
+requireAll(privacySource, ['base64', 'display-safe detail hidden'], 'Backend scrubber must cover long encoded blobs');
 
 // Telemetry truthfulness and state freshness remain acceptance gates even in radial form.
 requireAll(appSource, [
@@ -621,6 +622,15 @@ if (unversionedVendor.length) {
 }
 requireAll(xsessionSource, ['BUILD_ID="${PERSONAL_DISPLAY_BUILD_ID:-$($SCRIPT_DIR/hermes-display build-id)}"', 'query.append((\'v\', build))'], 'Physical xsession launcher must derive the kiosk URL build id from the runtime');
 requireAll(displayCliSource, ['verify)', 'fix)', 'systemctl is-active --quiet "$SYSTEM_SERVICE"', 'sudo -n systemctl restart "$SYSTEM_SERVICE"', 'DISPLAY_BUILD_ID'], 'hermes-display CLI must verify/fix the real service-owned physical kiosk');
+requireAll(captureModesSource, [
+  "src', 'generated', 'build-id.js'",
+  'window\\.__HERMES_DISPLAY_BUILD_ID',
+  'PERSONAL_DISPLAY_BUILD_ID',
+  '--print-build-id',
+], 'Mode artifact capture must derive its cache-bust build id from the generated build-id.js source and support a lightweight print smoke path.');
+if (/const DISPLAY_BUILD_ID = ['"][^'"]+['"]/.test(captureModesSource) || captureModesSource.includes("src', 'mascot', 'app.js'")) {
+  fail('Mode artifact capture must not scrape the removed literal DISPLAY_BUILD_ID from src/mascot/app.js.');
+}
 if (!appSource.includes('createConceptBVisibleRendererAdapter') || !appSource.includes('hiddenRendererSkipped: true') || !appSource.includes("document.querySelector('.shell')?.remove()")) {
   fail('Concept B kiosk must skip the retired SVG renderer and remove the fallback shell DOM.');
 }

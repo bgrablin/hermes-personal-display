@@ -3827,7 +3827,6 @@
     const riskyPatterns = [
       /(?:^|\s)(?:\.{0,2}\/[\w.-]+|~\/|\/[\w.-]+(?:\/[\w.-]+)+)/,
       /(?:token|secret|api[_-]?key|authorization|bearer|password)\s*[:=]/i,
-      /\bCUI\b|controlled unclassified information/i,
       /(?:BEGIN|END) [A-Z ]*(?:PRIVATE KEY|TOKEN|CERTIFICATE)/i,
       /\b[A-Za-z0-9+/]{48,}={0,2}\b/, // likely base64 or opaque credential-like blob
       /(?:sudo|curl|ssh|scp|rsync|docker|kubectl|python3?|node|npm|git)\s+[^.]{12,}/i

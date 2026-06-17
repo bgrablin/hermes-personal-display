@@ -142,11 +142,11 @@ vendored asset changes. `npm run check:kiosk` fails if the generated id or first
 
 ### Display operating modes
 
-Safe Display Mode is the default. It may show health, lifecycle, coarse work state, labels, and bounded motion. It must not show prompts, raw logs, answers, secrets, file paths, URLs, tool I/O, transcripts, traceback dumps, CUI/customer/government terms, or credential-like strings.
+Safe Display Mode is the default. It may show health, lifecycle, coarse work state, labels, and bounded motion. It must not show prompts, raw logs, answers, secrets, file paths, URLs, tool I/O, transcripts, traceback dumps, private operational terms, or credential-like strings.
 
 Private Diagnostic Mode is explicit opt-in. It may show redacted local diagnostics for troubleshooting. It is never enabled by default and should remain local/private.
 
-Family/Entertainment Mode is explicit opt-in. It uses local/browser TTS fallback or bounded server-side generation. It does not receive work data or personal data. Entertainment request validation blocks prompt/log/message/system/developer/context/tool-output fields, file paths, URLs, credential-like strings, CUI/customer/government terms, and traceback-like content.
+Family/Entertainment Mode is explicit opt-in. It uses local/browser TTS fallback or bounded server-side generation. It does not receive work data or personal data. Entertainment request validation blocks prompt/log/message/system/developer/context/tool-output fields, file paths, URLs, credential-like strings, private operational terms, and traceback-like content.
 
 ## Quick start
 

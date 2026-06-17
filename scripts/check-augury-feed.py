@@ -5,7 +5,7 @@ Exercises augury helpers directly with a synthetic agent.log so the test is
 hermetic (no dependency on the live ~/.hermes/logs directory). Verifies:
 
   * prompt / tool / thinking / log item extraction
-  * hard credential redaction (bearer, JWT, gh_, sk-, base64, private key)
+  * narrow Augury redaction (credentials and log payloads)
   * response bounds (limit, minutes, item char cap, schema metadata)
   * normal prompt/log text survives so the overlay is visually useful
 """
@@ -71,6 +71,12 @@ def write_synthetic_log(path: Path) -> None:
         # Recent normal log line that should survive intact.
         f'{ts(1)} INFO [20260523_120000_aaaa] agent.tool_executor: '
         f'tool read_file completed (0.05s, 240 chars)',
+        # Normal paths are useful operator context and should survive Augury.
+        f'{ts(1)} INFO [20260523_120000_aaaa] agent.tool_executor: '
+        f'tool read_file completed /home/brian/.hermes/projects/personal-display/src/state.js',
+        # Structured payloads must not survive.
+        f'{ts(4)} INFO [20260523_120000_aaaa] agent.tool_executor: '
+        f'tool terminal completed payload={{"role":"user","content":"hi"}}',
         # Old line outside the minutes window — must NOT appear when minutes=2.
         f'{ts(60 * 60)} INFO [20260523_100000_bbbb] agent.tool_executor: '
         f'tool terminal completed ancient activity',
@@ -88,7 +94,7 @@ def run_extraction_checks(log: Path) -> None:
 
     policy = feed.get("policy") or {}
     expect(policy.get("purpose") == "ambient_log_visualization", "policy.purpose set")
-    expect(policy.get("redaction") == "hard_credentials_only", "policy.redaction set")
+    expect(policy.get("redaction") == "credentials_log_payloads_preserve_paths", "policy.redaction set")
     expect(policy.get("limit") == 20, "policy.limit echoes request")
     expect(policy.get("minutes") == 30, "policy.minutes echoes request")
     expect(policy.get("max_item_chars") == srv.AUGURY_MAX_ITEM_CHARS, "policy.max_item_chars matches constant")
@@ -116,11 +122,14 @@ def run_redaction_checks(log: Path) -> None:
     expect("abcdef0123456789abcdef" not in blob, "raw bearer secret not present")
     expect(('ghp_' + 'aa...iiii') not in blob, "raw GitHub PAT not present")
     expect("[redacted]" in blob, "[redacted] placeholder appears at least once")
+    expect("payload" not in blob.lower(), "raw payload field not present")
+    expect("role" not in blob and "content" not in blob, "structured payload fields not present")
 
     # Normal text must survive so the overlay is visually useful.
     expect("OAuth middleware" in blob, "normal prompt text preserved")
     expect("subprocess timed out" in blob, "normal warning text preserved")
     expect("search_files completed" in blob, "tool activity text preserved")
+    expect("/home/brian/.hermes/projects/personal-display/src/state.js" in blob, "normal file path preserved")
 
     # JWT shape direct redaction.
     jwt = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.aaaaaaaaaaaaaaaaaaaa.bbbbbbbbbbbbbbbbbbbb"

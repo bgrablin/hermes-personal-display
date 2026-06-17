@@ -34,10 +34,8 @@ from avatar_event_bus import (
 
 from display_state.persistence import atomic_json_write, append_bounded_jsonl
 from display_state.privacy import (
-    AUGURY_HARD_REDACT_PATTERNS,
-    AUGURY_REDACTED_PLACEHOLDER,
+    AUGURY_REDACTION_POLICY,
     augury_clean,
-    augury_redact,
     clean_log_msg,
     scrub,
     sanitize_current_work as _sanitize_current_work,
@@ -156,11 +154,11 @@ _STATE_CACHE_LOCK = threading.Lock()
 _STATE_CACHE: dict[str, object] = {"at": 0.0, "state": None}
 _ENTERTAINMENT_USAGE_LOCK = threading.Lock()
 
-# Augury ambient log feed. The Hermes physical display is a private,
-# home-LAN-only appliance, so this feed intentionally allows real prompt/log
-# text through and only redacts hard credentials (API keys, bearer tokens,
-# private keys, JWTs). All other display-safety constraints (current_work,
-# captions, kanban) remain unchanged.
+# Augury ambient log feed. This is an operator-only private overlay, so it
+# intentionally allows useful operational context (including normal file paths)
+# while narrowly redacting credential/token and raw log-payload-shaped snippets.
+# All browser-facing display-safety constraints
+# (current_work, captions, kanban) remain unchanged.
 AUGURY_SCHEMA_VERSION = "0.1.0"
 AUGURY_DEFAULT_LIMIT = 12
 AUGURY_MAX_LIMIT = 25
@@ -331,7 +329,7 @@ def build_augury_feed(
         "sensitivity": "home_private_redacted",
         "policy": {
             "purpose": "ambient_log_visualization",
-            "redaction": "hard_credentials_only",
+            "redaction": AUGURY_REDACTION_POLICY,
             "limit": bounded_limit,
             "minutes": bounded_minutes,
             "max_item_chars": AUGURY_MAX_ITEM_CHARS,
@@ -1785,7 +1783,7 @@ def _normalize_entertainment_text(text, max_chars: int = MAX_TTS_TEXT_CHARS) -> 
         raise ValueError("invalid_text_length")
     if scrub(value) == "[display-safe detail hidden]" or any(pattern.search(value) for pattern in SECRET_PATTERNS):
         raise ValueError("unsafe_text")
-    if re.search(r"https?://|www\.|@[\w.-]+|(?:^|\s)(?:\.{0,2}/|~/|/[\w.-]+/)|\b(CUI|credential|password|token|secret|customer|government|log|traceback)\b", value, re.I):
+    if re.search(r"https?://|www\.|@[\w.-]+|(?:^|\s)(?:\.{0,2}/|~/|/[\w.-]+/)|\b(credential|password|token|secret|log|traceback)\b", value, re.I):
         raise ValueError("non_display_safe_text")
     if not re.fullmatch(r"[A-Za-z0-9 .,!?'-]{1,%d}" % max_chars, value):
         raise ValueError("unsupported_text_chars")
@@ -1926,7 +1924,7 @@ def handle_entertainment_line(payload: dict) -> dict:
             "particle_theme": {"type": "string", "enum": sorted(ENTERTAINMENT_ALLOWED_PARTICLES)},
         },
     }
-    prompt = "Generate one short family-safe line for a friendly home display named Hermes. Rules: 2 to 8 words preferred. No names. No personal data. No work, logs, files, tools, customers, government, secrets, CUI, credentials, or system status. No scary, violent, romantic, rude, religious, political, medical, or adult content. No advice. No questions asking a child to disclose anything. Whimsical, gentle, easy to hear."
+    prompt = "Generate one short family-safe line for a friendly home display named Hermes. Rules: 2 to 8 words preferred. No names. No personal data. No work, logs, files, tools, secrets, credentials, or system status. No scary, violent, romantic, rude, religious, political, medical, or adult content. No advice. No questions asking a child to disclose anything. Whimsical, gentle, easy to hear."
     response = _json_post_openai(
         "https://api.openai.com/v1/responses",
         {"model": ENTERTAINMENT_LINE_MODEL, "input": [{"role": "system", "content": prompt}, {"role": "user", "content": f"trigger={trigger}; mode={mode}; style={style}; max_chars={max_chars}"}], "text": {"format": {"type": "json_schema", "name": "hermes_entertainment_line", "schema": schema, "strict": True}}},
