@@ -168,7 +168,17 @@ def fetch_codex_headroom() -> tuple[float | None, float | None, str | None]:
         from agent.credential_pool import load_pool
 
         pool = load_pool("openai-codex")
+        # peek() skips exhausted entries, but the WHAM/usage endpoint is a
+        # read-only GET that may still work with an exhausted token.  Try
+        # the usable subset first, then fall through to any credential so
+        # we can surface the real used_percent even when quota is exhausted.
         entry = pool.peek() if pool else None
+        if entry is None:
+            entries = getattr(pool, "_entries", None) or []
+            if entries:
+                first = entries[0] if entries else None
+                if first and getattr(first, "access_token", ""):
+                    entry = first
         token = str(getattr(entry, "runtime_api_key", "") or "").strip() if entry else ""
         if not token:
             return None, None, None
@@ -200,25 +210,6 @@ def fetch_codex_headroom() -> tuple[float | None, float | None, str | None]:
     except Exception as exc:
         print(f"codex quota probe failed: {type(exc).__name__}: {exc}", file=sys.stderr)
         return None, None, None
-
-
-def _codex_credential_available() -> bool:
-    """Return True when the credential pool has a usable token for openai-codex.
-
-    Does not make an API call — just checks whether we have a non-empty
-    runtime key.  Used to decide whether an inferred log-count headroom
-    is meaningful when the WHAM/usage quota API is unreachable.
-    """
-    try:
-        _load_hermes_env_and_path()
-        from agent.credential_pool import load_pool
-
-        pool = load_pool("openai-codex")
-        entry = pool.peek() if pool else None
-        token = str(getattr(entry, "runtime_api_key", "") or "").strip() if entry else ""
-        return bool(token)
-    except Exception:
-        return False
 
 
 def fetch_anthropic_headroom() -> tuple[float | None, float | None]:
@@ -286,18 +277,6 @@ def apply_confirmed_quota(providers: list[dict]) -> None:
             "headroom": codex_headroom,
             "secondary_headroom": codex_secondary,
             "tier_label": f"{codex_tier} 5H" if codex_tier else PROVIDER_PLAN["openai-codex"]["tier_label"],
-            "last_used_age_s": 0,
-        }
-    elif not _codex_credential_available():
-        # Quota probe failed and there is no usable credential.  The
-        # agent.log call-count heuristic is meaningless when the
-        # provider is effectively unreachable (subscription exhausted,
-        # no active session token).  Suppress the inferred headroom so
-        # the display does not claim unused quota.
-        quota_updates["openai-codex"] = {
-            "state": "error",
-            "headroom": None,
-            "secondary_headroom": None,
             "last_used_age_s": 0,
         }
     if anthropic_headroom is not None:
