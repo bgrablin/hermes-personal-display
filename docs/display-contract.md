@@ -31,19 +31,25 @@ python3 scripts/generate_display_contract.py
 
 The generated files are committed so runtime code and tests can use the same constants without requiring generation during normal startup.
 
+Check that the committed outputs are current without rewriting them:
+
+```bash
+npm run check:contract
+```
+
 ## Validation path
 
 Relevant checks:
 
 ```bash
-python3 scripts/generate_display_contract.py
+npm run check:contract
 npm run check:client-events
 python3 scripts/check-avatar-event-bus.py
 python3 scripts/check-kanban-snapshot.py
 npm test
 ```
 
-`npm test` already runs the generated-contract step through `test:server`, but running the generator explicitly is useful when reviewing schema diffs.
+`npm test` already runs the non-mutating generated-contract freshness check. Use `npm run generate:contract` only when intentionally updating schema-derived outputs.
 
 ## Privacy rules
 

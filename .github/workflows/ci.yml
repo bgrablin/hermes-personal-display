@@ -41,9 +41,7 @@ jobs:
           echo "$PWD/.venv/bin" >> "$GITHUB_PATH"
 
       - name: Check generated display contract is current
-        run: |
-          python3 scripts/generate_display_contract.py
-          git diff --exit-code -- src/generated/display-contract.js scripts/generated/display_contract.py
+        run: npm run check:contract
 
       - name: Check generated build id is current
         run: npm run check:build-id

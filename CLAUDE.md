@@ -23,6 +23,7 @@ npx playwright test -g "family"                        # filtered e2e
 npm run check:kiosk          # kiosk regression guard (pattern-matches source)
 npm run check:client-events  # client avatar-event validator guard
 npm run check:augury-feed    # Augury feed privacy check
+npm run check:contract       # verify generated display contract without rewriting files
 npm run generate:contract    # regenerate contract bindings from schemas/
 npm run generate:build-id    # regenerate content-hash cache keys for first-party runtime assets
 npm run test:all             # full local gate incl. both Playwright projects
@@ -42,8 +43,9 @@ generated constants → `scripts/hermes_display_server.py` (`/api/hermes-state`,
 - `schemas/` — authoritative contract sources (display-state, avatar-event, optic-state schemas plus
   shared presets/postures).
 - `src/generated/display-contract.js` and `scripts/generated/display_contract.py` — **generated, never
-  hand-edit**. After any `schemas/` change run `python3 scripts/generate_display_contract.py` and commit
-  both outputs (they are committed deliberately so runtime/tests share constants without a build step).
+  hand-edit**. After any `schemas/` change run `npm run generate:contract` and commit both outputs
+  (they are committed deliberately so runtime/tests share constants without a build step). Use
+  `npm run check:contract` for non-mutating freshness checks.
 - `src/generated/build-id.js` — **generated, never hand-edit**. `npm run generate:build-id` computes a
   deterministic content hash from first-party runtime assets and synchronizes the first-party `?v=` cache
   keys in `src/character-runtime.html`.
