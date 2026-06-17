@@ -13,6 +13,7 @@ const cssSource = fs.readFileSync(path.join(projectRoot, 'src', 'styles.css'), '
 const stateSource = fs.readFileSync(path.join(projectRoot, 'src', 'state.js'), 'utf8');
 const serverSource = fs.readFileSync(path.join(projectRoot, 'scripts', 'hermes_display_server.py'), 'utf8');
 const privacySource = fs.readFileSync(path.join(projectRoot, 'scripts', 'display_state', 'privacy.py'), 'utf8');
+const logSnapshotSource = fs.readFileSync(path.join(projectRoot, 'scripts', 'display_state', 'log_snapshot.py'), 'utf8');
 const runtimeHtml = fs.readFileSync(path.join(projectRoot, 'src', 'character-runtime.html'), 'utf8');
 const buildIdSource = fs.readFileSync(path.join(projectRoot, 'src', 'generated', 'build-id.js'), 'utf8');
 const xsessionSource = fs.readFileSync(path.join(projectRoot, 'scripts', 'xsession-minix-kiosk.sh'), 'utf8');
@@ -440,7 +441,7 @@ if (serverSource.includes('override ignored:')) {
   fail('Manual override exception class names must not reach the display caption.');
 }
 requireAll(serverSource, ['def gateway_ok_recently', 'line_is_recent(line, minutes)', 'gateway_ok_recently(recent_gateway)'], 'Gateway status must be recency-bounded, not raw token presence over a stale log tail.');
-requireAll(serverSource, ['def augury_log_tail', 'text = augury_log_tail(line)', 'safe_text = augury_clean(text, AUGURY_MAX_ITEM_CHARS)'], 'Augury items must clean timestamp/session/module prefixes before display.');
+requireAll(serverSource + logSnapshotSource, ['def augury_log_tail', 'text = augury_log_tail(line)', 'safe_text = augury_clean(text, AUGURY_MAX_ITEM_CHARS)'], 'Augury items must clean timestamp/session/module prefixes before display.');
 requireAll(appSource, ["title: 'CURRENT'", "title: 'STATUS'", "title: 'STATE'", "title: 'SIGNAL'"], 'Augury packet fallback labels must be operator-facing, not internal work/detail/caption/snippet keys.');
 if (/title:\s*'(?:work|detail|caption|snippet)'/.test(appSource)) {
   fail('Augury fallback must not surface raw internal packet labels.');
