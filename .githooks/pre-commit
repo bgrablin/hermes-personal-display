@@ -32,5 +32,7 @@ if [[ ! -x scripts/capture-current-dashboard.sh ]]; then
 fi
 
 echo "Dashboard capture hook: frontend change detected; refreshing docs/current-dashboard.png"
+"$ROOT_DIR/scripts/hermes-display" restart >/dev/null 2>&1 || true
+sleep 4
 scripts/capture-current-dashboard.sh --repo-only
 git add docs/current-dashboard.png
