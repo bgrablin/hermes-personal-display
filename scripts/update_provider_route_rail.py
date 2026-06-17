@@ -210,12 +210,23 @@ def fetch_codex_headroom() -> tuple[float | None, float | None, str | None, floa
         if secondary.get("used_percent") is not None:
             secondary_headroom = max(0.0, min(1.0, 1.0 - float(secondary.get("used_percent")) / 100.0))
         tier = str(payload.get("plan_type") or "").strip().upper().replace("_", "-") or None
-        # reset_at from WHAM/usage is authoritative; fall back to the
-        # credential-pool last_error_reset_at so hermes auth list and the
-        # route rail stay consistent.
-        reset_at = primary.get("reset_at")
-        if reset_at is None and entry is not None:
-            reset_at = getattr(entry, "last_error_reset_at", None)
+        # When the credential pool marks this entry as exhausted (a real 429
+        # was received) and the pool's reset time is still in the future,
+        # that signal is more trustworthy than the WHAM primary_window.
+        # The WHAM window can roll to a fresh 5h period while the actual
+        # rate-limit that blocked the session has not expired yet.  In that
+        # case force 0 % headroom and use the credential reset time so the
+        # display matches `hermes auth list`.
+        cred_reset = getattr(entry, "last_error_reset_at", None) if entry else None
+        cred_exhausted = str(getattr(entry, "last_status", "") or "").lower() == "exhausted"
+        if cred_exhausted and isinstance(cred_reset, (int, float)) and cred_reset > time.time():
+            headroom = 0.0
+            secondary_headroom = None
+            reset_at = cred_reset
+        else:
+            reset_at = primary.get("reset_at")
+            if reset_at is None:
+                reset_at = cred_reset
         return headroom, secondary_headroom, tier, reset_at
     except Exception as exc:
         print(f"codex quota probe failed: {type(exc).__name__}: {exc}", file=sys.stderr)
