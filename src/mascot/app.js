@@ -2265,18 +2265,11 @@
       }
       setConceptBText(entry.label, safeDisplayText(provider.label || 'ROUTE', 8).toUpperCase());
       const unknownRouteCopy = state === 'disabled' ? 'OFF' : state === 'error' ? 'ERR' : 'UNK';
-      let valueText = unknownRouteCopy;
-      if (knownHeadroom) {
-        valueText = `${state === 'inferred' ? '~' : ''}${Math.round(clamped * 100)}%`;
-        if (clamped <= 0 && Number.isFinite(Number(provider.reset_at_epoch_s))) {
-          const remain = formatResetCountdown(Number(provider.reset_at_epoch_s));
-          if (remain) valueText += `  ·  ${remain}`;
-        }
-      }
-      setConceptBText(entry.value, valueText);
+      setConceptBText(entry.value, knownHeadroom ? `${state === 'inferred' ? '~' : ''}${Math.round(clamped * 100)}%` : unknownRouteCopy);
       const tier = safeDisplayText(provider.tier_label || '', 14).toUpperCase();
       const age = provider.stale_age_s != null ? formatRouteAge(provider.stale_age_s) : provider.last_used_age_s != null && idx === activeIndex ? `· ${formatRouteAge(provider.last_used_age_s)}` : '';
-      setConceptBText(entry.tier, [tier, age].filter(Boolean).join(' '));
+      const resetCountdown = clamped != null && clamped <= 0 && Number.isFinite(Number(provider.reset_at_epoch_s)) ? formatResetCountdown(Number(provider.reset_at_epoch_s)) : '';
+      setConceptBText(entry.tier, [resetCountdown, tier, age].filter(Boolean).join('  ·  '));
       setConceptBText(entry.glyph, glyphs[state] || '○');
     });
     setConceptBDataset(root, 'activeIndex', activeIndex >= 0 ? String(activeIndex) : 'none');
