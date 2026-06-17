@@ -1,5 +1,5 @@
 [Unit]
-Description=Hermes NUC kiosk thermal policy (opt-in CPU max_perf_pct=80)
+Description=Hermes NUC kiosk thermal policy (opt-in CPU max_perf_pct=85)
 Documentation=man:cpupower(1)
 ConditionPathExists=/sys/devices/system/cpu/intel_pstate/max_perf_pct
 ConditionPathExists=/sys/devices/system/cpu/intel_pstate/no_turbo
@@ -8,7 +8,7 @@ ConditionPathExists=/sys/devices/system/cpu/intel_pstate/no_turbo
 Type=oneshot
 RemainAfterExit=yes
 # Keep turbo available, but cap Intel p-state maximum performance to reduce kiosk thermals.
-ExecStart=/usr/bin/bash -lc 'printf 0 > /sys/devices/system/cpu/intel_pstate/no_turbo; printf 80 > /sys/devices/system/cpu/intel_pstate/max_perf_pct'
+ExecStart=/usr/bin/bash -lc 'printf 0 > /sys/devices/system/cpu/intel_pstate/no_turbo; printf 85 > /sys/devices/system/cpu/intel_pstate/max_perf_pct'
 # Rollback restores the stock local policy used before kiosk thermal capping.
 ExecStop=/usr/bin/bash -lc 'printf 0 > /sys/devices/system/cpu/intel_pstate/no_turbo; printf 100 > /sys/devices/system/cpu/intel_pstate/max_perf_pct'
 

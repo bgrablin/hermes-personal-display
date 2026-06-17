@@ -91,4 +91,4 @@ npm test
 ./scripts/hermes-display screenshot
 ```
 
-`hermes-display verify` checks the generated build id, canonical Chromium URL, configured display output geometry, audio sink/volume, and Intel p-state thermal policy (`max_perf_pct` target defaults to 80).
+`hermes-display verify` checks the generated build id, canonical Chromium URL, configured display output geometry, audio sink/volume, and Intel p-state thermal policy (`max_perf_pct` target defaults to 85 on the Hermes NUC kiosk baseline).

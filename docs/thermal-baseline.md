@@ -21,7 +21,7 @@ The Hermes Personal Display remains visually unchanged:
 
 The accepted kiosk thermal policy for the Intel NUC is:
 
-- `intel_pstate/max_perf_pct=80`
+- `intel_pstate/max_perf_pct=85`
 - `intel_pstate/no_turbo=0` (turbo remains available inside the capped envelope)
 - `intel_pstate/min_perf_pct` is left to the host default
 - DP-2 remains `1920x1280` inverted at `60 Hz`
@@ -55,7 +55,7 @@ cat /sys/devices/system/cpu/intel_pstate/no_turbo
 scripts/hermes-display verify
 ```
 
-Expected accepted runtime: CPU package temperature steady around the mid-to-high 60s °C for the `concept-b-thermal-hotpath3` kiosk build, with CPU max performance capped at 80%, DP-2 still `1920x1280` inverted, and no visible regression in motion/visual direction.
+Expected accepted runtime: CPU package temperature steady around the mid-to-high 60s °C for the `concept-b-thermal-hotpath3` kiosk build, with CPU max performance capped at 85%, DP-2 still `1920x1280` inverted, and no visible regression in motion/visual direction.
 
 Rollback:
 
