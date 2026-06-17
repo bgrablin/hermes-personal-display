@@ -1,0 +1,131 @@
+from __future__ import annotations
+
+import json
+import sys
+import time
+import types
+from pathlib import Path
+
+import pytest
+
+ROOT = Path(__file__).resolve().parents[2]
+SCRIPTS = ROOT / "scripts"
+if str(SCRIPTS) not in sys.path:
+    sys.path.insert(0, str(SCRIPTS))
+
+import update_provider_route_rail as updater  # noqa: E402
+import hermes_display_server as server  # noqa: E402
+
+
+class _FakeEntry:
+    runtime_api_key = "test-token"
+    runtime_base_url = "https://chatgpt.com/backend-api/codex"
+    access_token = "test-token"
+    extra = {}
+
+    def __init__(self, *, last_status="", reset_at=None):
+        self.last_status = last_status
+        self.last_error_reset_at = reset_at
+
+
+class _FakePool:
+    def __init__(self, entry):
+        self._entries = [entry]
+
+    def peek(self):
+        # Mirrors the real exhausted-path behavior: usable peek skips exhausted
+        # credentials, but the read-only WHAM/usage call can still use the entry.
+        return None
+
+
+class _FakeResponse:
+    status = 200
+
+    def __init__(self, payload):
+        self._payload = payload
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, *args):
+        return False
+
+    def read(self):
+        return json.dumps(self._payload).encode("utf-8")
+
+
+def _install_fake_credential_pool(monkeypatch: pytest.MonkeyPatch, entry: _FakeEntry) -> None:
+    package = types.ModuleType("agent")
+    credential_pool = types.ModuleType("agent.credential_pool")
+    credential_pool.load_pool = lambda provider: _FakePool(entry)
+    monkeypatch.setitem(sys.modules, "agent", package)
+    monkeypatch.setitem(sys.modules, "agent.credential_pool", credential_pool)
+    monkeypatch.setattr(updater, "_load_hermes_env_and_path", lambda: None)
+
+
+def test_codex_headroom_trusts_future_credential_exhaustion_over_wham_rollover(monkeypatch: pytest.MonkeyPatch) -> None:
+    reset_at = time.time() + 3600
+    _install_fake_credential_pool(monkeypatch, _FakeEntry(last_status="exhausted", reset_at=reset_at))
+    monkeypatch.setattr(
+        updater.urllib.request,
+        "urlopen",
+        lambda request, timeout: _FakeResponse(
+            {
+                "plan_type": "prolite",
+                "rate_limit": {
+                    "allowed": True,
+                    "limit_reached": False,
+                    "primary_window": {
+                        "used_percent": 0,
+                        "reset_at": time.time() + 18_000,
+                    },
+                    "secondary_window": {
+                        "used_percent": 0,
+                        "reset_at": time.time() + 604_800,
+                    },
+                },
+            }
+        ),
+    )
+
+    headroom, secondary, tier, observed_reset = updater.fetch_codex_headroom()
+
+    assert headroom == 0.0
+    assert secondary is None
+    assert tier == "PROLITE"
+    assert observed_reset == reset_at
+
+
+def test_display_server_passes_route_reset_at_epoch_s(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    reset_at = time.time() + 1800
+    route_path = tmp_path / "provider_route_rail.json"
+    route_path.write_text(
+        json.dumps(
+            {
+                "as_of_ms": int(time.time() * 1000),
+                "active_provider_id": "openai-codex",
+                "providers": [
+                    {
+                        "id": "openai-codex",
+                        "label": "CHATGPT",
+                        "tier_label": "PROLITE 5H",
+                        "rank": 1,
+                        "state": "confirmed",
+                        "headroom": 0.0,
+                        "secondary_headroom": None,
+                        "reachable": True,
+                        "last_used_age_s": 0,
+                        "stale_age_s": None,
+                        "reset_at_epoch_s": reset_at,
+                    }
+                ],
+            }
+        ),
+        encoding="utf-8",
+    )
+    monkeypatch.setattr(server, "PROVIDER_ROUTE_RAIL_PATH", route_path)
+
+    rail = server.load_provider_route_rail()
+
+    assert rail["providers"][0]["headroom"] == 0.0
+    assert rail["providers"][0]["reset_at_epoch_s"] == pytest.approx(reset_at)

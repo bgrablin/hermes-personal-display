@@ -14,6 +14,8 @@ const stateSource = fs.readFileSync(path.join(projectRoot, 'src', 'state.js'), '
 const serverSource = fs.readFileSync(path.join(projectRoot, 'scripts', 'hermes_display_server.py'), 'utf8');
 const privacySource = fs.readFileSync(path.join(projectRoot, 'scripts', 'display_state', 'privacy.py'), 'utf8');
 const logSnapshotSource = fs.readFileSync(path.join(projectRoot, 'scripts', 'display_state', 'log_snapshot.py'), 'utf8');
+const collectorSource = fs.readFileSync(path.join(projectRoot, 'scripts', 'display_state', 'collector.py'), 'utf8');
+const resolverSource = fs.readFileSync(path.join(projectRoot, 'scripts', 'display_state', 'resolver.py'), 'utf8');
 const runtimeHtml = fs.readFileSync(path.join(projectRoot, 'src', 'character-runtime.html'), 'utf8');
 const buildIdSource = fs.readFileSync(path.join(projectRoot, 'src', 'generated', 'build-id.js'), 'utf8');
 const xsessionSource = fs.readFileSync(path.join(projectRoot, 'scripts', 'xsession-minix-kiosk.sh'), 'utf8');
@@ -473,11 +475,11 @@ requireAll(cssSource, [
   'transform: translateY(calc(var(--route-active-y, -100px) + 45px))',
   'transition: transform 650ms ease, opacity 450ms ease',
 ], 'Route headroom must render fill-vs-track with honest hiding for unknown routes, amber confirmed rows/dots, low-band ochre values, and a transform-driven active hairline.');
-if (!serverSource.includes('actionable_warn_lines')) {
+if (!resolverSource.includes('actionable_warn_lines')) {
   fail('Routine provider/tool warnings must be filtered before driving the physical attention state.');
 }
-requireAll(serverSource, ["MCP server 'context7'", 'Honcho dialectic query failed', 'Error in post_writer', 'httpx\\.ConnectTimeout'], 'Transient Context7/Honcho/MCP reconnects must not drive CRITICAL LOCAL ISSUE on the physical display.');
-requireAll(serverSource, ['Only show BLOCKED when the current', 'if blocked and work_blocked:', 'blocked card queued'], 'Queued blocked Kanban cards must stay secondary context and must not make the idle display red/yellow BLOCKED.');
+requireAll(resolverSource, ["MCP server 'context7'", 'Honcho dialectic query failed', 'Error in post_writer', 'httpx\\.ConnectTimeout'], 'Transient Context7/Honcho/MCP reconnects must not drive CRITICAL LOCAL ISSUE on the physical display.');
+requireAll(resolverSource, ['Only show BLOCKED when the current', 'if blocked and work_blocked:', 'blocked card queued'], 'Queued blocked Kanban cards must stay secondary context and must not make the idle display red/yellow BLOCKED.');
 if (/standing by/i.test([appSource, stateSource].join('\n'))) {
   fail('Idle copy must avoid STANDING BY; use QUIET WATCH / SYSTEMS STEADY style wording.');
 }
@@ -499,7 +501,7 @@ requireAll(appSource, [
   'active?.anim?.pause?.()',
   'motion.animateValue({',
 ], 'Radial telemetry must use truthful live measurements, fixed temp scaling, trend/freshness, 4-minute TTL, and avoid null rendering as 0');
-requireAll(serverSource, ['with closing(sqlite3.connect', 'kanban_snapshot'], 'Kanban reads must close SQLite connections so the display server does not exhaust file descriptors and trip FEED LOST.');
+requireAll(collectorSource, ['with closing(sqlite3.connect', 'kanban_snapshot'], 'Kanban reads must close SQLite connections so the display server does not exhaust file descriptors and trip FEED LOST.');
 requireAll(appSource, [
   'Queued/blocked Kanban cards are useful context',
   'const isCurrent = Boolean(work.active) && ageKnown && age <= CURRENT_WORK_MAX_AGE_SECONDS;',

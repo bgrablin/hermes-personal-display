@@ -24,6 +24,8 @@ if str(SCRIPT_DIR) not in sys.path:
     sys.path.insert(0, str(SCRIPT_DIR))
 
 import hermes_display_server as srv  # noqa: E402
+from display_state import collector as col  # noqa: E402
+from display_state import resolver as res  # noqa: E402
 
 
 FAILURES: list[str] = []
@@ -76,15 +78,15 @@ def build_kanban_db(path: Path) -> None:
 
 
 def run_snapshot_checks(db_path: Path) -> None:
-    original_kanban = srv.KANBAN_DB
-    original_legacy = srv.LEGACY_KANBAN_DB
+    original_kanban = col.KANBAN_DB
+    original_legacy = col.LEGACY_KANBAN_DB
     # Point both candidate paths at the fixture so kanban_db_path() resolves to
     # our temp DB and never falls back to a live install.
-    srv.KANBAN_DB = db_path
-    srv.LEGACY_KANBAN_DB = db_path.with_name("nonexistent-legacy.db")
+    col.KANBAN_DB = db_path
+    col.LEGACY_KANBAN_DB = db_path.with_name("nonexistent-legacy.db")
     try:
         # Sanity: the snapshot reads the seeded rows (only the two active tasks).
-        snap = srv.kanban_snapshot()
+        snap = col.kanban_snapshot()
         expect(snap["active"] == 2, "snapshot returns the two active tasks")
         statuses = {task["status"] for task in snap["tasks"]}
         expect(statuses == {"blocked", "running"}, "snapshot excludes the done task")
@@ -100,11 +102,11 @@ def run_snapshot_checks(db_path: Path) -> None:
             captured.append(con)
             return con
 
-        srv.sqlite3.connect = tracking_connect
+        col.sqlite3.connect = tracking_connect
         try:
-            srv.kanban_snapshot()
+            col.kanban_snapshot()
         finally:
-            srv.sqlite3.connect = real_connect
+            col.sqlite3.connect = real_connect
 
         expect(len(captured) == 1, "snapshot opens exactly one connection")
         if captured:
@@ -116,10 +118,10 @@ def run_snapshot_checks(db_path: Path) -> None:
 
         # Repeated calls must not leak file descriptors. Warm up once so any
         # one-time imports/caches settle, then compare fd counts across a burst.
-        srv.kanban_snapshot()
+        col.kanban_snapshot()
         baseline = fd_count()
         for _ in range(250):
-            srv.kanban_snapshot()
+            col.kanban_snapshot()
         after = fd_count()
 
         if baseline is None or after is None:
@@ -129,8 +131,8 @@ def run_snapshot_checks(db_path: Path) -> None:
             # proportional to the 250 calls.
             expect(after <= baseline + 2, f"no fd leak across 250 calls (baseline={baseline} after={after})")
     finally:
-        srv.KANBAN_DB = original_kanban
-        srv.LEGACY_KANBAN_DB = original_legacy
+        col.KANBAN_DB = original_kanban
+        col.LEGACY_KANBAN_DB = original_legacy
 
 
 def run_resolver_checks() -> None:
@@ -157,7 +159,7 @@ def run_resolver_checks() -> None:
         "gateway_ok": True,
         "system": sys_snapshot,
     }
-    idle = srv.resolve_display_state(idle_facts, sys_snapshot, freshness)
+    idle = res.resolve_display_state(idle_facts, sys_snapshot, freshness)
     expect(idle["display_state"] == "quiet_watch", "idle queued blocked cards stay quiet/local watch")
     expect("blocked card queued" in idle["secondary_badges"], "idle queued blocked cards remain secondary context")
 
@@ -168,7 +170,7 @@ def run_resolver_checks() -> None:
         "gateway_ok": True,
         "system": sys_snapshot,
     }
-    active = srv.resolve_display_state(active_facts, sys_snapshot, freshness)
+    active = res.resolve_display_state(active_facts, sys_snapshot, freshness)
     expect(active["display_state"] == "planning_reasoning", "active reasoning beats queued blocked cards")
     expect("blocked card queued" in active["secondary_badges"], "active reasoning keeps blocked card secondary")
 
@@ -179,7 +181,7 @@ def run_resolver_checks() -> None:
         "gateway_ok": True,
         "system": sys_snapshot,
     }
-    explicit_blocked = srv.resolve_display_state(explicit_blocked_facts, sys_snapshot, freshness)
+    explicit_blocked = res.resolve_display_state(explicit_blocked_facts, sys_snapshot, freshness)
     expect(explicit_blocked["display_state"] == "blocked_user_task", "explicit blocked work still renders blocked")
 
 
