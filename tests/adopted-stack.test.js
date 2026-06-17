@@ -25,9 +25,12 @@ function runScripts(files, windowExtras = {}) {
     Error,
     window: windowExtras,
   });
-  const expandedFiles = files.includes('src/state.js') && !files.includes('src/generated/display-contract.js')
+  let expandedFiles = files.includes('src/state.js') && !files.includes('src/generated/display-contract.js')
     ? ['src/generated/display-contract.js', ...files]
-    : files;
+    : [...files];
+  const needsModePresets = (expandedFiles.includes('src/mascot/behavior-machine.js') || expandedFiles.includes('src/state.js'))
+    && !expandedFiles.includes('src/mascot/mode-presets.js');
+  if (needsModePresets) expandedFiles = ['src/mascot/mode-presets.js', ...expandedFiles];
   for (const file of expandedFiles) {
     vm.runInContext(fs.readFileSync(path.join(root, file), 'utf8'), context, { filename: file });
   }
@@ -35,6 +38,57 @@ function runScripts(files, windowExtras = {}) {
 }
 
 describe('adopted stack contracts', () => {
+  it('exposes HermesModePresets with consistent mode-to-preset and preset-to-mode mappings', () => {
+    const window = runScripts(['src/mascot/mode-presets.js']);
+    const mp = window.HermesModePresets;
+
+    expect(mp.MODES).toContain('idle_watch');
+    expect(mp.MODES).toContain('degraded_offline');
+    expect(mp.MODES).toHaveLength(Object.keys(mp.MODE_TO_PRESET).length);
+
+    expect(mp.modeToPreset('idle_watch')).toBe('quiet_watch');
+    expect(mp.modeToPreset('reasoning')).toBe('reasoning');
+    expect(mp.modeToPreset('tool_shell')).toBe('working');
+    expect(mp.modeToPreset('searching')).toBe('working');
+    expect(mp.modeToPreset('writing')).toBe('working');
+    expect(mp.modeToPreset('waiting_user')).toBe('waiting_input');
+    expect(mp.modeToPreset('blocked')).toBe('blocked');
+    expect(mp.modeToPreset('complete')).toBe('completed');
+    expect(mp.modeToPreset('degraded_offline')).toBe('degraded_offline');
+    expect(mp.modeToPreset('unknown_mode')).toBe('quiet_watch');
+    expect(mp.modeToPreset('unknown_mode', 'blocked')).toBe('blocked');
+
+    expect(mp.presetToMode('quiet_watch')).toBe('idle_watch');
+    expect(mp.presetToMode('working')).toBe('tool_shell');
+    expect(mp.presetToMode('feed_stale')).toBe('degraded_offline');
+    expect(mp.presetToMode('night_watch')).toBe('idle_watch');
+    expect(mp.presetToMode('critical')).toBe('blocked');
+    expect(mp.presetToMode('unknown_preset')).toBe('idle_watch');
+    expect(mp.presetToMode('unknown_preset', 'reasoning')).toBe('reasoning');
+
+    expect(mp.modeFromPacket({ behavior_mode: 'blocked' })).toBe('blocked');
+    expect(mp.modeFromPacket({ state_preset: 'working' })).toBe('tool_shell');
+    expect(mp.modeFromPacket({ state_preset: 'feed_stale' })).toBe('degraded_offline');
+    expect(mp.modeFromPacket({ state_preset: 'night_watch' })).toBe('idle_watch');
+    expect(mp.modeFromPacket({})).toBe('idle_watch');
+
+    expect(mp.packetForMode('tool_shell', {})).toMatchObject({
+      behavior_mode: 'tool_shell',
+      state_preset: 'working',
+    });
+    expect(mp.packetForMode('idle_watch', {})).toMatchObject({
+      behavior_mode: 'idle_watch',
+      state_preset: 'quiet_watch',
+    });
+
+    for (const mode of mp.MODES) {
+      const preset = mp.modeToPreset(mode);
+      expect(preset).toBeTruthy();
+      const roundTrip = mp.presetToMode(preset);
+      expect(mp.MODES).toContain(roundTrip);
+    }
+  });
+
   it('validates and clamps optic state packets', () => {
     const window = runScripts(['src/state.js']);
     const result = window.HermesDisplayState.validateOpticStatePacket({
@@ -109,6 +163,17 @@ describe('adopted stack contracts', () => {
       behavior_mode: 'degraded_offline',
       state_preset: 'degraded_offline',
       mood: 'degraded_offline',
+    });
+  });
+
+  it('maps optic behavior modes through the shared preset helper when behavior machine is unavailable', () => {
+    const window = runScripts(['src/state.js']);
+    delete window.HermesBehaviorMachine;
+
+    expect(window.HermesDisplayState.opticPacketToPersonaPacket({ mode: 'tool_shell' })).toMatchObject({
+      behavior_mode: 'tool_shell',
+      state_preset: 'working',
+      mood: 'thinking_focused',
     });
   });
 

@@ -19,6 +19,7 @@ const PACKAGE_JSON = path.join(ROOT, 'package.json');
 const RUNTIME_HTML = path.join(ROOT, 'src', 'character-runtime.html');
 const STATE_JS = path.join(ROOT, 'src', 'state.js');
 const DISPLAY_CONTRACT_JS = path.join(ROOT, 'src', 'generated', 'display-contract.js');
+const MODE_PRESETS_JS = path.join(ROOT, 'src', 'mascot', 'mode-presets.js');
 const BEHAVIOR_JS = path.join(ROOT, 'src', 'mascot', 'behavior-machine.js');
 const MOTION_JS = path.join(ROOT, 'src', 'mascot', 'motion-adapter.js');
 const SANITIZER_JS = path.join(ROOT, 'src', 'mascot', 'sanitize.js');
@@ -52,9 +53,12 @@ function loadScripts(files, contextExtras = {}) {
     ...contextExtras,
   });
   context.window = context.window || {};
-  const expandedFiles = files.includes(STATE_JS) && !files.includes(DISPLAY_CONTRACT_JS)
+  let expandedFiles = files.includes(STATE_JS) && !files.includes(DISPLAY_CONTRACT_JS)
     ? [DISPLAY_CONTRACT_JS, ...files]
-    : files;
+    : [...files];
+  const needsModePresets = (expandedFiles.includes(BEHAVIOR_JS) || expandedFiles.includes(STATE_JS))
+    && !expandedFiles.includes(MODE_PRESETS_JS);
+  if (needsModePresets) expandedFiles = [MODE_PRESETS_JS, ...expandedFiles];
   for (const file of expandedFiles) {
     vm.runInContext(read(file), context, { filename: file });
   }
@@ -77,9 +81,13 @@ function checkPackagePosture() {
 
 function checkRuntimeLoadsAdapters() {
   const html = read(RUNTIME_HTML);
-  for (const script of ['vendor/anime.iife.min.js', 'vendor/xstate.iife.min.js', 'vendor/purify.min.js', 'vendor/zod.global.js', 'mascot/sanitize.js', 'mascot/behavior-machine.js', 'generated/display-contract.js', 'mascot/motion-adapter.js']) {
+  for (const script of ['vendor/anime.iife.min.js', 'vendor/xstate.iife.min.js', 'vendor/purify.min.js', 'vendor/zod.global.js', 'mascot/sanitize.js', 'mascot/mode-presets.js', 'mascot/behavior-machine.js', 'generated/display-contract.js', 'mascot/motion-adapter.js']) {
     assert(html.includes(script), `character runtime does not load ${script}`);
   }
+  assert(
+    html.indexOf('mascot/mode-presets.js') < html.indexOf('mascot/behavior-machine.js'),
+    'character runtime must load mode-presets.js before behavior-machine.js'
+  );
 }
 
 function sha256(value) {

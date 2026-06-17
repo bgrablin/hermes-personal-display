@@ -20,6 +20,7 @@ const STATIC_RUNTIME_FILES = [
   'src/generated/display-contract.js',
   'src/state.js',
   'src/mascot/sanitize.js',
+  'src/mascot/mode-presets.js',
   'src/mascot/behavior-machine.js',
   'src/mascot/states.js',
   'src/mascot/motion-adapter.js',

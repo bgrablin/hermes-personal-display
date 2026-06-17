@@ -533,10 +533,11 @@
     const validation = validateOpticStatePacket(opticPacket);
     const packet = validation.packet;
     const behavior = window.HermesBehaviorMachine;
-    const mapped = behavior?.packetForMode ? behavior.packetForMode(packet.mode, basePacket) : {
+    const packetFn = behavior?.packetForMode || window.HermesModePresets?.packetForMode;
+    const mapped = packetFn ? packetFn(packet.mode, basePacket) : {
       ...basePacket,
       behavior_mode: packet.mode,
-      state_preset: packet.mode === 'blocked' ? 'blocked' : packet.mode === 'waiting_user' ? 'waiting_input' : packet.mode === 'complete' ? 'completed' : packet.mode === 'degraded_offline' ? 'degraded_offline' : ['tool_shell', 'searching', 'writing'].includes(packet.mode) ? 'working' : packet.mode === 'idle_watch' ? 'quiet_watch' : 'reasoning',
+      state_preset: window.HermesModePresets?.modeToPreset(packet.mode) ?? 'quiet_watch',
     };
     const displayPreset = DISPLAY_PRESETS[mapped.state_preset] || {};
     const opticProvided = Boolean(opticPacket?.optic && typeof opticPacket.optic === 'object');
