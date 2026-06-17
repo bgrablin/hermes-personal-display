@@ -161,8 +161,12 @@ def _codex_usage_url(base_url: str | None) -> str:
     return f"{normalized}/api/codex/usage"
 
 
-def fetch_codex_headroom() -> tuple[float | None, float | None, str | None]:
-    """Return confirmed ChatGPT/Codex primary and secondary headroom."""
+def fetch_codex_headroom() -> tuple[float | None, float | None, str | None, float | None]:
+    """Return confirmed ChatGPT/Codex primary and secondary headroom.
+
+    Returns (primary_headroom, secondary_headroom, tier_label, reset_at_epoch_s).
+    reset_at_epoch_s is the Unix timestamp when the primary rate-limit window resets.
+    """
     try:
         _load_hermes_env_and_path()
         from agent.credential_pool import load_pool
@@ -181,7 +185,7 @@ def fetch_codex_headroom() -> tuple[float | None, float | None, str | None]:
                     entry = first
         token = str(getattr(entry, "runtime_api_key", "") or "").strip() if entry else ""
         if not token:
-            return None, None, None
+            return None, None, None, None
         headers = {
             "Authorization": f"Bearer {token}",
             "Accept": "application/json",
@@ -206,10 +210,16 @@ def fetch_codex_headroom() -> tuple[float | None, float | None, str | None]:
         if secondary.get("used_percent") is not None:
             secondary_headroom = max(0.0, min(1.0, 1.0 - float(secondary.get("used_percent")) / 100.0))
         tier = str(payload.get("plan_type") or "").strip().upper().replace("_", "-") or None
-        return headroom, secondary_headroom, tier
+        # reset_at from WHAM/usage is authoritative; fall back to the
+        # credential-pool last_error_reset_at so hermes auth list and the
+        # route rail stay consistent.
+        reset_at = primary.get("reset_at")
+        if reset_at is None and entry is not None:
+            reset_at = getattr(entry, "last_error_reset_at", None)
+        return headroom, secondary_headroom, tier, reset_at
     except Exception as exc:
         print(f"codex quota probe failed: {type(exc).__name__}: {exc}", file=sys.stderr)
-        return None, None, None
+        return None, None, None, None
 
 
 def fetch_anthropic_headroom() -> tuple[float | None, float | None]:
@@ -266,7 +276,7 @@ def fetch_gemini_headroom() -> tuple[float | None, str | None]:
 
 
 def apply_confirmed_quota(providers: list[dict]) -> None:
-    codex_headroom, codex_secondary, codex_tier = fetch_codex_headroom()
+    codex_headroom, codex_secondary, codex_tier, codex_reset_at = fetch_codex_headroom()
     anthropic_headroom, anthropic_secondary = fetch_anthropic_headroom()
     gemini_headroom, gemini_tier = fetch_gemini_headroom()
 
@@ -277,6 +287,7 @@ def apply_confirmed_quota(providers: list[dict]) -> None:
             "headroom": codex_headroom,
             "secondary_headroom": codex_secondary,
             "tier_label": f"{codex_tier} 5H" if codex_tier else PROVIDER_PLAN["openai-codex"]["tier_label"],
+            "reset_at_epoch_s": codex_reset_at,
             "last_used_age_s": 0,
         }
     if anthropic_headroom is not None:

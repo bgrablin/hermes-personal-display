@@ -811,6 +811,10 @@ def load_provider_route_rail() -> dict:
             "last_used_age_s": int(item["last_used_age_s"]) if item.get("last_used_age_s") is not None else None,
             "stale_age_s": stale_age_s,
         }
+        # Pass through reset_at_epoch_s so the frontend can show a
+        # countdown when a provider is exhausted at 0 % headroom.
+        if isinstance(item.get("reset_at_epoch_s"), (int, float)):
+            row["reset_at_epoch_s"] = float(item["reset_at_epoch_s"])
         safe["providers"].append(row)
     safe["providers"].sort(key=lambda row: row.get("rank", 99))
     active = str(raw.get("active_provider_id") or "")[:32]

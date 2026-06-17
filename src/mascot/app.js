@@ -2265,7 +2265,15 @@
       }
       setConceptBText(entry.label, safeDisplayText(provider.label || 'ROUTE', 8).toUpperCase());
       const unknownRouteCopy = state === 'disabled' ? 'OFF' : state === 'error' ? 'ERR' : 'UNK';
-      setConceptBText(entry.value, knownHeadroom ? `${state === 'inferred' ? '~' : ''}${Math.round(clamped * 100)}%` : unknownRouteCopy);
+      let valueText = unknownRouteCopy;
+      if (knownHeadroom) {
+        valueText = `${state === 'inferred' ? '~' : ''}${Math.round(clamped * 100)}%`;
+        if (clamped <= 0 && Number.isFinite(Number(provider.reset_at_epoch_s))) {
+          const remain = formatResetCountdown(Number(provider.reset_at_epoch_s));
+          if (remain) valueText += `  ·  ${remain}`;
+        }
+      }
+      setConceptBText(entry.value, valueText);
       const tier = safeDisplayText(provider.tier_label || '', 14).toUpperCase();
       const age = provider.stale_age_s != null ? formatRouteAge(provider.stale_age_s) : provider.last_used_age_s != null && idx === activeIndex ? `· ${formatRouteAge(provider.last_used_age_s)}` : '';
       setConceptBText(entry.tier, [tier, age].filter(Boolean).join(' '));
@@ -2291,6 +2299,17 @@
     const minutes = Math.round(value / 60);
     if (minutes < 90) return `${minutes}m`;
     return `${Math.round(minutes / 60)}h`;
+  }
+
+  function formatResetCountdown(epochS) {
+    const remain = Math.max(0, Math.floor(epochS - Date.now() / 1000));
+    if (remain <= 0) return '';
+    if (remain < 120) return `reset <${Math.ceil(remain / 60)}m`;
+    const minutes = Math.floor(remain / 60);
+    if (minutes < 120) return `reset ${minutes}m`;
+    const hours = Math.floor(minutes / 60);
+    const minPart = minutes % 60;
+    return `reset ${hours}h ${minPart > 0 ? `${minPart}m` : ''}`.trim();
   }
 
 
