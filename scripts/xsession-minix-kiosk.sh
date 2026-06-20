@@ -106,6 +106,38 @@ configure_outputs() {
       else
         xinput --map-to-output "$device_name" "$(xrandr --query | awk '/ connected/ {print $1; exit}')"
       fi >>"$LOG_FILE" 2>&1 || true
+      # xinput --map-to-output can leave the touch controller at an identity
+      # transform when there is only one active X output. The MINIX panel is
+      # physically used with DP-2 rotated 180 degrees (xrandr "inverted"), so
+      # compose the output mapping and 180-degree touch rotation explicitly.
+      # Matrix form for output geometry x,y,w,h on screen W,H:
+      # [-w/W 0 (x+w)/W ; 0 -h/H (y+h)/H ; 0 0 1]
+      case "$DISPLAY_ROTATE" in
+        inverted)
+          if [[ -n "${DISPLAY_OUTPUT:-}" ]]; then
+            matrix="$(xrandr --query | awk -v out="$DISPLAY_OUTPUT" '
+              /^Screen 0:/ { screen_w=$8; screen_h=$10 }
+              $1 == out && / connected/ {
+                for (i = 1; i <= NF; i++) {
+                  if ($i ~ /^[0-9]+x[0-9]+\+[0-9]+\+[0-9]+$/) {
+                    geometry = $i
+                    gsub(/[x+]/, " ", geometry)
+                    split(geometry, g)
+                    if (screen_w && screen_h) {
+                      printf "%.9f 0 %.9f 0 %.9f %.9f 0 0 1", -g[1]/screen_w, (g[3]+g[1])/screen_w, -g[2]/screen_h, (g[4]+g[2])/screen_h
+                    }
+                    exit
+                  }
+                }
+              }
+            ')"
+            if [[ -n "$matrix" ]]; then
+              # Intentionally unquoted: xinput expects nine separate matrix values.
+              xinput set-prop "$device_name" "Coordinate Transformation Matrix" $matrix >>"$LOG_FILE" 2>&1 || true
+            fi
+          fi
+          ;;
+      esac
       xinput --list-props "$device_name" >>"$LOG_FILE" 2>&1 || true
     done < <(xinput list --name-only 2>/dev/null | grep -Ei 'touch|SiS HID' || true)
   fi
