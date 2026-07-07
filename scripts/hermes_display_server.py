@@ -442,13 +442,35 @@ def load_remote_memory_status() -> dict:
         age_seconds = None
 
     raw_state = str(raw.get("last") or "unknown").lower()
+    raw_metric = raw.get("last_metric")
+    metric: dict = raw_metric if isinstance(raw_metric, dict) else {}
+    api_health_ok = metric.get("api_health_ok")
+    raw_containers = metric.get("containers")
+    containers: dict = raw_containers if isinstance(raw_containers, dict) else {}
+    core_containers_up = None
+    if containers:
+        core_containers_up = all(
+            "up" in str(containers.get(name, "")).lower()
+            for name in (
+                "honcho-selfhost-api-1",
+                "honcho-selfhost-database-1",
+                "honcho-selfhost-redis-1",
+            )
+        )
     if age_seconds is None or age_seconds > 20 * 60:
         state = "stale"
         status = "STALE"
+    elif api_health_ok is True and core_containers_up is not False:
+        # The watchdog's top-level `last` can be "degraded" for non-outage
+        # warnings, for example deriver warning volume. The display's remote
+        # memory cell is meant to answer whether Honcho memory is reachable, so
+        # prefer the concrete API/container health fields when present.
+        state = "ok"
+        status = "UP"
     elif raw_state == "up":
         state = "ok"
         status = "UP"
-    elif raw_state == "down":
+    elif raw_state == "down" or api_health_ok is False:
         state = "down"
         status = "DOWN"
     else:
@@ -464,9 +486,9 @@ def load_remote_memory_status() -> dict:
         "state": state,
         "status": status,
         "age_seconds": age_seconds,
-        "api": safe_field(raw.get("api")),
-        "service": safe_field(raw.get("service")),
-        "app": safe_field(raw.get("app")),
+        "api": safe_field(raw.get("api") or ("health ok" if api_health_ok is True else "")),
+        "service": safe_field(raw.get("service") or ("containers ok" if core_containers_up is True else "")),
+        "app": safe_field(raw.get("app") or "; ".join(str(w) for w in (raw.get("warnings") or [])[:2])),
     }
 
 

@@ -65,3 +65,41 @@ def test_reserve_entertainment_budget_is_bounded(monkeypatch, tmp_path: Path) ->
 
     usage = json.loads(usage_path.read_text(encoding="utf-8"))
     assert usage["line_requests"] == 2
+
+
+def test_remote_memory_prefers_api_health_over_degraded_warning_state(monkeypatch, tmp_path: Path) -> None:
+    health_path = tmp_path / "honcho-health-watch.json"
+    health_path.write_text(json.dumps({
+        "last": "degraded",
+        "last_metric": {
+            "api_health_ok": True,
+            "containers": {
+                "honcho-selfhost-api-1": "Up 29 hours (healthy)",
+                "honcho-selfhost-database-1": "Up 2 days (healthy)",
+                "honcho-selfhost-redis-1": "Up 2 days (healthy)",
+            },
+        },
+        "warnings": ["deriver zero-observation warnings high: 16/15m"],
+    }), encoding="utf-8")
+    monkeypatch.setattr(server, "HONCHO_HEALTH_PATH", health_path)
+
+    status = server.load_remote_memory_status()
+
+    assert status["state"] == "ok"
+    assert status["status"] == "UP"
+    assert status["api"] == "health ok"
+    assert status["service"] == "containers ok"
+
+
+def test_remote_memory_down_api_overrides_watchdog_label(monkeypatch, tmp_path: Path) -> None:
+    health_path = tmp_path / "honcho-health-watch.json"
+    health_path.write_text(json.dumps({
+        "last": "degraded",
+        "last_metric": {"api_health_ok": False},
+    }), encoding="utf-8")
+    monkeypatch.setattr(server, "HONCHO_HEALTH_PATH", health_path)
+
+    status = server.load_remote_memory_status()
+
+    assert status["state"] == "down"
+    assert status["status"] == "DOWN"
