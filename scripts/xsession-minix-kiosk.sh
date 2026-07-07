@@ -164,6 +164,39 @@ configure_audio() {
   fi
 }
 
+detect_xauthority() {
+  if [[ -n "${XAUTHORITY:-}" && -r "$XAUTHORITY" ]]; then
+    return 0
+  fi
+
+  local auth
+  auth="$(ps -eo args= | awk -v display="$DISPLAY" '
+    $0 ~ "Xorg " display {
+      for (i = 1; i <= NF; i++) {
+        if ($i == "-auth" && (i + 1) <= NF) {
+          print $(i + 1)
+          exit
+        }
+      }
+    }
+  ' || true)"
+
+  if [[ -n "$auth" && -r "$auth" ]]; then
+    export XAUTHORITY="$auth"
+    log "xauthority detected: $XAUTHORITY"
+  else
+    log "xauthority not detected; user services may not be able to inspect the X session"
+  fi
+}
+
+import_agent_environment() {
+  detect_xauthority
+  if command -v systemctl >/dev/null 2>&1; then
+    systemctl --user import-environment DISPLAY XAUTHORITY XDG_RUNTIME_DIR DBUS_SESSION_BUS_ADDRESS >/dev/null 2>&1 || true
+    log "imported display environment for user services: DISPLAY=${DISPLAY:-unset} XAUTHORITY=${XAUTHORITY:-unset}"
+  fi
+}
+
 launch_helpers() {
   openbox >/tmp/hermes-personal-display-openbox.log 2>&1 &
   unclutter -idle 0 -root -noevents >/tmp/hermes-personal-display-unclutter.log 2>&1 &
@@ -210,6 +243,7 @@ launch_chromium_loop() {
 }
 
 wait_for_x
+import_agent_environment
 configure_outputs
 configure_audio
 launch_helpers

@@ -89,6 +89,28 @@
       return cachedOpticRect;
     }
 
+    function opticCenter() {
+      const optic = opticRect();
+      return {
+        cx: optic ? optic.left + optic.width / 2 : window.innerWidth / 2,
+        cy: optic ? optic.top + optic.height / 2 : window.innerHeight / 2,
+        radius: optic ? Math.min(optic.width, optic.height) / 2 : Math.min(window.innerWidth, window.innerHeight) / 2,
+      };
+    }
+
+    function syncMoteAnchors() {
+      const { cx, cy, radius } = opticCenter();
+      const maxOrbit = Math.max(96, Math.min(340, radius * 0.64));
+      fxLayer.querySelectorAll('.touch-fx-mote').forEach((mote) => {
+        mote.style.setProperty('--x', `${cx}px`);
+        mote.style.setProperty('--y', `${cy}px`);
+        const current = parseFloat(String(mote.style.getPropertyValue('--orbit-radius') || '').replace('px', ''));
+        if (!Number.isFinite(current) || current > maxOrbit) {
+          mote.style.setProperty('--orbit-radius', `${maxOrbit.toFixed(1)}px`);
+        }
+      });
+    }
+
     const acceptsPointer = (event) => event.pointerType !== 'mouse' || allowMouseTouchTest;
     const isReducedMotion = () => window.matchMedia?.('(prefers-reduced-motion: reduce)')?.matches;
     function entertainmentBudget(frameCadence = window.__hermesFrameCadence || {}) {
@@ -396,15 +418,18 @@
     }
 
     function createMotes() {
-      const optic = touchVectorFromOptic(window.innerWidth / 2, window.innerHeight / 2);
+      const optic = opticCenter();
       const count = profile().motes;
       for (let i = 0; i < count; i += 1) {
         const mote = positionedFx('touch-fx-mote', optic.cx, optic.cy, 5 + Math.random() * 4);
         mote.style.setProperty('--orbit-angle', `${(Math.PI * 2 * i) / count}rad`);
-        mote.style.setProperty('--orbit-radius', `${130 + Math.random() * 210}px`);
+        mote.style.setProperty('--orbit-radius', `${130 + Math.random() * Math.min(210, optic.radius * 0.38)}px`);
         mote.style.setProperty('--orbit-duration', `${18 + Math.random() * 16}s`);
         addFxNode(mote, 0);
       }
+      syncMoteAnchors();
+      window.requestAnimationFrame(syncMoteAnchors);
+      window.setTimeout(syncMoteAnchors, 160);
     }
 
     function stirMotes(x, y, intensity = 0.6) {
@@ -663,7 +688,7 @@
     document.body.addEventListener('pointerup', onFxPointerUp, { passive: false });
     document.body.addEventListener('pointercancel', onFxPointerCancel, { passive: false });
     document.body.addEventListener('pointerleave', onFxPointerCancel, { passive: false });
-    window.addEventListener('resize', invalidateOpticRect, { passive: true });
+    window.addEventListener('resize', () => { invalidateOpticRect(); syncMoteAnchors(); }, { passive: true });
 
     window.addEventListener('hermes-live-packet', () => { updateTheme(); updateFeedBadge(); });
     if (typeof options.updateAudioBadge === 'function') {
@@ -703,7 +728,7 @@
     };
 
     window.HermesTouchFxController = api;
-    statusInterval = window.setInterval(() => { updateTheme(); updateFeedBadge(); }, 1000);
+    statusInterval = window.setInterval(() => { updateTheme(); updateFeedBadge(); syncMoteAnchors(); }, 1000);
     return api;
   }
 

@@ -116,6 +116,50 @@ test.describe('Hermes kiosk smoke and visual regression anchors', () => {
     await expect.poll(() => page.locator('.touch-fx-ripple, .touch-fx-spark, .touch-fx-comet, .touch-fx-resonance').count()).toBeGreaterThan(0);
   });
 
+  test('touch motes stay anchored to the optic field', async ({ page }, testInfo) => {
+    await page.goto(`${runtimeUrl('idle_watch', testInfo)}&touchtest=1`);
+    await expect(page.locator('.cb-radial-stage')).toBeVisible();
+    await expect(page.locator('.touch-fx-mote').first()).toBeVisible();
+    await page.waitForTimeout(250);
+
+    const geometry = await page.evaluate(() => {
+      const optic = document.querySelector('.cb-radial-stage')?.getBoundingClientRect();
+      const motes = Array.from(document.querySelectorAll('.touch-fx-mote')).map((mote) => {
+        const rect = mote.getBoundingClientRect();
+        const style = getComputedStyle(mote);
+        const x = Number.parseFloat(mote.style.getPropertyValue('--x'));
+        const y = Number.parseFloat(mote.style.getPropertyValue('--y'));
+        return {
+          x,
+          y,
+          cx: rect.left + rect.width / 2,
+          cy: rect.top + rect.height / 2,
+          orbit: Number.parseFloat(mote.style.getPropertyValue('--orbit-radius')),
+          visible: style.display !== 'none' && style.visibility !== 'hidden' && Number.parseFloat(style.opacity || '1') > 0,
+        };
+      });
+      return {
+        optic: optic ? {
+          cx: optic.left + optic.width / 2,
+          cy: optic.top + optic.height / 2,
+          radius: Math.min(optic.width, optic.height) / 2,
+        } : null,
+        motes,
+      };
+    });
+
+    expect(geometry.optic).not.toBeNull();
+    expect(geometry.motes.length).toBeGreaterThan(0);
+    const optic = geometry.optic;
+    for (const mote of geometry.motes) {
+      expect(Math.abs(mote.x - optic.cx)).toBeLessThanOrEqual(2);
+      expect(Math.abs(mote.y - optic.cy)).toBeLessThanOrEqual(2);
+      expect(mote.orbit).toBeLessThanOrEqual(Math.min(340, optic.radius * 0.64) + 1);
+      const distance = Math.hypot(mote.cx - optic.cx, mote.cy - optic.cy);
+      expect(distance).toBeLessThanOrEqual(Math.min(340, optic.radius * 0.64) + 18);
+    }
+  });
+
   test('Concept B developer touch grid requires explicit debug flag', async ({ page }, testInfo) => {
     test.skip(testInfo.project.name !== 'minix-sf10t-landscape', 'MINIX-only Concept B touch grid');
 

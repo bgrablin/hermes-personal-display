@@ -492,8 +492,8 @@
     }
   });
 
-  installTouchControls();
   installLandscapePanels();
+  installTouchControls();
   installFamilyModeToggle();
   installLiveHermesState();
   installAvatarEventBus();
@@ -2188,7 +2188,7 @@
       providers: [
         { id: 'openai-codex', label: 'CHATGPT', tier_label: null, rank: 1, state: 'unknown', headroom: null, reachable: true },
         { id: 'anthropic', label: 'CLAUDE', tier_label: null, rank: 2, state: 'unknown', headroom: null, reachable: true },
-        { id: 'google-gemini-cli', label: 'GEMINI', tier_label: null, rank: 3, state: 'unknown', headroom: null, reachable: true },
+        { id: 'nous', label: 'GEMINI', tier_label: null, rank: 3, state: 'unknown', headroom: null, reachable: true },
         { id: 'copilot', label: 'COPILOT', tier_label: null, rank: 4, state: 'unknown', headroom: null, reachable: true },
       ],
     };

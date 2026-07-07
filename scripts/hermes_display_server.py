@@ -341,7 +341,7 @@ def load_provider_route_rail() -> dict:
         "providers": [
             {"id": "openai-codex", "label": "CHATGPT", "tier_label": None, "rank": 1, "state": "unknown", "headroom": None, "secondary_headroom": None, "reachable": True, "last_used_age_s": None, "stale_age_s": None},
             {"id": "anthropic", "label": "CLAUDE", "tier_label": None, "rank": 2, "state": "unknown", "headroom": None, "secondary_headroom": None, "reachable": True, "last_used_age_s": None, "stale_age_s": None},
-            {"id": "google-gemini-cli", "label": "GEMINI", "tier_label": None, "rank": 3, "state": "unknown", "headroom": None, "secondary_headroom": None, "reachable": True, "last_used_age_s": None, "stale_age_s": None},
+            {"id": "nous", "label": "GEMINI", "tier_label": None, "rank": 3, "state": "unknown", "headroom": None, "secondary_headroom": None, "reachable": True, "last_used_age_s": None, "stale_age_s": None},
             {"id": "copilot", "label": "COPILOT", "tier_label": None, "rank": 4, "state": "unknown", "headroom": None, "secondary_headroom": None, "reachable": True, "last_used_age_s": None, "stale_age_s": None},
         ],
     }
@@ -351,7 +351,7 @@ def load_provider_route_rail() -> dict:
         print(f"provider route rail artifact issue: {scrub(exc.__class__.__name__)}", flush=True)
         raw = fallback
     allowed_states = {"confirmed", "inferred", "stale", "unknown", "error", "disabled"}
-    allowed_ids = {"openai-codex", "anthropic", "google-gemini-cli", "google-gemini", "copilot"}
+    allowed_ids = {"openai-codex", "anthropic", "nous", "google-gemini-cli", "google-gemini", "gemini", "copilot"}
 
     now_ms = int(datetime.now(timezone.utc).timestamp() * 1000)
     try:

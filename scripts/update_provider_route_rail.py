@@ -26,7 +26,6 @@ from typing import Any
 import urllib.error
 import urllib.request
 
-
 HOME = Path(os.path.expanduser("~"))
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
 LOG_PATH = HOME / ".hermes/logs/agent.log"
@@ -52,9 +51,9 @@ PROVIDER_PLAN = {
         "window_minutes": 300,
         "request_cap": 800,
     },
-    "google-gemini-cli": {
+    "nous": {
         "label": "GEMINI",
-        "tier_label": "STD",
+        "tier_label": "NOUS",
         "rank": 3,
         "window_minutes": 60,
         "request_cap": 600,
@@ -70,7 +69,7 @@ PROVIDER_PLAN = {
     },
 }
 
-ALLOWED_PROVIDER_IDS = set(PROVIDER_PLAN.keys()) | {"google-gemini"}
+ALLOWED_PROVIDER_IDS = set(PROVIDER_PLAN.keys()) | {"google-gemini", "google-gemini-cli", "gemini"}
 
 # Match either the standalone API-call summary or the surrounding client
 # create/close noise. Only the API-call summary carries token counts but the
@@ -119,8 +118,8 @@ def scan_log(path: Path, oldest_needed: float) -> dict[str, dict]:
                 if not m:
                     continue
                 prov = m.group("provider")
-                if prov == "google-gemini":
-                    prov = "google-gemini-cli"
+                if prov in {"google-gemini", "google-gemini-cli", "gemini"}:
+                    prov = "nous"
                 if prov not in ALLOWED_PROVIDER_IDS:
                     continue
                 bucket = counts.setdefault(
@@ -262,28 +261,80 @@ def fetch_anthropic_headroom() -> tuple[float | None, float | None]:
 
 
 def fetch_gemini_headroom() -> tuple[float | None, str | None]:
-    """Return confirmed Gemini Code Assist request headroom from retrieveUserQuota."""
+    """Return confirmed Gemini request headroom, if a supported quota API exists.
+
+    Hermes removed the old google-gemini-cli OAuth provider and its
+    Code-Assist quota helper modules. Brian's current Gemini route is through
+    Nous, which has no per-model quota endpoint exposed to this display. Do not
+    import stale modules or log noisy errors every timer tick; route availability
+    is handled separately by apply_route_availability().
+    """
+    return None, None
+
+
+def load_config_fallback_routes() -> dict[str, tuple[str, str]]:
+    """Map display row ids to the configured provider/model route to resolve."""
+    try:
+        import yaml
+
+        cfg = yaml.safe_load((HOME / ".hermes/config.yaml").read_text(encoding="utf-8")) or {}
+    except Exception:
+        cfg = {}
+    routes: dict[str, tuple[str, str]] = {}
+    model_cfg = cfg.get("model") or {}
+    if model_cfg.get("provider") and model_cfg.get("default"):
+        routes[str(model_cfg["provider"])] = (str(model_cfg["provider"]), str(model_cfg["default"]))
+    for entry in cfg.get("fallback_providers") or []:
+        provider = str(entry.get("provider") or "").strip()
+        model = str(entry.get("model") or "").strip()
+        if provider and model:
+            routes[provider] = (provider, model)
+            # The route rail's Gemini row is backed by the configured Nous
+            # Gemini fallback, not the removed google-gemini-cli provider.
+            if provider == "nous" and "gemini" in model.lower():
+                routes["nous"] = (provider, model)
+    return routes
+
+
+def route_resolves(provider: str, model: str) -> bool:
+    """Return whether Hermes can resolve provider/model without making a live call."""
     try:
         _load_hermes_env_and_path()
-        from agent.google_oauth import get_valid_access_token, load_credentials
-        from agent.google_code_assist import retrieve_user_quota
+        from hermes_cli.runtime_provider import resolve_runtime_provider
 
-        token = get_valid_access_token()
-        creds = load_credentials()
-        project_id = (creds.project_id if creds else "") or ""
-        buckets = retrieve_user_quota(token, project_id=project_id)
-        request_buckets = [
-            b for b in buckets
-            if (not getattr(b, "token_type", "") or str(getattr(b, "token_type", "")).upper() == "REQUESTS")
-            and getattr(b, "remaining_fraction", None) is not None
-        ]
-        if not request_buckets:
-            return None, None
-        remaining = min(float(b.remaining_fraction) for b in request_buckets)
-        return max(0.0, min(1.0, remaining)), "STD"
-    except Exception as exc:
-        print(f"gemini quota probe failed: {type(exc).__name__}: {exc}", file=sys.stderr)
-        return None, None
+        resolved = resolve_runtime_provider(requested=provider, target_model=model)
+        if isinstance(resolved, dict):
+            # Some API-key providers return a structural route with an empty key;
+            # that is not a usable authenticated route.
+            if provider in {"gemini", "anthropic", "openrouter", "nous", "copilot", "openai-codex"}:
+                return bool(str(resolved.get("api_key") or "").strip())
+        return True
+    except Exception:
+        return False
+
+
+def apply_route_availability(providers: list[dict]) -> None:
+    """Show authenticated but unmetered fallback routes as inferred, not UNK.
+
+    This intentionally distinguishes quota certainty from route availability:
+    confirmed rows come from quota APIs; inferred rows mean the configured route
+    resolves and is likely callable, but no safe headroom API is available.
+    """
+    routes = load_config_fallback_routes()
+    for row in providers:
+        if row.get("state") not in {"unknown", None, ""}:
+            continue
+        row_id = str(row.get("id") or "")
+        route = routes.get(row_id)
+        if not route:
+            continue
+        provider, model = route
+        if route_resolves(provider, model):
+            row["state"] = "inferred"
+            row["headroom"] = 1.0
+            row["secondary_headroom"] = None
+            row["tier_label"] = row.get("tier_label") or "ROUTE"
+            row["last_used_age_s"] = 0
 
 
 def apply_confirmed_quota(providers: list[dict]) -> None:
@@ -310,11 +361,11 @@ def apply_confirmed_quota(providers: list[dict]) -> None:
             "last_used_age_s": 0,
         }
     if gemini_headroom is not None:
-        quota_updates["google-gemini-cli"] = {
+        quota_updates["nous"] = {
             "state": "confirmed",
             "headroom": gemini_headroom,
             "secondary_headroom": None,
-            "tier_label": gemini_tier or PROVIDER_PLAN["google-gemini-cli"]["tier_label"],
+            "tier_label": gemini_tier or PROVIDER_PLAN["nous"]["tier_label"],
             "last_used_age_s": 0,
         }
 
@@ -480,6 +531,10 @@ def main() -> int:
                 if claude_last_age is not None:
                     provider["last_used_age_s"] = claude_last_age
                 break
+
+    # Last resort: if a route is configured and resolves but lacks a safe quota
+    # endpoint, show it as inferred availability rather than an alarming UNK.
+    apply_route_availability(providers)
 
     payload = {
         "as_of_ms": int(now * 1000),
