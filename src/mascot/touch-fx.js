@@ -75,10 +75,41 @@
     let statusInterval = 0;
     let cachedOpticRect = null;
     let cachedOpticRectAt = 0;
+    let lastMoteAnchorKey = '';
+    const moteNodes = [];
+
+    function setClassName(el, value) {
+      if (!el || el.className === value) return;
+      el.className = value;
+    }
+
+    function setText(el, value) {
+      if (!el) return;
+      const next = String(value ?? '');
+      if (el.textContent === next) return;
+      el.textContent = next;
+    }
+
+    function setDataset(el, key, value) {
+      if (!el?.dataset) return;
+      const next = String(value);
+      if (el.dataset[key] === next) return;
+      el.dataset[key] = next;
+    }
+
+    function setStyleProperty(el, name, value) {
+      if (!el) return;
+      const next = String(value);
+      const cache = el.__hermesTouchFxStyle || (el.__hermesTouchFxStyle = Object.create(null));
+      if (cache[name] === next) return;
+      cache[name] = next;
+      el.style.setProperty(name, next);
+    }
 
     function invalidateOpticRect() {
       cachedOpticRect = null;
       cachedOpticRectAt = 0;
+      lastMoteAnchorKey = '';
     }
 
     function opticRect() {
@@ -98,15 +129,22 @@
       };
     }
 
-    function syncMoteAnchors() {
+    function syncMoteAnchors(force = false) {
       const { cx, cy, radius } = opticCenter();
+      const x = `${cx.toFixed(1)}px`;
+      const y = `${cy.toFixed(1)}px`;
       const maxOrbit = Math.max(96, Math.min(340, radius * 0.64));
-      fxLayer.querySelectorAll('.touch-fx-mote').forEach((mote) => {
-        mote.style.setProperty('--x', `${cx}px`);
-        mote.style.setProperty('--y', `${cy}px`);
-        const current = parseFloat(String(mote.style.getPropertyValue('--orbit-radius') || '').replace('px', ''));
+      const maxOrbitPx = `${maxOrbit.toFixed(1)}px`;
+      const key = `${x}|${y}|${maxOrbitPx}|${moteNodes.length}`;
+      if (!force && key === lastMoteAnchorKey) return;
+      lastMoteAnchorKey = key;
+      moteNodes.forEach((mote) => {
+        setStyleProperty(mote, '--x', x);
+        setStyleProperty(mote, '--y', y);
+        const current = Number(mote.__hermesTouchFxOrbitRadius);
         if (!Number.isFinite(current) || current > maxOrbit) {
-          mote.style.setProperty('--orbit-radius', `${maxOrbit.toFixed(1)}px`);
+          mote.__hermesTouchFxOrbitRadius = maxOrbit;
+          setStyleProperty(mote, '--orbit-radius', maxOrbitPx);
         }
       });
     }
@@ -134,8 +172,8 @@
 
     function updateTheme() {
       const mode = readMode(getPacket);
-      fxLayer.dataset.fxTheme = FX_THEMES[mode] || 'calm';
-      fxLayer.dataset.behaviorMode = mode;
+      setDataset(fxLayer, 'fxTheme', FX_THEMES[mode] || 'calm');
+      setDataset(fxLayer, 'behaviorMode', mode);
       return mode;
     }
 
@@ -143,15 +181,15 @@
       if (disposed) return;
       window.clearTimeout(touchIdleTimer);
       touchIdleTimer = 0;
-      fxLayer.dataset.touchFxState = 'idle';
-      document.body.dataset.touchFxState = 'idle';
-      fxLayer.querySelectorAll('.touch-fx-mote.attracted').forEach((mote) => mote.classList.remove('attracted'));
+      setDataset(fxLayer, 'touchFxState', 'idle');
+      setDataset(document.body, 'touchFxState', 'idle');
+      moteNodes.forEach((mote) => mote.classList.remove('attracted'));
     }
 
     function setTouchFxActive(duration = TOUCH_ACTIVE_MS) {
       if (disposed) return;
-      fxLayer.dataset.touchFxState = 'active';
-      document.body.dataset.touchFxState = 'active';
+      setDataset(fxLayer, 'touchFxState', 'active');
+      setDataset(document.body, 'touchFxState', 'active');
       window.clearTimeout(touchIdleTimer);
       touchIdleTimer = window.setTimeout(setTouchFxIdle, duration);
     }
@@ -162,16 +200,16 @@
       const freshness = currentPacket.live?.freshness || {};
       const tier = liveStatus.failures >= 8 ? 'lost' : liveStatus.failures ? 'stale' : freshness.tier;
       if (!tier || tier === 'fresh') {
-        feedBadge.className = 'feed-badge quiet';
-        feedBadge.textContent = '';
+        setClassName(feedBadge, 'feed-badge quiet');
+        setText(feedBadge, '');
         return;
       }
       const label = tier === 'aging' ? 'FEED AGING' : tier === 'lost' ? 'FEED LOST' : 'FEED STALE';
       const age = liveStatus.failures
         ? liveStatus.staleSince ? formatAge(Date.now() - liveStatus.staleSince) : 'now'
         : currentPacket.live?.freshness?.stale_measurements?.length ? `${currentPacket.live.freshness.stale_measurements.length} sensors` : 'telemetry';
-      feedBadge.textContent = `${label} · ${age}`;
-      feedBadge.className = `feed-badge ${tier === 'lost' ? 'critical' : 'watch'}`;
+      setText(feedBadge, `${label} · ${age}`);
+      setClassName(feedBadge, `feed-badge ${tier === 'lost' ? 'critical' : 'watch'}`);
     }
 
     function addFxNode(node, ttlMs = 900) {
@@ -237,8 +275,8 @@
     function positionedFx(className, x, y, size = null) {
       const node = document.createElement('span');
       node.className = className;
-      node.style.setProperty('--x', `${x}px`);
-      node.style.setProperty('--y', `${y}px`);
+      setStyleProperty(node, '--x', `${x}px`);
+      setStyleProperty(node, '--y', `${y}px`);
       if (size != null) {
         node.style.width = `${size}px`;
         node.style.height = `${size}px`;
@@ -422,14 +460,17 @@
       const count = profile().motes;
       for (let i = 0; i < count; i += 1) {
         const mote = positionedFx('touch-fx-mote', optic.cx, optic.cy, 5 + Math.random() * 4);
-        mote.style.setProperty('--orbit-angle', `${(Math.PI * 2 * i) / count}rad`);
-        mote.style.setProperty('--orbit-radius', `${130 + Math.random() * Math.min(210, optic.radius * 0.38)}px`);
-        mote.style.setProperty('--orbit-duration', `${18 + Math.random() * 16}s`);
+        const orbitRadius = 130 + Math.random() * Math.min(210, optic.radius * 0.38);
+        mote.__hermesTouchFxOrbitRadius = orbitRadius;
+        setStyleProperty(mote, '--orbit-angle', `${(Math.PI * 2 * i) / count}rad`);
+        setStyleProperty(mote, '--orbit-radius', `${orbitRadius}px`);
+        setStyleProperty(mote, '--orbit-duration', `${18 + Math.random() * 16}s`);
+        moteNodes.push(mote);
         addFxNode(mote, 0);
       }
-      syncMoteAnchors();
-      window.requestAnimationFrame(syncMoteAnchors);
-      window.setTimeout(syncMoteAnchors, 160);
+      syncMoteAnchors(true);
+      window.requestAnimationFrame(() => syncMoteAnchors(true));
+      window.setTimeout(() => syncMoteAnchors(true), 160);
     }
 
     function stirMotes(x, y, intensity = 0.6) {
@@ -688,7 +729,7 @@
     document.body.addEventListener('pointerup', onFxPointerUp, { passive: false });
     document.body.addEventListener('pointercancel', onFxPointerCancel, { passive: false });
     document.body.addEventListener('pointerleave', onFxPointerCancel, { passive: false });
-    window.addEventListener('resize', () => { invalidateOpticRect(); syncMoteAnchors(); }, { passive: true });
+    window.addEventListener('resize', () => { invalidateOpticRect(); syncMoteAnchors(true); }, { passive: true });
 
     window.addEventListener('hermes-live-packet', () => { updateTheme(); updateFeedBadge(); });
     if (typeof options.updateAudioBadge === 'function') {
@@ -728,7 +769,7 @@
     };
 
     window.HermesTouchFxController = api;
-    statusInterval = window.setInterval(() => { updateTheme(); updateFeedBadge(); syncMoteAnchors(); }, 1000);
+    statusInterval = window.setInterval(() => { updateTheme(); updateFeedBadge(); }, 1000);
     return api;
   }
 

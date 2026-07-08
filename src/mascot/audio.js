@@ -17,6 +17,8 @@
       this.entertainmentBus = null;
       this.voiceRaf = 0;
       this.voiceRms = 0;
+      this.lastPublishedVoiceRms = '';
+      this.lastPublishedVoiceRmsSource = '';
       window.__HERMES_VOICE_RMS = 0;
       this.muted = window.localStorage.getItem(STORAGE_KEY) === '1';
     }
@@ -117,9 +119,13 @@
 
     publishVoiceRms(rms, source = 'tts') {
       const clamped = Math.max(0, Math.min(1, Number(rms) || 0));
+      const rounded = clamped.toFixed(3);
       this.voiceRms = clamped;
+      if (this.lastPublishedVoiceRms === rounded && this.lastPublishedVoiceRmsSource === source) return;
+      this.lastPublishedVoiceRms = rounded;
+      this.lastPublishedVoiceRmsSource = source;
       window.__HERMES_VOICE_RMS = clamped;
-      document.documentElement.style.setProperty('--hermes-voice-rms', clamped.toFixed(3));
+      document.documentElement.style.setProperty('--hermes-voice-rms', rounded);
       window.dispatchEvent(new CustomEvent('hermes-audio-rms', { detail: { rms: clamped, source } }));
     }
 
