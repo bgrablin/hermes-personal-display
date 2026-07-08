@@ -2074,11 +2074,17 @@
       rememberTrend(trends.cpu, cpuPct);
       rememberTrend(trends.temp, cpuTemp);
 
-      const familyState = label === 'ACTIVE TURN' ? 'HERMES IS THINKING' : label === 'LOCAL WATCH' ? 'HERMES IS WATCHING' : label === 'BLOCKED' ? 'HERMES IS PAUSED' : 'HERMES IS HERE';
+      const familyState = (label === 'ACTIVE TURN' || label === 'WORKING' || label === 'PLANNING')
+        ? 'HERMES IS THINKING'
+        : (label === 'LOCAL WATCH' || label === 'QUIET WATCH' || label === 'NIGHT WATCH')
+          ? 'HERMES IS WATCHING'
+          : label === 'BLOCKED'
+            ? 'HERMES IS PAUSED'
+            : 'HERMES IS HERE';
       setConceptBStatusText(refs.state, familyAudience ? familyState : label);
       if (refs.stateDot && refs.stateDot.style.background !== instrumentAccent) refs.stateDot.style.background = instrumentAccent;
       setConceptBStatusText(refs.activity, familyAudience ? familySafeStatusPhrase(label, freshnessTier, live.gateway_ok) : displaySentence(activity.summary));
-      setConceptBText(refs.source, familyAudience ? 'SPARKLE MODE' : safeDisplayText(source, 32).toUpperCase());
+      setConceptBText(refs.source, familyAudience ? 'SPARKLE MODE · HOLD CORNER TO LEAVE' : safeDisplayText(source, 32).toUpperCase());
       applyConceptBFeel(live, activity, freshnessTier);
 
       const gatewayText = live.gateway_ok === false ? 'GATEWAY WATCH' : 'GATEWAY OK';
@@ -2129,10 +2135,14 @@
 
 
   function familySafeStatusPhrase(label, freshnessTier, gatewayOk) {
-    if (freshnessTier === 'lost' || gatewayOk === false) return 'Hermes is keeping watch quietly.';
-    if (label === 'ACTIVE TURN') return 'Hermes is thinking with the little light.';
-    if (label === 'LOCAL WATCH') return 'Hermes is watching and making sparkles.';
-    if (/COMPLETE|READY/.test(label)) return 'Systems steady. Sparkles ready.';
+    if (freshnessTier === 'lost' || gatewayOk === false) return 'Hermes is resting for a moment.';
+    if (label === 'ACTIVE TURN' || label === 'WORKING' || label === 'PLANNING') {
+      return 'Hermes is thinking with the little light.';
+    }
+    if (label === 'LOCAL WATCH' || label === 'QUIET WATCH' || label === 'NIGHT WATCH') {
+      return 'Hermes is watching and making sparkles.';
+    }
+    if (/COMPLETE|READY|SYSTEMS STEADY|ONLINE/.test(label)) return 'All quiet. Sparkles are ready.';
     return 'Hermes is here with the glowing eye.';
   }
 
@@ -2224,6 +2234,7 @@
     setConceptBDataset(root, 'routeSignature', routeSignature);
     setConceptBDataset(root, 'activeProviderId', activeId);
     let activeIndex = -1;
+    let collapsedCount = 0;
     rows.forEach((entry, idx) => {
       const { row } = entry;
       const provider = providers[idx] || { id: `unknown-${idx}`, label: ['CHATGPT', 'CLAUDE', 'GEMINI', 'COPILOT'][idx] || 'ROUTE', state: 'unknown', headroom: null };
@@ -2239,7 +2250,14 @@
       const knownHeadroom = Number.isFinite(headroom) && !['unknown', 'error', 'disabled'].includes(state);
       const clamped = knownHeadroom ? Math.max(0, Math.min(1, headroom)) : null;
       const headroomTier = knownHeadroom ? (clamped <= ROUTE_HEADROOM_LOW_THRESHOLD ? 'low' : 'ok') : 'none';
+      // Quiet unknown/disabled idle rows so known/confirmed/low/error routes stay scannable.
+      // Keep positions and value-column geometry so whisker/hairline math stays stable.
+      const collapsed = !isActive
+        && headroomTier !== 'low'
+        && !['confirmed', 'inferred', 'stale', 'error'].includes(state);
+      if (collapsed) collapsedCount += 1;
       setConceptBDataset(row, 'headroomTier', headroomTier);
+      setConceptBDataset(row, 'collapsed', collapsed ? 'true' : 'false');
       setConceptBStyleProperty(row, '--route-headroom', knownHeadroom ? clamped.toFixed(3) : '0');
       // Provider flips read as events at the row itself: label settle on a state change,
       // glyph pulse when a provider takes the route, value nudge when known headroom first
@@ -2269,10 +2287,12 @@
       const tier = safeDisplayText(provider.tier_label || '', 14).toUpperCase();
       const age = provider.stale_age_s != null ? formatRouteAge(provider.stale_age_s) : provider.last_used_age_s != null && idx === activeIndex ? `· ${formatRouteAge(provider.last_used_age_s)}` : '';
       const resetCountdown = clamped != null && clamped <= 0 && Number.isFinite(Number(provider.reset_at_epoch_s)) ? formatResetCountdown(Number(provider.reset_at_epoch_s)) : '';
-      setConceptBText(entry.tier, [resetCountdown, tier, age].filter(Boolean).join('  ·  '));
+      setConceptBText(entry.tier, collapsed ? '' : [resetCountdown, tier, age].filter(Boolean).join('  ·  '));
       setConceptBText(entry.glyph, glyphs[state] || '○');
     });
     setConceptBDataset(root, 'activeIndex', activeIndex >= 0 ? String(activeIndex) : 'none');
+    setConceptBDataset(root, 'collapsedCount', String(collapsedCount));
+    setConceptBDataset(root, 'railQuiet', collapsedCount >= 3 ? 'true' : 'false');
     const standby = root.querySelector('.cb-route-standby');
     if (standby) {
       const hasAsOf = source.as_of_ms !== null && source.as_of_ms !== undefined && source.as_of_ms !== '';
@@ -2283,7 +2303,7 @@
     }
     const hairline = root.querySelector('.cb-route-active-hairline');
     setConceptBStyleProperty(hairline, '--route-active-y', activeIndex >= 0 ? `${97 + activeIndex * 152}px` : '-100px');
-    standby?.classList.toggle('quiet', false);
+    standby?.classList.toggle('quiet', collapsedCount >= 3);
   }
 
   function formatRouteAge(seconds) {

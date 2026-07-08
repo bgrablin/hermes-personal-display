@@ -1692,24 +1692,85 @@ body.kiosk-mode.kiosk-landscape.claude-concept-b .cb-activity {
 }
 
 
-body.kiosk-mode.kiosk-landscape.claude-concept-b [data-cb-mode="active-turn"] .cb-activity,
-body.kiosk-mode.kiosk-landscape.claude-concept-b [data-cb-mode="working"] .cb-activity,
-body.kiosk-mode.kiosk-landscape.claude-concept-b [data-cb-mode="planning"] .cb-activity {
-  width: min(860px, 60vw);
-  padding: 18px 28px 20px;
-  border: 1px solid color-mix(in srgb, var(--cb-accent) 38%, transparent);
-  border-radius: 26px;
-  background:
-    linear-gradient(180deg, rgba(255,255,255,0.045), rgba(255,255,255,0.015)),
-    var(--cb-hud-panel);
-  box-shadow:
-    0 0 0 1px color-mix(in srgb, var(--cb-accent) 20%, transparent),
-    0 18px 55px color-mix(in srgb, var(--cb-accent) 13%, transparent),
-    inset 0 0 34px rgba(255,255,255,0.035);
-  backdrop-filter: blur(8px);
+/* data-cb-mode is written on body; keep the attribute on the body selector so active
+   work actually promotes the activity card. Activity text is the dominant active signal;
+   arcs/route rail recede unless severity is hot/warn. */
+body.kiosk-mode.kiosk-landscape.claude-concept-b[data-cb-mode="active-turn"] .cb-activity,
+body.kiosk-mode.kiosk-landscape.claude-concept-b[data-cb-mode="working"] .cb-activity,
+body.kiosk-mode.kiosk-landscape.claude-concept-b[data-cb-mode="planning"] .cb-activity {
+  z-index: 8;
+  width: min(860px, 58vw);
+  max-width: min(900px, 60vw);
+  bottom: 196px;
+  padding: 0 18px;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+  backdrop-filter: none;
 }
 
-body.kiosk-mode.kiosk-landscape.claude-concept-b [data-cb-mode="active-turn"] .cb-eye-ring {
+body.kiosk-mode.kiosk-landscape.claude-concept-b[data-cb-mode="active-turn"] .cb-state,
+body.kiosk-mode.kiosk-landscape.claude-concept-b[data-cb-mode="working"] .cb-state,
+body.kiosk-mode.kiosk-landscape.claude-concept-b[data-cb-mode="planning"] .cb-state {
+  font-size: 18px;
+  letter-spacing: 0.16em;
+  opacity: 0.96;
+}
+
+body.kiosk-mode.kiosk-landscape.claude-concept-b[data-cb-mode="active-turn"] .cb-line,
+body.kiosk-mode.kiosk-landscape.claude-concept-b[data-cb-mode="working"] .cb-line,
+body.kiosk-mode.kiosk-landscape.claude-concept-b[data-cb-mode="planning"] .cb-line {
+  font: 640 46px/1.06 system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  letter-spacing: -0.02em;
+  text-shadow: 0 1px 0 rgba(0,0,0,0.28), 0 0 28px rgba(0,0,0,0.42);
+}
+
+body.kiosk-mode.kiosk-landscape.claude-concept-b[data-cb-mode="active-turn"] .cb-source,
+body.kiosk-mode.kiosk-landscape.claude-concept-b[data-cb-mode="working"] .cb-source,
+body.kiosk-mode.kiosk-landscape.claude-concept-b[data-cb-mode="planning"] .cb-source {
+  opacity: 0.78;
+  font-size: 18px;
+}
+
+body.kiosk-mode.kiosk-landscape.claude-concept-b[data-cb-mode="active-turn"] .cb-route-rail,
+body.kiosk-mode.kiosk-landscape.claude-concept-b[data-cb-mode="working"] .cb-route-rail,
+body.kiosk-mode.kiosk-landscape.claude-concept-b[data-cb-mode="planning"] .cb-route-rail {
+  opacity: 0.58;
+  filter: saturate(0.82);
+}
+
+body.kiosk-mode.kiosk-landscape.claude-concept-b[data-cb-mode="active-turn"] .cb-bottom-rail,
+body.kiosk-mode.kiosk-landscape.claude-concept-b[data-cb-mode="working"] .cb-bottom-rail,
+body.kiosk-mode.kiosk-landscape.claude-concept-b[data-cb-mode="planning"] .cb-bottom-rail {
+  opacity: 0.68;
+}
+
+body.kiosk-mode.kiosk-landscape.claude-concept-b[data-cb-mode="active-turn"] .cb-arc-label,
+body.kiosk-mode.kiosk-landscape.claude-concept-b[data-cb-mode="working"] .cb-arc-label,
+body.kiosk-mode.kiosk-landscape.claude-concept-b[data-cb-mode="planning"] .cb-arc-label,
+body.kiosk-mode.kiosk-landscape.claude-concept-b[data-cb-mode="active-turn"] .cb-arc-value,
+body.kiosk-mode.kiosk-landscape.claude-concept-b[data-cb-mode="working"] .cb-arc-value,
+body.kiosk-mode.kiosk-landscape.claude-concept-b[data-cb-mode="planning"] .cb-arc-value {
+  opacity: 0.72;
+}
+
+body.kiosk-mode.kiosk-landscape.claude-concept-b[data-cb-mode="active-turn"] [data-cb-arc][data-severity="warn"] .cb-arc-label,
+body.kiosk-mode.kiosk-landscape.claude-concept-b[data-cb-mode="active-turn"] [data-cb-arc][data-severity="warn"] .cb-arc-value,
+body.kiosk-mode.kiosk-landscape.claude-concept-b[data-cb-mode="working"] [data-cb-arc][data-severity="warn"] .cb-arc-label,
+body.kiosk-mode.kiosk-landscape.claude-concept-b[data-cb-mode="working"] [data-cb-arc][data-severity="warn"] .cb-arc-value,
+body.kiosk-mode.kiosk-landscape.claude-concept-b[data-cb-mode="planning"] [data-cb-arc][data-severity="warn"] .cb-arc-label,
+body.kiosk-mode.kiosk-landscape.claude-concept-b[data-cb-mode="planning"] [data-cb-arc][data-severity="warn"] .cb-arc-value,
+body.kiosk-mode.kiosk-landscape.claude-concept-b[data-cb-mode="active-turn"] [data-cb-arc][data-severity="hot"] .cb-arc-label,
+body.kiosk-mode.kiosk-landscape.claude-concept-b[data-cb-mode="active-turn"] [data-cb-arc][data-severity="hot"] .cb-arc-value,
+body.kiosk-mode.kiosk-landscape.claude-concept-b[data-cb-mode="working"] [data-cb-arc][data-severity="hot"] .cb-arc-label,
+body.kiosk-mode.kiosk-landscape.claude-concept-b[data-cb-mode="working"] [data-cb-arc][data-severity="hot"] .cb-arc-value,
+body.kiosk-mode.kiosk-landscape.claude-concept-b[data-cb-mode="planning"] [data-cb-arc][data-severity="hot"] .cb-arc-label,
+body.kiosk-mode.kiosk-landscape.claude-concept-b[data-cb-mode="planning"] [data-cb-arc][data-severity="hot"] .cb-arc-value {
+  opacity: 1;
+}
+
+body.kiosk-mode.kiosk-landscape.claude-concept-b[data-cb-mode="active-turn"] .cb-eye-ring {
   stroke-width: 2.8;
   filter: drop-shadow(0 0 16px color-mix(in srgb, var(--cb-accent) 26%, transparent));
 }
@@ -2277,7 +2338,46 @@ body.kiosk-mode.kiosk-landscape.claude-concept-b .cb-route-standby {
 }
 
 body.kiosk-mode.kiosk-landscape.claude-concept-b .cb-route-standby.quiet {
-  opacity: 0.56;
+  opacity: 0.42;
+}
+
+/* Unknown/idle route rows collapse visually while keeping spine geometry for hairline/whiskers. */
+body.kiosk-mode.kiosk-landscape.claude-concept-b .cb-route-row[data-collapsed="true"] {
+  opacity: 0.24;
+  filter: saturate(0.35);
+  pointer-events: none;
+}
+
+body.kiosk-mode.kiosk-landscape.claude-concept-b .cb-route-row[data-collapsed="true"] .cb-route-label strong,
+body.kiosk-mode.kiosk-landscape.claude-concept-b .cb-route-row[data-collapsed="true"] .cb-route-label span {
+  font-size: 18px;
+  font-weight: 620;
+  letter-spacing: 0.08em;
+}
+
+body.kiosk-mode.kiosk-landscape.claude-concept-b .cb-route-row[data-collapsed="true"] .cb-route-label em,
+body.kiosk-mode.kiosk-landscape.claude-concept-b .cb-route-row[data-collapsed="true"] .cb-route-glyph {
+  opacity: 0.28;
+}
+
+body.kiosk-mode.kiosk-landscape.claude-concept-b .cb-route-row[data-collapsed="true"] .cb-route-node {
+  opacity: 0.34;
+  box-shadow: none;
+  transform: scale(0.78);
+  transform-origin: center;
+}
+
+body.kiosk-mode.kiosk-landscape.claude-concept-b .cb-route-rail[data-rail-quiet="true"] {
+  opacity: 0.72;
+  filter: saturate(0.78) drop-shadow(0 0 12px rgba(229, 178, 90, 0.03));
+}
+
+body.kiosk-mode.kiosk-landscape.claude-concept-b .cb-route-rail[data-rail-quiet="true"] .cb-route-title {
+  opacity: 0.62;
+}
+
+body.kiosk-mode.kiosk-landscape.claude-concept-b .cb-route-rail[data-rail-quiet="true"] .cb-route-spine {
+  opacity: 0.48;
 }
 
 /* Taste prototype, URL-gated with `taste=1` so the live kiosk baseline remains unchanged.
@@ -3264,13 +3364,14 @@ html[data-hermes-reduced-motion="true"] body.augury-preview .augury-ambient::aft
 }
 
 body.kiosk-mode.kiosk-landscape.claude-concept-b.family-theater {
-  --cb-family-stage-scale: 1.11;
+  --cb-family-stage-scale: 1.12;
 }
 
 body.kiosk-mode.kiosk-landscape.claude-concept-b.family-theater .cb-topbar,
 body.kiosk-mode.kiosk-landscape.claude-concept-b.family-theater .cb-route-rail,
 body.kiosk-mode.kiosk-landscape.claude-concept-b.family-theater .cb-bottom-rail,
 body.kiosk-mode.kiosk-landscape.claude-concept-b.family-theater .cb-attention,
+body.kiosk-mode.kiosk-landscape.claude-concept-b.family-theater .cb-top-alert,
 body.kiosk-mode.kiosk-landscape.claude-concept-b.family-theater .detail-overlay,
 body.kiosk-mode.kiosk-landscape.claude-concept-b.family-theater .touch-zones,
 body.kiosk-mode.kiosk-landscape.claude-concept-b.family-theater .cb-touch-zones {
@@ -3278,8 +3379,8 @@ body.kiosk-mode.kiosk-landscape.claude-concept-b.family-theater .cb-touch-zones 
 }
 
 body.kiosk-mode.kiosk-landscape.claude-concept-b.family-theater .cb-radial-stage {
-  transform: translate(-50%, -50%) scale(var(--cb-family-stage-scale, 1.1));
-  filter: saturate(1.08) contrast(1.04);
+  transform: translate(-50%, -50%) scale(var(--cb-family-stage-scale, 1.12));
+  filter: saturate(1.1) contrast(1.05);
 }
 
 body.kiosk-mode.kiosk-landscape.claude-concept-b.family-theater .cb-arc-label,
@@ -3288,30 +3389,46 @@ body.kiosk-mode.kiosk-landscape.claude-concept-b.family-theater .cb-arc-value {
   opacity: 0;
 }
 
+/* Family mode: one friendly activity card under the optic. No operator chrome. */
 body.kiosk-mode.kiosk-landscape.claude-concept-b.family-theater .cb-activity {
-  width: min(760px, 48vw);
-  bottom: 7.2%;
-  padding: 20px 24px;
-  border-color: rgba(247,211,107,.30);
-  background: linear-gradient(135deg, rgba(4,8,14,.42), rgba(7,17,27,.62));
-  box-shadow: 0 0 42px rgba(101,243,255,.16), 0 0 64px rgba(247,211,107,.08);
+  z-index: 7;
+  width: min(780px, 52vw);
+  max-width: min(820px, 56vw);
+  bottom: 7.8%;
+  gap: 12px;
+  padding: 0 18px;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+  backdrop-filter: none;
+}
+
+body.kiosk-mode.kiosk-landscape.claude-concept-b.family-theater .cb-state {
+  color: color-mix(in srgb, #ffe7a0 82%, var(--cb-accent));
+  font-size: clamp(18px, 1.55vw, 24px);
+  letter-spacing: 0.14em;
 }
 
 body.kiosk-mode.kiosk-landscape.claude-concept-b.family-theater .cb-state strong {
-  font-size: clamp(28px, 2.4vw, 42px);
-  letter-spacing: .035em;
+  font-size: clamp(30px, 2.55vw, 44px);
+  letter-spacing: 0.04em;
+  font-weight: 760;
 }
 
 body.kiosk-mode.kiosk-landscape.claude-concept-b.family-theater .cb-line {
-  margin-top: 12px;
-  font-size: clamp(20px, 1.8vw, 32px);
-  line-height: 1.18;
-  color: #fff4c9;
-  text-shadow: 0 0 18px rgba(247,211,107,.28);
+  margin-top: 4px;
+  font: 600 clamp(24px, 2.15vw, 36px)/1.16 system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  color: #fff8dc;
+  text-shadow: 0 1px 0 rgba(0,0,0,0.24), 0 0 18px rgba(247,211,107,.22);
 }
 
 body.kiosk-mode.kiosk-landscape.claude-concept-b.family-theater .cb-source {
-  color: rgba(132,238,255,.72);
+  margin-top: 2px;
+  color: rgba(166, 236, 255, 0.78);
+  font-size: clamp(15px, 1.2vw, 18px);
+  letter-spacing: 0.12em;
+  opacity: 0.86;
 }
 
 /* Family mode hold toggle: one deliberate corner control, not dashboard chrome.
@@ -3365,12 +3482,26 @@ body.kiosk-mode.kiosk-landscape.claude-concept-b .cb-mode-hold[data-hold-state="
   box-shadow: 0 0 22px color-mix(in srgb, var(--cb-accent) 30%, transparent);
 }
 
-/* Family audience: keep the return control present but quieter than the show. */
+/* Family audience: keep the return control present and modestly discoverable, not operator chrome. */
 body.kiosk-mode.kiosk-landscape.claude-concept-b.family-theater .cb-mode-hold {
-  opacity: 0.34;
+  opacity: 0.52;
+  border-color: color-mix(in srgb, #ffe7a0 28%, transparent);
+  background: color-mix(in srgb, rgba(8, 14, 22, 0.78) 88%, transparent);
+  color: color-mix(in srgb, #fff4c9 72%, var(--cb-fg-2));
+  box-shadow: 0 0 18px rgba(247, 211, 107, 0.08);
+}
+
+body.kiosk-mode.kiosk-landscape.claude-concept-b.family-theater .cb-mode-hold-ring {
+  background: conic-gradient(
+    color-mix(in srgb, #ffe7a0 86%, var(--cb-accent)) calc(var(--cb-hold-progress, 0) * 360deg),
+    color-mix(in srgb, #fff4c9 22%, transparent) 0
+  );
 }
 
 body.kiosk-mode.kiosk-landscape.claude-concept-b.family-theater .cb-mode-hold[data-hold-state="holding"],
 body.kiosk-mode.kiosk-landscape.claude-concept-b.family-theater .cb-mode-hold[data-hold-state="engaged"] {
-  opacity: 0.94;
+  opacity: 0.96;
+  color: #fff8dc;
+  border-color: color-mix(in srgb, #ffe7a0 58%, transparent);
+  box-shadow: 0 0 22px rgba(247, 211, 107, 0.18);
 }

@@ -254,8 +254,13 @@ test.describe('Hermes kiosk smoke and visual regression anchors', () => {
     await expect(page.locator('.cb-topbar')).toBeHidden();
     const before = await page.evaluate(() => window.__HERMES_DISPLAY_BEHAVIOR?.mode || null);
     const text = await page.locator('body').innerText();
-    expect(text).not.toMatch(/ROUTE|HEADROOM|CPU|MEM|TEMP|CURRENT TURN|GATEWAY|REMOTE MEMORY|TOOLS?|PROMPT|PRIVATE AUGURY/i);
+    expect(text).not.toMatch(/ROUTE|HEADROOM|CPU|MEM|TEMP|CURRENT TURN|GATEWAY|REMOTE MEMORY|TOOLS?|PROMPT|PRIVATE AUGURY|KANBAN|AUGURY/i);
     expect(text).toMatch(/HERMES|SPARKLE|WATCHING|THINKING/i);
+    expect(text).toMatch(/HOLD CORNER TO LEAVE|OPERATOR HOLD/i);
+    await expect(page.locator('.cb-mode-hold')).toBeVisible();
+    const familyHoldOpacity = Number(await page.locator('.cb-mode-hold').evaluate((el) => getComputedStyle(el).opacity));
+    expect(familyHoldOpacity).toBeGreaterThan(0.4);
+    expect(familyHoldOpacity).toBeLessThan(0.85);
     await page.mouse.click(Math.round((page.viewportSize()?.width || 1920) / 2), Math.round((page.viewportSize()?.height || 1280) / 2));
     const after = await page.evaluate(() => window.__HERMES_DISPLAY_BEHAVIOR?.mode || null);
     expect(after).toBe(before);
@@ -782,6 +787,8 @@ test.describe('Hermes kiosk smoke and visual regression anchors', () => {
         state: node.dataset.state,
         active: node.dataset.active,
         headroomTier: node.dataset.headroomTier,
+        collapsed: node.dataset.collapsed,
+        rowOpacity: Number.parseFloat(getComputedStyle(node).opacity),
         whiskerWidth: Number.parseFloat(style.width),
         whiskerTransform: style.transform,
         whiskerOpacity: Number.parseFloat(style.opacity),
@@ -790,12 +797,14 @@ test.describe('Hermes kiosk smoke and visual regression anchors', () => {
     }));
     expect(snapshot.map((row) => row.label)).toEqual(['CHATGPT', 'CLAUDE', 'GEMINI', 'COPILOT']);
     for (const row of snapshot) {
-      expect(row).toMatchObject({ value: 'UNK', glyph: '○', state: 'unknown', active: 'false', headroomTier: 'none' });
+      expect(row).toMatchObject({ value: 'UNK', glyph: '○', state: 'unknown', active: 'false', headroomTier: 'none', collapsed: 'true' });
+      expect(row.rowOpacity).toBeLessThan(0.4);
       expect(row.whiskerWidth).toBeGreaterThan(38);
       expect(row.whiskerTransform).toBe('matrix(0, 0, 0, 1, 0, 0)');
       expect(row.whiskerOpacity).toBe(0);
       expect(row.trackOpacity).toBe(0);
     }
+    await expect(page.locator('.cb-route-rail')).toHaveAttribute('data-rail-quiet', 'true');
     expect(Number(await page.locator('.cb-route-active-hairline').evaluate((node) => window.getComputedStyle(node).opacity))).toBe(0);
     const unsafeText = await page.locator('.cb-route-rail').textContent();
     expect(unsafeText).not.toMatch(/org_|req_|sk-|gh[pousr]_|\$\d|@/i);
@@ -846,6 +855,16 @@ test.describe('Hermes kiosk smoke and visual regression anchors', () => {
       const whiskerEl = row.querySelector('.cb-route-whisker');
       return Number.parseFloat(getComputedStyle(whiskerEl).width) > 30;
     }))).toBe(true);
+    const collapseState = await page.locator('.cb-route-row').evaluateAll((rows) => rows.map((row) => ({
+      label: row.querySelector('[data-route-label]')?.textContent,
+      state: row.dataset.state,
+      collapsed: row.dataset.collapsed,
+      opacity: Number.parseFloat(getComputedStyle(row).opacity),
+    })));
+    expect(collapseState.slice(0, 3).every((row) => row.collapsed === 'false' && row.opacity > 0.8)).toBe(true);
+    expect(collapseState[3]).toMatchObject({ label: 'COPILOT', state: 'unknown', collapsed: 'true' });
+    expect(collapseState[3].opacity).toBeLessThan(0.4);
+    await expect(page.locator('.cb-route-rail')).toHaveAttribute('data-rail-quiet', 'false');
     const geometry = await page.locator('.cb-route-row').evaluateAll((rows) => rows.map((row) => {
       const value = row.querySelector('[data-route-value]').getBoundingClientRect();
       const whisker = row.querySelector('.cb-route-whisker').getBoundingClientRect();

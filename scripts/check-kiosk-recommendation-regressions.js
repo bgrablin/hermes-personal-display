@@ -454,27 +454,34 @@ if (/safe\[idx\s*%\s*safe\.length\]/.test(appSource)) {
 }
 requireAll(cssSource, ['.cb-arc-label', 'font: 600 16px/1', 'fill: var(--cb-fg-1)'], 'Concept B telemetry arc labels must stay desk-readable and metric-identifying.');
 requireAll(appSource, ['ROUTE · HEADROOM', "const unknownRouteCopy = state === 'disabled' ? 'OFF' : state === 'error' ? 'ERR' : 'UNK'"], 'Route rail must label headroom and render unknown/inactive routes explicitly instead of bare dashes.');
-requireAll(cssSource, ['right: 64px', 'width: 430px', 'width: 104px', 'transform: scaleX(var(--route-headroom))', 'transition: transform 600ms ease, opacity 450ms ease', 'grid-template-columns: minmax(118px, auto) 80px', 'min-width: 76px', '[data-cb-mode="active-turn"] .cb-activity', 'var(--cb-hud-panel)'], 'Route values must use a fixed aligned column clear of the route whisker, animate the whisker via transform instead of width, and active turns must use a readable non-red HUD panel.');
+requireAll(cssSource, ['right: 64px', 'width: 430px', 'width: 104px', 'transform: scaleX(var(--route-headroom))', 'transition: transform 600ms ease, opacity 450ms ease', 'grid-template-columns: minmax(118px, auto) 80px', 'min-width: 76px', 'body.kiosk-mode.kiosk-landscape.claude-concept-b[data-cb-mode="active-turn"] .cb-activity', '[data-cb-mode="active-turn"] .cb-activity', 'background: transparent', 'box-shadow: none', 'font: 640 46px/1.06'], 'Route values must use a fixed aligned column clear of the route whisker, animate the whisker via transform instead of width, and active turns must promote body-scoped activity text without a box that blocks the optic.');
+if (!cssSource.includes('body.kiosk-mode.kiosk-landscape.claude-concept-b[data-cb-mode="active-turn"] .cb-activity')) {
+  fail('Active-turn activity panel CSS must target body[data-cb-mode] so the promoted activity card actually applies.');
+}
 if (/right:\s*calc\(72px \+ 118px \* var\(--route-headroom\)\)/.test(cssSource)) {
   fail('Route percentage text must not shift horizontally by headroom; keep values fixed and move only the whisker/bar.');
 }
 requireAll(appSource, [
   "setConceptBDataset(row, 'headroomTier', headroomTier)",
+  "setConceptBDataset(row, 'collapsed', collapsed ? 'true' : 'false')",
+  "setConceptBDataset(root, 'railQuiet', collapsedCount >= 3 ? 'true' : 'false')",
   'const ROUTE_HEADROOM_LOW_THRESHOLD',
   'playConceptBStatusTick(entry.labelWrap',
   'playConceptBStatusTick(entry.glyph',
   'cb-route-track',
-], 'Route rail provider state/active/low-headroom changes must read as throttled event ticks over a fixed headroom reference track.');
+], 'Route rail provider state/active/low-headroom changes must read as throttled event ticks over a fixed headroom reference track, and unknown/idle rows must collapse.');
 requireAll(cssSource, [
   '.cb-route-track',
   '.cb-route-row[data-state="unknown"] .cb-route-track',
   '.cb-route-row[data-state="confirmed"]',
+  '.cb-route-row[data-collapsed="true"]',
+  '.cb-route-rail[data-rail-quiet="true"]',
   '.cb-route-glyph',
   'color: currentColor',
   '[data-headroom-tier="low"] .cb-route-label span',
   'transform: translateY(calc(var(--route-active-y, -100px) + 45px))',
   'transition: transform 650ms ease, opacity 450ms ease',
-], 'Route headroom must render fill-vs-track with honest hiding for unknown routes, amber confirmed rows/dots, low-band ochre values, and a transform-driven active hairline.');
+], 'Route headroom must render fill-vs-track with honest hiding for unknown routes, amber confirmed rows/dots, collapsed idle rows, low-band ochre values, and a transform-driven active hairline.');
 if (!resolverSource.includes('actionable_warn_lines')) {
   fail('Routine provider/tool warnings must be filtered before driving the physical attention state.');
 }
@@ -852,7 +859,12 @@ requireAll(cssSource, [
   '[data-hold-state="holding"]',
   '[data-hold-state="engaged"]',
   'family-theater .cb-mode-hold',
-], 'Family hold chip must render the progress ring and stay visible (quieter) in family mode.');
+  'opacity: 0.52',
+  'family-theater .cb-activity',
+], 'Family hold chip must render the progress ring, stay modestly discoverable in family mode, and keep a friendly non-operator activity card.');
+if (!appSource.includes("familyAudience ? 'SPARKLE MODE · HOLD CORNER TO LEAVE'")) {
+  fail('Family mode must expose a gentle hold-corner tip without operator chrome labels.');
+}
 if (/\.cb-mode-hold[^{]*\{[^}]*animation:/.test(cssSource)) {
   fail('Family hold chip must have no idle keyframe animation; the only motion is the press-driven ring fill.');
 }
