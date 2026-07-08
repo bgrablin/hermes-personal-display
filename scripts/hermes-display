@@ -1,7 +1,9 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-PROJECT="${HERMES_PERSONAL_DISPLAY_PROJECT:-$HOME/.hermes/projects/personal-display}"
+SCRIPT_PATH="$(readlink -f -- "${BASH_SOURCE[0]}" 2>/dev/null || realpath -- "${BASH_SOURCE[0]}")"
+SCRIPT_DIR="$(cd -- "$(dirname -- "$SCRIPT_PATH")" && pwd)"
+PROJECT="${HERMES_PERSONAL_DISPLAY_PROJECT:-$(cd -- "$SCRIPT_DIR/.." && pwd)}"
 ENV_FILE="${HERMES_DISPLAY_ENV_FILE:-$HOME/.config/hermes-personal-display.env}"
 if [[ -r "$ENV_FILE" ]]; then
   set -a

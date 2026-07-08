@@ -9,6 +9,7 @@ function copyClassicRuntimeAssets() {
     ['src/generated/build-id.js', 'dist/src/generated/build-id.js'],
     ['src/generated/display-contract.js', 'dist/src/generated/display-contract.js'],
     ['src/mascot/sanitize.js', 'dist/src/mascot/sanitize.js'],
+    ['src/mascot/mode-presets.js', 'dist/src/mascot/mode-presets.js'],
     ['src/mascot/behavior-machine.js', 'dist/src/mascot/behavior-machine.js'],
     ['src/mascot/states.js', 'dist/src/mascot/states.js'],
     ['src/mascot/motion-adapter.js', 'dist/src/mascot/motion-adapter.js'],

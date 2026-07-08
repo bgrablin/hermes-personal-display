@@ -16,6 +16,7 @@ import * as Zod from 'zod';
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const ROOT = path.resolve(__dirname, '..');
 const PACKAGE_JSON = path.join(ROOT, 'package.json');
+const VITE_CONFIG = path.join(ROOT, 'vite.config.js');
 const RUNTIME_HTML = path.join(ROOT, 'src', 'character-runtime.html');
 const STATE_JS = path.join(ROOT, 'src', 'state.js');
 const DISPLAY_CONTRACT_JS = path.join(ROOT, 'src', 'generated', 'display-contract.js');
@@ -88,6 +89,15 @@ function checkRuntimeLoadsAdapters() {
     html.indexOf('mascot/mode-presets.js') < html.indexOf('mascot/behavior-machine.js'),
     'character runtime must load mode-presets.js before behavior-machine.js'
   );
+}
+
+function checkClassicRuntimeAssetsCopied() {
+  const viteConfig = read(VITE_CONFIG);
+  const classicScripts = Array.from(read(RUNTIME_HTML).matchAll(/<script src="\.\/(generated|mascot)\/([^"?]+)\?v=/g))
+    .map((match) => `src/${match[1]}/${match[2]}`);
+  for (const script of classicScripts) {
+    assert(viteConfig.includes(`['${script}', 'dist/${script}']`), `vite classic runtime asset copy is missing ${script}`);
+  }
 }
 
 function sha256(value) {
@@ -251,6 +261,7 @@ function checkQuietCopyIsNotMisleading() {
 function main() {
   checkPackagePosture();
   checkRuntimeLoadsAdapters();
+  checkClassicRuntimeAssetsCopied();
   checkVendorIntegrity();
   checkBehaviorMachine();
   checkSchemaValidation();

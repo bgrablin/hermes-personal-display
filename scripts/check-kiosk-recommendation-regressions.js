@@ -454,7 +454,7 @@ if (/safe\[idx\s*%\s*safe\.length\]/.test(appSource)) {
 }
 requireAll(cssSource, ['.cb-arc-label', 'font: 600 16px/1', 'fill: var(--cb-fg-1)'], 'Concept B telemetry arc labels must stay desk-readable and metric-identifying.');
 requireAll(appSource, ['ROUTE · HEADROOM', "const unknownRouteCopy = state === 'disabled' ? 'OFF' : state === 'error' ? 'ERR' : 'UNK'"], 'Route rail must label headroom and render unknown/inactive routes explicitly instead of bare dashes.');
-requireAll(cssSource, ['right: 44px', 'width: 390px', 'width: 40px', 'transform: scaleX(var(--route-headroom))', 'transition: transform 600ms ease, opacity 450ms ease', 'grid-template-columns: minmax(122px, auto) 86px', 'min-width: 76px', '[data-cb-mode="active-turn"] .cb-activity', 'var(--cb-hud-panel)'], 'Route values must use a fixed aligned column clear of the route whisker, animate the whisker via transform instead of width, and active turns must use a readable non-red HUD panel.');
+requireAll(cssSource, ['right: 64px', 'width: 430px', 'width: 104px', 'transform: scaleX(var(--route-headroom))', 'transition: transform 600ms ease, opacity 450ms ease', 'grid-template-columns: minmax(118px, auto) 80px', 'min-width: 76px', '[data-cb-mode="active-turn"] .cb-activity', 'var(--cb-hud-panel)'], 'Route values must use a fixed aligned column clear of the route whisker, animate the whisker via transform instead of width, and active turns must use a readable non-red HUD panel.');
 if (/right:\s*calc\(72px \+ 118px \* var\(--route-headroom\)\)/.test(cssSource)) {
   fail('Route percentage text must not shift horizontally by headroom; keep values fixed and move only the whisker/bar.');
 }
@@ -501,6 +501,15 @@ requireAll(appSource, [
   'active?.anim?.pause?.()',
   'motion.animateValue({',
 ], 'Radial telemetry must use truthful live measurements, fixed temp scaling, trend/freshness, 4-minute TTL, and avoid null rendering as 0');
+requireAll(cssSource, [
+  '[data-cb-arc][data-severity="warn"] .cb-arc-fill',
+  '[data-cb-arc][data-severity="warn"] .cb-arc-dot',
+  '[data-cb-arc][data-severity="hot"] .cb-arc-fill',
+  '[data-cb-arc][data-severity="hot"] .cb-arc-dot',
+], 'Thermal arc severity states must style the SVG line and endpoint dot separately.');
+if (/\[data-cb-arc\]\[data-severity="(?:warn|hot)"\]\s+\.cb-arc-fill,\s*\n\s*body\.kiosk-mode\.kiosk-landscape\.claude-concept-b\s+\[data-cb-arc\]\[data-severity="(?:warn|hot)"\]\s+\.cb-arc-dot[\s\S]{0,180}fill:\s*var\(--cb-(?:ochre|rust)\)/.test(cssSource)) {
+  fail('Thermal arc fill paths must not inherit yellow/red SVG fill; filled paths create large closed-shape artifacts. Keep .cb-arc-fill fill:none and color only its stroke.');
+}
 requireAll(collectorSource, ['with closing(sqlite3.connect', 'kanban_snapshot'], 'Kanban reads must close SQLite connections so the display server does not exhaust file descriptors and trip FEED LOST.');
 requireAll(appSource, [
   'Queued/blocked Kanban cards are useful context',

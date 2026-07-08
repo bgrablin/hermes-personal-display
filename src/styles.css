@@ -1426,17 +1426,19 @@ body.kiosk-mode.kiosk-landscape.claude-concept-b .cb-bg-parallax {
   inset: -18vh -18vw;
   z-index: 0;
   pointer-events: none;
+  opacity: 0.58;
+  filter: blur(1px);
   transform: translate3d(0, 0, 0);
   will-change: transform;
   contain: strict;
 }
 
 body.kiosk-mode.kiosk-landscape.claude-concept-b .cb-bg-parallax-a {
-  background: radial-gradient(circle at 50% 44.85%, rgba(136, 216, 195, 0.10), transparent 33rem);
+  background: radial-gradient(circle at 50% 44.85%, rgba(136, 216, 195, 0.18), transparent 33rem);
 }
 
 body.kiosk-mode.kiosk-landscape.claude-concept-b .cb-bg-parallax-b {
-  background: radial-gradient(circle at 50% 58.09%, rgba(255, 255, 255, 0.035), transparent 46rem);
+  background: radial-gradient(circle at 50% 58.09%, rgba(255, 255, 255, 0.07), transparent 46rem);
 }
 
 body.kiosk-mode.kiosk-landscape.claude-concept-b::before {
@@ -1448,7 +1450,7 @@ body.kiosk-mode.kiosk-landscape.claude-concept-b::before {
     linear-gradient(rgba(255,255,255,0.018) 1px, transparent 1px),
     linear-gradient(90deg, rgba(255,255,255,0.012) 1px, transparent 1px);
   background-size: 100% 48px, 48px 100%;
-  opacity: 0.18;
+  opacity: 0.24;
   mask-image: radial-gradient(circle at 50% 48%, black, transparent 72%);
 }
 
@@ -1559,8 +1561,8 @@ body.kiosk-mode.kiosk-landscape.claude-concept-b .cb-radial-stage {
   position: fixed;
   left: 50%;
   top: 44%;
-  width: 1100px;
-  height: 1100px;
+  width: 1020px;
+  height: 1020px;
   transform: translate(-50%, -50%);
   z-index: 2;
   pointer-events: none;
@@ -1938,18 +1940,26 @@ body.kiosk-mode.kiosk-landscape.claude-concept-b .cb-top-alert[data-severity="of
   color: color-mix(in srgb, var(--cb-steel) 86%, var(--cb-fg-0));
 }
 
-body.kiosk-mode.kiosk-landscape.claude-concept-b [data-cb-arc][data-severity="warn"] .cb-arc-fill,
-body.kiosk-mode.kiosk-landscape.claude-concept-b [data-cb-arc][data-severity="warn"] .cb-arc-dot {
+body.kiosk-mode.kiosk-landscape.claude-concept-b [data-cb-arc][data-severity="warn"] .cb-arc-fill {
   stroke: var(--cb-ochre);
+  fill: none;
+  filter: drop-shadow(0 0 18px color-mix(in srgb, var(--cb-ochre) 58%, transparent));
+}
+
+body.kiosk-mode.kiosk-landscape.claude-concept-b [data-cb-arc][data-severity="warn"] .cb-arc-dot {
   fill: var(--cb-ochre);
   filter: drop-shadow(0 0 18px color-mix(in srgb, var(--cb-ochre) 58%, transparent));
 }
 
-body.kiosk-mode.kiosk-landscape.claude-concept-b [data-cb-arc][data-severity="hot"] .cb-arc-fill,
-body.kiosk-mode.kiosk-landscape.claude-concept-b [data-cb-arc][data-severity="hot"] .cb-arc-dot {
+body.kiosk-mode.kiosk-landscape.claude-concept-b [data-cb-arc][data-severity="hot"] .cb-arc-fill {
   stroke: var(--cb-rust);
-  fill: var(--cb-rust);
+  fill: none;
   stroke-width: 8;
+  filter: drop-shadow(0 0 34px color-mix(in srgb, var(--cb-rust) 88%, transparent));
+}
+
+body.kiosk-mode.kiosk-landscape.claude-concept-b [data-cb-arc][data-severity="hot"] .cb-arc-dot {
+  fill: var(--cb-rust);
   filter: drop-shadow(0 0 34px color-mix(in srgb, var(--cb-rust) 88%, transparent));
 }
 
@@ -2006,9 +2016,9 @@ body.kiosk-mode.kiosk-landscape.claude-concept-b .cb-attention em {
 
 body.kiosk-mode.kiosk-landscape.claude-concept-b .cb-route-rail {
   position: fixed;
-  right: 44px;
+  right: 64px;
   top: 162px;
-  width: 390px;
+  width: 430px;
   height: 730px;
   z-index: 6;
   pointer-events: none;
@@ -2022,9 +2032,9 @@ body.kiosk-mode.kiosk-landscape.claude-concept-b .cb-route-rail {
 
 body.kiosk-mode.kiosk-landscape.claude-concept-b .cb-route-title {
   position: absolute;
-  right: 84px;
+  right: 92px;
   top: 0;
-  color: color-mix(in srgb, var(--cb-amber) 66%, var(--cb-fg-0));
+  color: color-mix(in srgb, var(--cb-amber) 72%, var(--cb-fg-0));
   font-size: 21px;
   letter-spacing: 0.18em;
 }
@@ -2032,15 +2042,15 @@ body.kiosk-mode.kiosk-landscape.claude-concept-b .cb-route-title {
 body.kiosk-mode.kiosk-landscape.claude-concept-b .cb-route-spine {
   position: absolute;
   top: 44px;
-  right: 46px;
-  width: 2px;
+  right: 52px;
+  width: 3px;
   height: 626px;
-  background: linear-gradient(180deg, transparent, rgba(229, 178, 90, 0.42) 9%, rgba(214, 226, 222, 0.30) 84%, transparent);
+  background: linear-gradient(180deg, transparent, rgba(229, 178, 90, 0.46) 9%, rgba(214, 226, 222, 0.28) 84%, transparent);
 }
 
 body.kiosk-mode.kiosk-landscape.claude-concept-b .cb-route-anchor {
   position: absolute;
-  right: 46px;
+  right: 52px;
   top: 688px;
   width: 18px;
   height: 1px;
@@ -2090,12 +2100,12 @@ body.kiosk-mode.kiosk-landscape.claude-concept-b .cb-route-row[data-state="disab
 
 body.kiosk-mode.kiosk-landscape.claude-concept-b .cb-route-label {
   position: absolute;
-  right: 118px;
+  right: 170px;
   top: 0;
-  min-width: 250px;
+  min-width: 230px;
   display: grid;
-  grid-template-columns: minmax(122px, auto) 86px;
-  column-gap: 18px;
+  grid-template-columns: minmax(118px, auto) 80px;
+  column-gap: 16px;
   row-gap: 8px;
   justify-content: end;
   align-items: baseline;
@@ -2133,9 +2143,9 @@ body.kiosk-mode.kiosk-landscape.claude-concept-b .cb-route-label em {
    unknown/error/disabled rows must not render an empty gauge they cannot back up. */
 body.kiosk-mode.kiosk-landscape.claude-concept-b .cb-route-track {
   position: absolute;
-  right: 46px;
-  top: 15px;
-  width: 40px;
+  right: 52px;
+  top: 17px;
+  width: 104px;
   height: 1px;
   background: color-mix(in srgb, currentColor 36%, transparent);
   opacity: 0.62;
@@ -2150,10 +2160,10 @@ body.kiosk-mode.kiosk-landscape.claude-concept-b .cb-route-row[data-state="disab
 
 body.kiosk-mode.kiosk-landscape.claude-concept-b .cb-route-whisker {
   position: absolute;
-  right: 46px;
-  top: 14px;
-  width: 40px;
-  height: 3px;
+  right: 52px;
+  top: 15px;
+  width: 104px;
+  height: 4px;
   transform: scaleX(var(--route-headroom));
   transform-origin: right center;
   border-radius: 999px;
@@ -2187,10 +2197,10 @@ body.kiosk-mode.kiosk-landscape.claude-concept-b .cb-route-row[data-headroom-tie
 
 body.kiosk-mode.kiosk-landscape.claude-concept-b .cb-route-node {
   position: absolute;
-  right: 41px;
+  right: 47px;
   top: 10px;
-  width: 11px;
-  height: 11px;
+  width: 12px;
+  height: 12px;
   border-radius: 50%;
   background: currentColor;
   box-shadow: 0 0 10px color-mix(in srgb, currentColor 38%, transparent);
@@ -2215,10 +2225,10 @@ body.kiosk-mode.kiosk-landscape.claude-concept-b .cb-route-glyph {
   position: absolute;
   right: 4px;
   top: 4px;
-  width: 24px;
+  width: 28px;
   color: currentColor;
   opacity: 0.98;
-  font: 720 20px/1 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font: 720 22px/1 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
   text-align: center;
 }
 
@@ -2228,14 +2238,14 @@ body.kiosk-mode.kiosk-landscape.claude-concept-b .cb-route-row[data-active="true
 
 body.kiosk-mode.kiosk-landscape.claude-concept-b .cb-route-active-hairline {
   position: absolute;
-  right: 46px;
+  right: 52px;
   top: 0;
   width: 440px;
-  height: 2px;
+  height: 3px;
   /* Travel via transform so a provider handoff glides on the compositor; JS only
      writes the --route-active-y custom property. */
   transform: translateY(calc(var(--route-active-y, -100px) + 45px));
-  background: linear-gradient(90deg, transparent, color-mix(in srgb, var(--cb-amber) 16%, transparent) 18%, color-mix(in srgb, var(--cb-amber) 20%, transparent) 100%);
+  background: linear-gradient(90deg, transparent, color-mix(in srgb, var(--cb-amber) 26%, transparent) 18%, color-mix(in srgb, var(--cb-amber) 40%, transparent) 100%);
   opacity: 0.78;
   overflow: hidden;
   transition: transform 650ms ease, opacity 450ms ease;
@@ -2258,7 +2268,7 @@ body.kiosk-mode.kiosk-landscape.claude-concept-b .cb-route-active-hairline span 
 
 body.kiosk-mode.kiosk-landscape.claude-concept-b .cb-route-standby {
   position: absolute;
-  right: 74px;
+  right: 92px;
   top: 702px;
   color: var(--cb-fg-muted-readable);
   opacity: 0.68;
