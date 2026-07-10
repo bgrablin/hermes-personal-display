@@ -2173,7 +2173,7 @@
       <div class="cb-route-standby quiet">STANDBY</div>
     `;
     const rows = root.querySelector('.cb-route-rows');
-    for (let i = 0; i < 4; i += 1) {
+    for (let i = 0; i < 5; i += 1) {
       const row = document.createElement('div');
       row.className = 'cb-route-row';
       row.dataset.index = String(i);
@@ -2200,6 +2200,7 @@
         { id: 'anthropic', label: 'CLAUDE', tier_label: null, rank: 2, state: 'unknown', headroom: null, reachable: true },
         { id: 'nous', label: 'GEMINI', tier_label: null, rank: 3, state: 'unknown', headroom: null, reachable: true },
         { id: 'copilot', label: 'COPILOT', tier_label: null, rank: 4, state: 'unknown', headroom: null, reachable: true },
+        { id: 'xai-oauth', label: 'XAI', tier_label: null, rank: 5, state: 'unknown', headroom: null, reachable: true },
       ],
     };
   }
@@ -2217,7 +2218,7 @@
       glyph: row.querySelector('[data-route-glyph]'),
     }));
     const source = Array.isArray(rail?.providers) ? rail : defaultConceptBRouteRail();
-    const providers = source.providers.slice(0, 4);
+    const providers = source.providers.slice(0, 5);
     const activeId = safeDisplayText(source.active_provider_id || '', 36);
     const routeSignature = `${activeId}|${providers.map((p) => `${p.id}:${p.state}:${p.headroom ?? ''}:${p.stale_age_s ?? ''}`).join('|')}`;
     if (root.dataset.routeSignature && root.dataset.routeSignature !== routeSignature) {
@@ -2237,7 +2238,7 @@
     let collapsedCount = 0;
     rows.forEach((entry, idx) => {
       const { row } = entry;
-      const provider = providers[idx] || { id: `unknown-${idx}`, label: ['CHATGPT', 'CLAUDE', 'GEMINI', 'COPILOT'][idx] || 'ROUTE', state: 'unknown', headroom: null };
+      const provider = providers[idx] || { id: `unknown-${idx}`, label: ['CHATGPT', 'CLAUDE', 'GEMINI', 'COPILOT', 'XAI'][idx] || 'ROUTE', state: 'unknown', headroom: null };
       const state = allowedStates.has(String(provider.state)) ? String(provider.state) : 'unknown';
       const isActive = provider.id === activeId && ['confirmed', 'inferred'].includes(state) && provider.reachable !== false;
       if (isActive) activeIndex = idx;
@@ -2246,8 +2247,13 @@
       const prevHeadroomTier = row.dataset.headroomTier || '';
       setConceptBDataset(row, 'state', state);
       setConceptBDataset(row, 'active', isActive ? 'true' : 'false');
-      const headroom = Number(provider.headroom);
-      const knownHeadroom = Number.isFinite(headroom) && !['unknown', 'error', 'disabled'].includes(state);
+      const rawHeadroom = provider.headroom;
+      const headroom = Number(rawHeadroom);
+      const knownHeadroom = rawHeadroom !== null
+        && rawHeadroom !== undefined
+        && rawHeadroom !== ''
+        && Number.isFinite(headroom)
+        && !['unknown', 'error', 'disabled'].includes(state);
       const clamped = knownHeadroom ? Math.max(0, Math.min(1, headroom)) : null;
       const headroomTier = knownHeadroom ? (clamped <= ROUTE_HEADROOM_LOW_THRESHOLD ? 'low' : 'ok') : 'none';
       // Quiet unknown/disabled idle rows so known/confirmed/low/error routes stay scannable.
@@ -2257,6 +2263,7 @@
         && !['confirmed', 'inferred', 'stale', 'error'].includes(state);
       if (collapsed) collapsedCount += 1;
       setConceptBDataset(row, 'headroomTier', headroomTier);
+      setConceptBDataset(row, 'hasHeadroom', knownHeadroom ? 'true' : 'false');
       setConceptBDataset(row, 'collapsed', collapsed ? 'true' : 'false');
       setConceptBStyleProperty(row, '--route-headroom', knownHeadroom ? clamped.toFixed(3) : '0');
       // Provider flips read as events at the row itself: label settle on a state change,
@@ -2283,10 +2290,13 @@
       }
       setConceptBText(entry.label, safeDisplayText(provider.label || 'ROUTE', 8).toUpperCase());
       const unknownRouteCopy = state === 'disabled' ? 'OFF' : state === 'error' ? 'ERR' : 'UNK';
-      setConceptBText(entry.value, knownHeadroom ? `${state === 'inferred' ? '~' : ''}${Math.round(clamped * 100)}%` : unknownRouteCopy);
+      const routeValue = knownHeadroom
+        ? `${state === 'inferred' ? '~' : ''}${Math.round(clamped * 100)}%`
+        : state === 'inferred' && provider.reachable !== false ? 'READY' : unknownRouteCopy;
+      setConceptBText(entry.value, routeValue);
       const tier = safeDisplayText(provider.tier_label || '', 14).toUpperCase();
-      const age = provider.stale_age_s != null ? formatRouteAge(provider.stale_age_s) : provider.last_used_age_s != null && idx === activeIndex ? `· ${formatRouteAge(provider.last_used_age_s)}` : '';
-      const resetCountdown = clamped != null && clamped <= 0 && Number.isFinite(Number(provider.reset_at_epoch_s)) ? formatResetCountdown(Number(provider.reset_at_epoch_s)) : '';
+      const age = provider.stale_age_s != null ? formatRouteAge(provider.stale_age_s) : provider.last_used_age_s != null && idx === activeIndex ? formatRouteAge(provider.last_used_age_s) : '';
+      const resetCountdown = Number.isFinite(Number(provider.reset_at_epoch_s)) ? formatResetCountdown(Number(provider.reset_at_epoch_s)) : '';
       setConceptBText(entry.tier, collapsed ? '' : [resetCountdown, tier, age].filter(Boolean).join('  ·  '));
       setConceptBText(entry.glyph, glyphs[state] || '○');
     });
@@ -2302,7 +2312,7 @@
       setConceptBText(standby, allUnknown ? 'ROUTE UNKNOWN' : staleRoute ? `ROUTE STALE · ${formatRouteAge(sourceAge)}` : sourceAge != null ? `AS OF ${formatRouteAge(sourceAge)}` : 'ROUTE UNKNOWN');
     }
     const hairline = root.querySelector('.cb-route-active-hairline');
-    setConceptBStyleProperty(hairline, '--route-active-y', activeIndex >= 0 ? `${97 + activeIndex * 152}px` : '-100px');
+    setConceptBStyleProperty(hairline, '--route-active-y', activeIndex >= 0 ? `${97 + activeIndex * 136}px` : '-100px');
     standby?.classList.toggle('quiet', collapsedCount >= 3);
   }
 
@@ -2321,6 +2331,11 @@
     const minutes = Math.floor(remain / 60);
     if (minutes < 120) return `reset ${minutes}m`;
     const hours = Math.floor(minutes / 60);
+    if (hours >= 48) {
+      const days = Math.floor(hours / 24);
+      const hourPart = hours % 24;
+      return `reset ${days}d ${hourPart > 0 ? `${hourPart}h` : ''}`.trim();
+    }
     const minPart = minutes % 60;
     return `reset ${hours}h ${minPart > 0 ? `${minPart}m` : ''}`.trim();
   }

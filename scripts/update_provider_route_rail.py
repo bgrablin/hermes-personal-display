@@ -67,6 +67,16 @@ PROVIDER_PLAN = {
         "window_minutes": None,
         "request_cap": None,
     },
+    "xai-oauth": {
+        # xAI exposes authenticated inference but no supported machine-readable
+        # subscription quota endpoint. Show route readiness without inventing
+        # a percentage; the renderer labels this READY and hides the gauge.
+        "label": "XAI",
+        "tier_label": "SUPERGROK",
+        "rank": 5,
+        "window_minutes": None,
+        "request_cap": None,
+    },
 }
 
 ALLOWED_PROVIDER_IDS = set(PROVIDER_PLAN.keys()) | {"google-gemini", "google-gemini-cli", "gemini"}
@@ -232,16 +242,17 @@ def fetch_codex_headroom() -> tuple[float | None, float | None, str | None, floa
         return None, None, None, None
 
 
-def fetch_anthropic_headroom() -> tuple[float | None, float | None]:
-    """Return confirmed Anthropic OAuth five-hour and seven-day headroom."""
+def fetch_anthropic_headroom() -> tuple[float | None, float | None, float | None]:
+    """Return confirmed Anthropic five-hour/weekly headroom and primary reset."""
     try:
         _load_hermes_env_and_path()
         from agent.account_usage import fetch_account_usage
 
         snap = fetch_account_usage("anthropic")
         if not snap or not snap.windows:
-            return None, None
+            return None, None, None
         primary = None
+        primary_reset = None
         secondary = None
         for window in snap.windows:
             label = str(window.label or "").lower()
@@ -250,26 +261,97 @@ def fetch_anthropic_headroom() -> tuple[float | None, float | None]:
             remaining = max(0.0, min(1.0, 1.0 - float(window.used_percent) / 100.0))
             if primary is None and ("session" in label or "five" in label):
                 primary = remaining
+                primary_reset = window.reset_at.timestamp() if window.reset_at else None
             elif secondary is None and "week" in label:
                 secondary = remaining
         if primary is None and snap.windows[0].used_percent is not None:
             primary = max(0.0, min(1.0, 1.0 - float(snap.windows[0].used_percent) / 100.0))
-        return primary, secondary
+            primary_reset = snap.windows[0].reset_at.timestamp() if snap.windows[0].reset_at else None
+        return primary, secondary, primary_reset
     except Exception as exc:
         print(f"anthropic quota probe failed: {type(exc).__name__}: {exc}", file=sys.stderr)
-        return None, None
+        return None, None, None
 
 
-def fetch_gemini_headroom() -> tuple[float | None, str | None]:
-    """Return confirmed Gemini request headroom, if a supported quota API exists.
+def fetch_nous_headroom() -> tuple[float | None, str | None, float | None]:
+    """Return confirmed Nous credit headroom, plan, and subscription reset."""
+    try:
+        _load_hermes_env_and_path()
+        from agent.account_usage import build_nous_credits_snapshot
+        from hermes_cli.nous_account import get_nous_portal_account_info
 
-    Hermes removed the old google-gemini-cli OAuth provider and its
-    Code-Assist quota helper modules. Brian's current Gemini route is through
-    Nous, which has no per-model quota endpoint exposed to this display. Do not
-    import stale modules or log noisy errors every timer tick; route availability
-    is handled separately by apply_route_availability().
-    """
-    return None, None
+        account = get_nous_portal_account_info(force_fresh=True)
+        snapshot = build_nous_credits_snapshot(account)
+        if not snapshot or not snapshot.windows:
+            return None, None, None
+        window = snapshot.windows[0]
+        if window.used_percent is None:
+            return None, None, None
+        headroom = max(0.0, min(1.0, 1.0 - float(window.used_percent) / 100.0))
+        tier = str(snapshot.plan or "NOUS").strip().upper()[:12] or "NOUS"
+        reset_at = None
+        period_end = getattr(getattr(account, "subscription", None), "current_period_end", None)
+        if period_end:
+            try:
+                reset_at = dt.datetime.fromisoformat(str(period_end).replace("Z", "+00:00")).timestamp()
+            except (TypeError, ValueError):
+                reset_at = None
+        return headroom, tier, reset_at
+    except Exception as exc:
+        print(f"nous quota probe failed: {type(exc).__name__}: {exc}", file=sys.stderr)
+        return None, None, None
+
+
+def fetch_copilot_reachable() -> bool:
+    """Verify Copilot auth with the read-only model catalog endpoint."""
+    try:
+        _load_hermes_env_and_path()
+        from agent.credential_pool import load_pool
+
+        pool = load_pool("copilot")
+        entries = pool.entries() if pool else []
+        for entry in entries:
+            token = str(getattr(entry, "runtime_api_key", "") or "").strip()
+            if not token:
+                continue
+            request = urllib.request.Request(
+                "https://api.githubcopilot.com/models",
+                headers={
+                    "Authorization": f"Bearer {token}",
+                    "Accept": "application/json",
+                    "Editor-Version": "vscode/1.95.0",
+                    "Editor-Plugin-Version": "copilot-chat/0.22.0",
+                    "User-Agent": "GitHubCopilotChat/0.22.0",
+                },
+                method="GET",
+            )
+            try:
+                with urllib.request.urlopen(request, timeout=10.0) as response:
+                    payload = json.loads(response.read().decode("utf-8")) or {}
+                models = payload.get("data") if isinstance(payload, dict) else payload
+                if isinstance(models, list) and models:
+                    return True
+            except Exception:
+                continue
+    except Exception as exc:
+        print(f"copilot catalog probe failed: {type(exc).__name__}: {exc}", file=sys.stderr)
+    return False
+
+
+def apply_verified_reachability(providers: list[dict]) -> None:
+    """Promote safely probed unmetered providers to READY semantics."""
+    if not fetch_copilot_reachable():
+        return
+    for provider in providers:
+        if provider.get("id") == "copilot" and provider.get("state") == "unknown":
+            provider.update(
+                state="inferred",
+                headroom=None,
+                secondary_headroom=None,
+                tier_label="CATALOG",
+                last_used_age_s=0,
+            )
+            return
 
 
 def load_config_fallback_routes() -> dict[str, tuple[str, str]]:
@@ -331,7 +413,9 @@ def apply_route_availability(providers: list[dict]) -> None:
         provider, model = route
         if route_resolves(provider, model):
             row["state"] = "inferred"
-            row["headroom"] = 1.0
+            # Reachability is not quota. Keep headroom empty so the renderer
+            # shows READY without a percentage or gauge.
+            row["headroom"] = None
             row["secondary_headroom"] = None
             row["tier_label"] = row.get("tier_label") or "ROUTE"
             row["last_used_age_s"] = 0
@@ -339,8 +423,8 @@ def apply_route_availability(providers: list[dict]) -> None:
 
 def apply_confirmed_quota(providers: list[dict]) -> None:
     codex_headroom, codex_secondary, codex_tier, codex_reset_at = fetch_codex_headroom()
-    anthropic_headroom, anthropic_secondary = fetch_anthropic_headroom()
-    gemini_headroom, gemini_tier = fetch_gemini_headroom()
+    anthropic_headroom, anthropic_secondary, anthropic_reset_at = fetch_anthropic_headroom()
+    nous_headroom, nous_tier, nous_reset_at = fetch_nous_headroom()
 
     quota_updates: dict[str, dict[str, Any]] = {}
     if codex_headroom is not None:
@@ -358,14 +442,16 @@ def apply_confirmed_quota(providers: list[dict]) -> None:
             "headroom": anthropic_headroom,
             "secondary_headroom": anthropic_secondary,
             "tier_label": PROVIDER_PLAN["anthropic"]["tier_label"],
+            "reset_at_epoch_s": anthropic_reset_at,
             "last_used_age_s": 0,
         }
-    if gemini_headroom is not None:
+    if nous_headroom is not None:
         quota_updates["nous"] = {
             "state": "confirmed",
-            "headroom": gemini_headroom,
+            "headroom": nous_headroom,
             "secondary_headroom": None,
-            "tier_label": gemini_tier or PROVIDER_PLAN["nous"]["tier_label"],
+            "tier_label": nous_tier or PROVIDER_PLAN["nous"]["tier_label"],
+            "reset_at_epoch_s": nous_reset_at,
             "last_used_age_s": 0,
         }
 
@@ -420,8 +506,7 @@ def build_providers(now: float, counts: dict[str, dict]) -> tuple[list[dict], st
         }
         rows.append(row)
         if (
-            row["state"] == "inferred"
-            and c["last_ts"] > most_recent_ts
+            c["last_ts"] > most_recent_ts
             and (now - c["last_ts"]) <= ACTIVE_WINDOW_S
         ):
             most_recent_ts = c["last_ts"]
@@ -532,8 +617,9 @@ def main() -> int:
                     provider["last_used_age_s"] = claude_last_age
                 break
 
-    # Last resort: if a route is configured and resolves but lacks a safe quota
-    # endpoint, show it as inferred availability rather than an alarming UNK.
+    # Last resort: safely probed unmetered providers and configured routes show
+    # READY without a fabricated percentage.
+    apply_verified_reachability(providers)
     apply_route_availability(providers)
 
     payload = {

@@ -343,6 +343,7 @@ def load_provider_route_rail() -> dict:
             {"id": "anthropic", "label": "CLAUDE", "tier_label": None, "rank": 2, "state": "unknown", "headroom": None, "secondary_headroom": None, "reachable": True, "last_used_age_s": None, "stale_age_s": None},
             {"id": "nous", "label": "GEMINI", "tier_label": None, "rank": 3, "state": "unknown", "headroom": None, "secondary_headroom": None, "reachable": True, "last_used_age_s": None, "stale_age_s": None},
             {"id": "copilot", "label": "COPILOT", "tier_label": None, "rank": 4, "state": "unknown", "headroom": None, "secondary_headroom": None, "reachable": True, "last_used_age_s": None, "stale_age_s": None},
+            {"id": "xai-oauth", "label": "XAI", "tier_label": None, "rank": 5, "state": "unknown", "headroom": None, "secondary_headroom": None, "reachable": True, "last_used_age_s": None, "stale_age_s": None},
         ],
     }
     try:
@@ -351,7 +352,7 @@ def load_provider_route_rail() -> dict:
         print(f"provider route rail artifact issue: {scrub(exc.__class__.__name__)}", flush=True)
         raw = fallback
     allowed_states = {"confirmed", "inferred", "stale", "unknown", "error", "disabled"}
-    allowed_ids = {"openai-codex", "anthropic", "nous", "google-gemini-cli", "google-gemini", "gemini", "copilot"}
+    allowed_ids = {"openai-codex", "anthropic", "nous", "google-gemini-cli", "google-gemini", "gemini", "copilot", "xai-oauth"}
 
     now_ms = int(datetime.now(timezone.utc).timestamp() * 1000)
     try:
@@ -363,7 +364,7 @@ def load_provider_route_rail() -> dict:
     expired_route = age_seconds is None or age_seconds > 60 * 60
 
     safe = {"as_of_ms": as_of_ms, "age_seconds": age_seconds, "active_provider_id": "", "providers": []}
-    for item in (raw.get("providers") or [])[:4]:
+    for item in (raw.get("providers") or [])[:5]:
         provider_id = str(item.get("id") or "")[:32]
         if provider_id not in allowed_ids:
             continue

@@ -453,7 +453,14 @@ if (/safe\[idx\s*%\s*safe\.length\]/.test(appSource)) {
   fail('Augury must not duplicate real rows with modulo indexing to fill empty strands.');
 }
 requireAll(cssSource, ['.cb-arc-label', 'font: 600 16px/1', 'fill: var(--cb-fg-1)'], 'Concept B telemetry arc labels must stay desk-readable and metric-identifying.');
-requireAll(appSource, ['ROUTE · HEADROOM', "const unknownRouteCopy = state === 'disabled' ? 'OFF' : state === 'error' ? 'ERR' : 'UNK'"], 'Route rail must label headroom and render unknown/inactive routes explicitly instead of bare dashes.');
+requireAll(appSource, [
+  'ROUTE · HEADROOM',
+  "const unknownRouteCopy = state === 'disabled' ? 'OFF' : state === 'error' ? 'ERR' : 'UNK'",
+  "{ id: 'xai-oauth', label: 'XAI'",
+  'for (let i = 0; i < 5; i += 1)',
+  "state === 'inferred' && provider.reachable !== false ? 'READY'",
+  "setConceptBDataset(row, 'hasHeadroom', knownHeadroom ? 'true' : 'false')",
+], 'Route rail must render five honest provider rows, including XAI, and distinguish unmetered READY routes from measured percentages.');
 requireAll(cssSource, ['right: 64px', 'width: 430px', 'width: 104px', 'transform: scaleX(var(--route-headroom))', 'transition: transform 600ms ease, opacity 450ms ease', 'grid-template-columns: minmax(118px, auto) 80px', 'min-width: 76px', 'body.kiosk-mode.kiosk-landscape.claude-concept-b[data-cb-mode="active-turn"] .cb-activity', '[data-cb-mode="active-turn"] .cb-activity', 'background: transparent', 'box-shadow: none', 'font: 640 46px/1.06'], 'Route values must use a fixed aligned column clear of the route whisker, animate the whisker via transform instead of width, and active turns must promote body-scoped activity text without a box that blocks the optic.');
 if (!cssSource.includes('body.kiosk-mode.kiosk-landscape.claude-concept-b[data-cb-mode="active-turn"] .cb-activity')) {
   fail('Active-turn activity panel CSS must target body[data-cb-mode] so the promoted activity card actually applies.');

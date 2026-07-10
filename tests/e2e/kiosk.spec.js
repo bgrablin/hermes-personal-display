@@ -776,7 +776,7 @@ test.describe('Hermes kiosk smoke and visual regression anchors', () => {
     await expect(page.locator('.cb-route-title')).toHaveText('ROUTE · HEADROOM');
     await expect(page.locator('.cb-route-standby')).toHaveText('ROUTE UNKNOWN');
     const rows = page.locator('.cb-route-row');
-    await expect(rows).toHaveCount(4);
+    await expect(rows).toHaveCount(5);
     const snapshot = await rows.evaluateAll((nodes) => nodes.map((node) => {
       const whisker = node.querySelector('.cb-route-whisker');
       const style = getComputedStyle(whisker);
@@ -795,7 +795,7 @@ test.describe('Hermes kiosk smoke and visual regression anchors', () => {
         trackOpacity: Number.parseFloat(getComputedStyle(node.querySelector('.cb-route-track')).opacity),
       };
     }));
-    expect(snapshot.map((row) => row.label)).toEqual(['CHATGPT', 'CLAUDE', 'GEMINI', 'COPILOT']);
+    expect(snapshot.map((row) => row.label)).toEqual(['CHATGPT', 'CLAUDE', 'GEMINI', 'COPILOT', 'XAI']);
     for (const row of snapshot) {
       expect(row).toMatchObject({ value: 'UNK', glyph: '○', state: 'unknown', active: 'false', headroomTier: 'none', collapsed: 'true' });
       expect(row.rowOpacity).toBeLessThan(0.4);
@@ -837,9 +837,10 @@ test.describe('Hermes kiosk smoke and visual regression anchors', () => {
               active_provider_id: 'google-gemini-cli',
               providers: [
                 { id: 'openai-codex', label: 'CHATGPT', tier_label: 'PRO', state: 'confirmed', headroom: 0.79, reachable: true },
-                { id: 'anthropic', label: 'CLAUDE', tier_label: 'MAX', state: 'confirmed', headroom: 0.95, reachable: true },
+                { id: 'anthropic', label: 'CLAUDE', tier_label: 'MAX', state: 'confirmed', headroom: 0.95, reset_at_epoch_s: Date.now() / 1000 + 10_800, reachable: true },
                 { id: 'google-gemini-cli', label: 'GEMINI', tier_label: 'CLI', state: 'confirmed', headroom: 1.0, reachable: true },
                 { id: 'copilot', label: 'COPILOT', tier_label: '', state: 'unknown', headroom: null, reachable: true },
+                { id: 'xai-oauth', label: 'XAI', tier_label: 'SUPERGROK', state: 'inferred', headroom: null, reachable: true },
               ],
             },
           },
@@ -851,6 +852,7 @@ test.describe('Hermes kiosk smoke and visual regression anchors', () => {
     await page.goto(`${runtimeUrl('tool_shell', testInfo)}&live=1`);
     await expect(page.locator('.cb-route-rail')).toBeVisible();
     await expect(page.locator('[data-route-value]').nth(2)).toHaveText('100%');
+    await expect(page.locator('[data-route-tier]').nth(1)).toContainText('reset 2h');
     await expect.poll(() => page.locator('.cb-route-row').evaluateAll((rows) => rows.slice(0, 3).every((row) => {
       const whiskerEl = row.querySelector('.cb-route-whisker');
       return Number.parseFloat(getComputedStyle(whiskerEl).width) > 30;
@@ -864,6 +866,14 @@ test.describe('Hermes kiosk smoke and visual regression anchors', () => {
     expect(collapseState.slice(0, 3).every((row) => row.collapsed === 'false' && row.opacity > 0.8)).toBe(true);
     expect(collapseState[3]).toMatchObject({ label: 'COPILOT', state: 'unknown', collapsed: 'true' });
     expect(collapseState[3].opacity).toBeLessThan(0.4);
+    await expect(page.locator('[data-route-label]').nth(4)).toHaveText('XAI');
+    await expect(page.locator('[data-route-value]').nth(4)).toHaveText('READY');
+    await expect(page.locator('[data-route-tier]').nth(4)).toContainText('SUPERGROK');
+    await expect(page.locator('.cb-route-row').nth(4)).toHaveAttribute('data-has-headroom', 'false');
+    expect(await page.locator('.cb-route-row').nth(4).evaluate((row) => ({
+      track: Number.parseFloat(getComputedStyle(row.querySelector('.cb-route-track')).opacity),
+      whisker: Number.parseFloat(getComputedStyle(row.querySelector('.cb-route-whisker')).opacity),
+    }))).toEqual({ track: 0, whisker: 0 });
     await expect(page.locator('.cb-route-rail')).toHaveAttribute('data-rail-quiet', 'false');
     const geometry = await page.locator('.cb-route-row').evaluateAll((rows) => rows.map((row) => {
       const value = row.querySelector('[data-route-value]').getBoundingClientRect();
@@ -931,7 +941,7 @@ test.describe('Hermes kiosk smoke and visual regression anchors', () => {
 
     await expect(rows.nth(1)).toHaveAttribute('data-active', 'true');
     await expect(rows.nth(1)).toHaveAttribute('data-headroom-tier', 'ok');
-    await expect.poll(hairlineY).toBe(294);
+    await expect.poll(hairlineY).toBe(278);
     const ticksBeforeHandoff = await page.evaluate(() => window.__HERMES_STATUS_TICKS);
 
     await expect(rows.nth(0)).toHaveAttribute('data-active', 'true', { timeout: 15000 });
@@ -950,7 +960,7 @@ test.describe('Hermes kiosk smoke and visual regression anchors', () => {
       expect(lane.trackWidth).toBeGreaterThan(38);
       expect(Math.abs(lane.trackRight - lane.whiskerRight)).toBeLessThanOrEqual(1);
     }
-    expect(lanes.map((lane) => lane.tier)).toEqual(['ok', 'low', 'ok', 'none']);
+    expect(lanes.map((lane) => lane.tier)).toEqual(['ok', 'low', 'ok', 'none', 'none']);
   });
 
   test('Concept B remote memory cell defaults to honest Honcho unknown state', async ({ page }, testInfo) => {
