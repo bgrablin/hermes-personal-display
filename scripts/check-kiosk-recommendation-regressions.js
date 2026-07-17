@@ -20,6 +20,7 @@ const runtimeHtml = fs.readFileSync(path.join(projectRoot, 'src', 'character-run
 const buildIdSource = fs.readFileSync(path.join(projectRoot, 'src', 'generated', 'build-id.js'), 'utf8');
 const xsessionSource = fs.readFileSync(path.join(projectRoot, 'scripts', 'xsession-minix-kiosk.sh'), 'utf8');
 const displayCliSource = fs.readFileSync(path.join(projectRoot, 'scripts', 'hermes-display'), 'utf8');
+const telemetryWatchdogSource = fs.readFileSync(path.join(projectRoot, 'scripts', 'display-telemetry-watchdog.sh'), 'utf8');
 const captureModesSource = fs.readFileSync(path.join(projectRoot, 'scripts', 'capture-mode-artifacts.cjs'), 'utf8');
 const audioSource = fs.readFileSync(path.join(projectRoot, 'src', 'mascot', 'audio.js'), 'utf8');
 const touchFxSource = fs.readFileSync(path.join(projectRoot, 'src', 'mascot', 'touch-fx.js'), 'utf8');
@@ -232,6 +233,21 @@ requireAll(displayCliSource, [
   'OK live Chromium URL canonical',
   'URL match:',
 ], 'hermes-display must assert and report the canonical operator URL shape.');
+requireAll(displayCliSource, [
+  'verify_render_path()',
+  'chromium_kiosk_instance_count()',
+  'OK Chromium kiosk browser instance count: 1',
+  'OK visible render:',
+  'scrot --overwrite "$shot"',
+  'verify-render) verify_render_path',
+], 'hermes-display must verify one managed Chromium kiosk and non-blank live framebuffer pixels.');
+requireAll(telemetryWatchdogSource, [
+  'SCRIPT_DIR="$(cd -- "$(dirname -- "$SCRIPT_PATH")" && pwd)"',
+  'HERMES_DISPLAY="${PERSONAL_DISPLAY_COMMAND:-$SCRIPT_DIR/hermes-display}"',
+  '"$HERMES_DISPLAY" verify-render',
+  'expected_geometry="${DISPLAY_MODE}+${geometry_pos}"',
+  'if sudo -n systemctl restart "$SYSTEM_SERVICE"; then',
+], 'Display watchdog recovery must be working-directory independent and scoped to the managed render path.');
 requireAll(appSource, [
   'conceptBTopAlert',
   'conceptBAuguryPresence',

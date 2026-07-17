@@ -30,10 +30,11 @@ log() {
 
 usage() {
   cat <<'EOF'
-Usage: hermes-display [verify|fix|restart|status|screenshot|build-id|url]
+Usage: hermes-display [verify|verify-render|fix|restart|status|screenshot|build-id|url]
 
 Commands:
   verify      Check preview API, system service, live Chromium URL/build, display layout, thermal policy, and audio.
+  verify-render  Check only the managed service, Chromium browser instance count, display layout, and visible framebuffer.
   fix         Repair the display path: restart preview if needed, restart the real system kiosk, then verify.
   restart     Force a full preview + system kiosk restart, then verify.
   status      Show service, process, URL, display, thermal-policy, and audio status.
@@ -79,7 +80,13 @@ xrun() {
 }
 
 live_chromium_line() {
-  pgrep -af '[c]hromium.*character-runtime\.html.*kiosk=1' || true
+  pgrep -af '[c]hrom(e|ium).*character-runtime\.html.*kiosk=1' || true
+}
+
+chromium_kiosk_instance_count() {
+  local live="${1-}"
+  [[ "$#" -gt 0 ]] || live="$(live_chromium_line)"
+  printf '%s\n' "$live" | awk 'NF { count += 1 } END { print count + 0 }'
 }
 
 canonical_url_status() {
@@ -238,6 +245,69 @@ configure_audio() {
   fi
 }
 
+check_framebuffer() {
+  local shot
+  shot="$(mktemp --suffix=.png)"
+  if ! xrun scrot --overwrite "$shot" >/dev/null 2>&1; then
+    rm -f "$shot"
+    echo "unable to capture X framebuffer"
+    return 1
+  fi
+  python3 - "$shot" <<'PY'
+import sys
+from PIL import Image, ImageStat
+
+im = Image.open(sys.argv[1]).convert("RGB").crop((0, 0, 1920, 1280))
+stat = ImageStat.Stat(im)
+maximum = max(channel[1] for channel in stat.extrema)
+mean = sum(stat.mean) / 3
+if maximum <= 12 or mean <= 0.25:
+    print(f"black/blank framebuffer: mean={mean:.3f} max={maximum}")
+    raise SystemExit(1)
+print(f"rendered framebuffer: mean={mean:.2f} max={maximum}")
+PY
+  local result=$?
+  rm -f "$shot"
+  return "$result"
+}
+
+verify_render_path() {
+  local ok=0 live count display_status framebuffer_status
+
+  if systemctl is-active --quiet "$SYSTEM_SERVICE"; then
+    echo "OK system kiosk active: $SYSTEM_SERVICE"
+  else
+    echo "FAIL system kiosk inactive: $SYSTEM_SERVICE"
+    ok=1
+  fi
+
+  live="$(live_chromium_line)"
+  count="$(chromium_kiosk_instance_count "$live")"
+  if [[ "$count" -eq 1 ]]; then
+    echo "OK Chromium kiosk browser instance count: 1"
+  else
+    echo "FAIL Chromium kiosk browser instance count: $count (expected exactly 1)"
+    [[ -n "$live" ]] && printf '%s\n' "$live" | sed -n '1,4p'
+    ok=1
+  fi
+
+  if display_status="$(check_display_output 2>&1)"; then
+    echo "OK display layout: $display_status"
+  else
+    echo "FAIL display layout: $display_status"
+    ok=1
+  fi
+
+  if framebuffer_status="$(check_framebuffer 2>&1)"; then
+    echo "OK visible render: $framebuffer_status"
+  else
+    echo "FAIL visible render: $framebuffer_status"
+    ok=1
+  fi
+
+  return "$ok"
+}
+
 status_kiosk() {
   local build live
   build="$(build_id)"
@@ -254,6 +324,7 @@ status_kiosk() {
   else
     echo "not running"
   fi
+  echo "Kiosk browser instance count: $(chromium_kiosk_instance_count "$live")"
   echo
   echo "URL match:"
   canonical_url_status "$live" "$build" || true
@@ -269,7 +340,7 @@ status_kiosk() {
 }
 
 verify_kiosk() {
-  local ok=0 build live state display_status
+  local ok=0 build live state
   build="$(build_id)"
   echo "Expected build: $build"
 
@@ -280,12 +351,7 @@ verify_kiosk() {
     ok=1
   fi
 
-  if systemctl is-active --quiet "$SYSTEM_SERVICE"; then
-    echo "OK system kiosk active: $SYSTEM_SERVICE"
-  else
-    echo "FAIL system kiosk inactive: $SYSTEM_SERVICE"
-    ok=1
-  fi
+  verify_render_path || ok=1
 
   if state="$(state_api_ok 2>&1)"; then
     echo "OK state API: $state"
@@ -302,13 +368,6 @@ verify_kiosk() {
   else
     echo "FAIL live Chromium URL not canonical: $url_message"
     [[ -n "$live" ]] && printf '%s\n' "$live" | sed -n '1,4p' || echo "no live Chromium kiosk process"
-    ok=1
-  fi
-
-  if display_status="$(check_display_output 2>&1)"; then
-    echo "OK display layout: $display_status"
-  else
-    echo "FAIL display layout: $display_status"
     ok=1
   fi
 
@@ -384,6 +443,7 @@ PY
 cmd="${1:-verify}"
 case "$cmd" in
   verify) verify_kiosk ;;
+  verify-render) verify_render_path ;;
   fix) fix_kiosk ;;
   restart) fix_kiosk --force ;;
   status) status_kiosk ;;

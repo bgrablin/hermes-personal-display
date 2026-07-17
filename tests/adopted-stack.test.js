@@ -38,6 +38,60 @@ function runScripts(files, windowExtras = {}) {
 }
 
 describe('adopted stack contracts', () => {
+  function assertAdaptiveMotionBoundaries(samples, systemForValue) {
+    const window = runScripts(['src/state.js']);
+    const base = { breath: 0.4, wing_flap: 0.2 };
+    const scaleByTier = { cool: 1, warm: 0.7, hot: 0.42, critical: 0.36 };
+    const results = samples.map(({ value, thermal, reducedMotion }) => {
+      const motion = window.HermesDisplayState.deriveAdaptiveMotion({
+        state_preset: 'quiet_watch',
+        motion: base,
+        live: {
+          freshness: { tier: 'fresh' },
+          resolver: { display_state: 'quiet_watch' },
+          system: systemForValue(value),
+        },
+      });
+
+      expect(motion.thermal, `${value} thermal tier`).toBe(thermal);
+      expect(motion.reduced_motion, `${value} reduced-motion policy`).toBe(reducedMotion);
+      expect(motion.breath, `${value} breath scale`).toBeCloseTo(base.breath * scaleByTier[thermal], 8);
+      expect(motion.wing_flap, `${value} wing scale`).toBeCloseTo(base.wing_flap * scaleByTier[thermal], 8);
+      expect(motion.breath).toBeGreaterThanOrEqual(0.06);
+      expect(motion.breath).toBeLessThanOrEqual(base.breath);
+      expect(motion.wing_flap).toBeGreaterThanOrEqual(0.01);
+      expect(motion.wing_flap).toBeLessThanOrEqual(base.wing_flap);
+      return motion;
+    });
+
+    for (let index = 1; index < results.length; index += 1) {
+      expect(results[index].breath, `breath sample ${index} must not increase`).toBeLessThanOrEqual(results[index - 1].breath);
+      expect(results[index].wing_flap, `wing sample ${index} must not increase`).toBeLessThanOrEqual(results[index - 1].wing_flap);
+    }
+  }
+
+  it('holds adaptive motion policy just below and at temperature boundaries', () => {
+    assertAdaptiveMotionBoundaries([
+      { value: 71.99, thermal: 'cool', reducedMotion: false },
+      { value: 72, thermal: 'warm', reducedMotion: false },
+      { value: 79.99, thermal: 'warm', reducedMotion: false },
+      { value: 80, thermal: 'hot', reducedMotion: true },
+      { value: 87.99, thermal: 'hot', reducedMotion: true },
+      { value: 88, thermal: 'critical', reducedMotion: true },
+    ], (value) => ({ cpu_temp_c: value }));
+  });
+
+  it('holds adaptive motion policy just below and at normalized CPU-load boundaries', () => {
+    assertAdaptiveMotionBoundaries([
+      { value: 0.619, thermal: 'cool', reducedMotion: false },
+      { value: 0.62, thermal: 'warm', reducedMotion: false },
+      { value: 0.779, thermal: 'warm', reducedMotion: false },
+      { value: 0.78, thermal: 'hot', reducedMotion: true },
+      { value: 0.919, thermal: 'hot', reducedMotion: true },
+      { value: 0.92, thermal: 'critical', reducedMotion: true },
+    ], (value) => ({ cpu: value }));
+  });
+
   it('exposes HermesModePresets with consistent mode-to-preset and preset-to-mode mappings', () => {
     const window = runScripts(['src/mascot/mode-presets.js']);
     const mp = window.HermesModePresets;
