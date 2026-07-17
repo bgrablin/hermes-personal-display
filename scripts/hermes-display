@@ -12,13 +12,23 @@ if [[ -r "$ENV_FILE" ]]; then
   set +a
 fi
 DISPLAY_NUM="${HERMES_DISPLAY_NUM:-:0}"
-SYSTEM_SERVICE="${HERMES_DISPLAY_SYSTEM_SERVICE:-hermes-personal-display-minix.service}"
+EXPECTED_SYSTEM_SERVICE="hermes-personal-display-minix.service"
+SYSTEM_SERVICE="${HERMES_DISPLAY_SYSTEM_SERVICE:-$EXPECTED_SYSTEM_SERVICE}"
+if [[ "$SYSTEM_SERVICE" != "$EXPECTED_SYSTEM_SERVICE" ]]; then
+  echo "Refusing privileged service outside the kiosk allowlist: $SYSTEM_SERVICE" >&2
+  exit 2
+fi
 PREVIEW_SERVICE="${HERMES_DISPLAY_PREVIEW_SERVICE:-hermes-personal-display-preview.service}"
 STATE_URL="${HERMES_DISPLAY_STATE_URL:-http://127.0.0.1:8770/api/hermes-state}"
 RUNTIME_PATH="/src/character-runtime.html"
+RUNTIME_CHECKS="$SCRIPT_DIR/display_runtime_checks.py"
 LOG_DIR="${HERMES_DISPLAY_LOG_DIR:-$HOME/.hermes/logs}"
 LOG_FILE="$LOG_DIR/hermes-display.log"
 DISPLAY_OUTPUT="${HERMES_DISPLAY_OUTPUT:-${PERSONAL_DISPLAY_OUTPUT:-}}"
+DISPLAY_MODE="${HERMES_DISPLAY_OUTPUT_MODE:-${PERSONAL_DISPLAY_OUTPUT_MODE:-1920x1280}}"
+DISPLAY_ROTATE="${HERMES_DISPLAY_OUTPUT_ROTATE:-${PERSONAL_DISPLAY_OUTPUT_ROTATE:-inverted}}"
+DISPLAY_POS="${HERMES_DISPLAY_OUTPUT_POS:-${PERSONAL_DISPLAY_OUTPUT_POS:-0x0}}"
+CHROME_PROFILE="${PERSONAL_DISPLAY_CHROME_PROFILE:-$HOME/snap/chromium/common/hermes-personal-display-profile}"
 AUDIO_SINK="${HERMES_DISPLAY_AUDIO_SINK:-${PERSONAL_DISPLAY_AUDIO_SINK:-}}"
 AUDIO_VOLUME="${HERMES_DISPLAY_AUDIO_VOLUME:-${PERSONAL_DISPLAY_AUDIO_VOLUME:-90%}}"
 XAUTH_GLOB="/tmp/serverauth.*"
@@ -79,8 +89,23 @@ xrun() {
   fi
 }
 
+secure_runtime_dir() {
+  local runtime mode
+  runtime="${XDG_RUNTIME_DIR:-/run/user/$(id -u)}"
+  if [[ -L "$runtime" || ! -d "$runtime" || ! -O "$runtime" ]]; then
+    echo "unsafe or unavailable display runtime directory: $runtime" >&2
+    return 1
+  fi
+  mode="$(stat -c '%a' -- "$runtime" 2>/dev/null || true)"
+  if [[ ! "$mode" =~ ^[0-7]*00$ ]]; then
+    echo "display runtime directory must not be group/world accessible: $runtime mode=${mode:-unknown}" >&2
+    return 1
+  fi
+  printf '%s\n' "$runtime"
+}
+
 live_chromium_line() {
-  pgrep -af '[c]hrom(e|ium).*character-runtime\.html.*kiosk=1' || true
+  python3 "$RUNTIME_CHECKS" managed-chromium --profile "$CHROME_PROFILE"
 }
 
 chromium_kiosk_instance_count() {
@@ -153,19 +178,20 @@ detect_display_output() {
 }
 
 check_display_output() {
-  local output line expected_mode expected_rotate expected_pos
+  local output line
   output="$(detect_display_output)"
-  expected_mode="${HERMES_DISPLAY_OUTPUT_MODE:-${PERSONAL_DISPLAY_OUTPUT_MODE:-1920x1280}}"
-  expected_rotate="${HERMES_DISPLAY_OUTPUT_ROTATE:-${PERSONAL_DISPLAY_OUTPUT_ROTATE:-inverted}}"
-  expected_pos="${HERMES_DISPLAY_OUTPUT_POS:-${PERSONAL_DISPLAY_OUTPUT_POS:-0x0}}"
-  local geometry_pos="${expected_pos/x/+}"
-  line="$(xrun xrandr --query 2>/dev/null | grep "^${output} connected" || true)"
+  line="$(xrun xrandr --query 2>/dev/null | awk -v output="$output" '$1 == output && $2 == "connected" { print; exit }')"
   if [[ -z "$line" ]]; then
     echo "${output:-display output} not connected"
     return 1
   fi
   echo "$line"
-  [[ "$line" == *"primary"* && "$line" == *"${expected_mode}+${geometry_pos}"* && "$line" == *"$expected_rotate"* ]]
+  python3 "$RUNTIME_CHECKS" layout \
+    --line "$line" \
+    --output "$output" \
+    --mode "$DISPLAY_MODE" \
+    --rotation "$DISPLAY_ROTATE" \
+    --position "$DISPLAY_POS"
 }
 
 check_dp2() {
@@ -245,67 +271,83 @@ configure_audio() {
   fi
 }
 
-check_framebuffer() {
-  local shot
-  shot="$(mktemp --suffix=.png)"
-  if ! xrun scrot --overwrite "$shot" >/dev/null 2>&1; then
-    rm -f "$shot"
-    echo "unable to capture X framebuffer"
-    return 1
+check_framebuffer() (
+  local runtime shot output rc
+  if ! runtime="$(secure_runtime_dir)"; then
+    echo "unable to secure framebuffer capture directory"
+    return 2
   fi
-  python3 - "$shot" <<'PY'
-import sys
-from PIL import Image, ImageStat
-
-im = Image.open(sys.argv[1]).convert("RGB").crop((0, 0, 1920, 1280))
-stat = ImageStat.Stat(im)
-maximum = max(channel[1] for channel in stat.extrema)
-mean = sum(stat.mean) / 3
-if maximum <= 12 or mean <= 0.25:
-    print(f"black/blank framebuffer: mean={mean:.3f} max={maximum}")
-    raise SystemExit(1)
-print(f"rendered framebuffer: mean={mean:.2f} max={maximum}")
-PY
-  local result=$?
-  rm -f "$shot"
-  return "$result"
-}
+  if ! command -v scrot >/dev/null 2>&1; then
+    echo "scrot is required for framebuffer verification"
+    return 2
+  fi
+  shot="$(mktemp "$runtime/hermes-display-framebuffer.XXXXXX.png")" || return 2
+  trap 'rm -f -- "$shot"' EXIT
+  trap 'exit 129' HUP
+  trap 'exit 130' INT
+  trap 'exit 143' TERM
+  if ! xrun scrot --overwrite "$shot" >/dev/null 2>&1; then
+    echo "unable to capture X framebuffer"
+    return 2
+  fi
+  if output="$(python3 "$RUNTIME_CHECKS" framebuffer \
+    --image "$shot" \
+    --mode "$DISPLAY_MODE" \
+    --position "$DISPLAY_POS" 2>&1)"; then
+    printf '%s\n' "$output"
+    return 0
+  else
+    rc=$?
+    printf '%s\n' "$output"
+    return "$rc"
+  fi
+)
 
 verify_render_path() {
-  local ok=0 live count display_status framebuffer_status
+  local status=0 live count display_status framebuffer_status framebuffer_rc
 
-  if systemctl is-active --quiet "$SYSTEM_SERVICE"; then
+  if systemctl is-active --quiet -- "$SYSTEM_SERVICE"; then
     echo "OK system kiosk active: $SYSTEM_SERVICE"
   else
     echo "FAIL system kiosk inactive: $SYSTEM_SERVICE"
-    ok=1
+    status=1
   fi
 
-  live="$(live_chromium_line)"
-  count="$(chromium_kiosk_instance_count "$live")"
-  if [[ "$count" -eq 1 ]]; then
-    echo "OK Chromium kiosk browser instance count: 1"
+  if live="$(live_chromium_line 2>&1)"; then
+    count="$(chromium_kiosk_instance_count "$live")"
+    if [[ "$count" -eq 1 ]]; then
+      echo "OK Chromium kiosk browser instance count: 1"
+    else
+      echo "FAIL Chromium kiosk browser instance count: $count (expected exactly 1)"
+      [[ -n "$live" ]] && printf '%s\n' "$live" | sed -n '1,4p'
+      [[ "$status" -ge 1 ]] || status=1
+    fi
   else
-    echo "FAIL Chromium kiosk browser instance count: $count (expected exactly 1)"
-    [[ -n "$live" ]] && printf '%s\n' "$live" | sed -n '1,4p'
-    ok=1
+    echo "FAIL unable to inspect managed Chromium processes: $live"
+    live=""
+    status=2
   fi
 
   if display_status="$(check_display_output 2>&1)"; then
     echo "OK display layout: $display_status"
   else
     echo "FAIL display layout: $display_status"
-    ok=1
+    status=2
   fi
 
   if framebuffer_status="$(check_framebuffer 2>&1)"; then
     echo "OK visible render: $framebuffer_status"
   else
+    framebuffer_rc=$?
     echo "FAIL visible render: $framebuffer_status"
-    ok=1
+    if [[ "$framebuffer_rc" -eq 1 ]]; then
+      [[ "$status" -ge 1 ]] || status=1
+    else
+      status=2
+    fi
   fi
 
-  return "$ok"
+  return "$status"
 }
 
 status_kiosk() {
@@ -318,7 +360,7 @@ status_kiosk() {
   echo "Preview service: $PREVIEW_SERVICE $(systemctl --user is-active "$PREVIEW_SERVICE" 2>/dev/null || true)"
   echo
   echo "Live Chromium:"
-  live="$(live_chromium_line)"
+  live="$(live_chromium_line 2>/dev/null || true)"
   if [[ -n "$live" ]]; then
     printf '%s\n' "$live" | sed -n '1,8p'
   else
@@ -360,7 +402,7 @@ verify_kiosk() {
     ok=1
   fi
 
-  live="$(live_chromium_line)"
+  live="$(live_chromium_line 2>/dev/null || true)"
   local url_status=0 url_message
   url_message="$(canonical_url_status "$live" "$build")" || url_status=$?
   if [[ "$url_status" -eq 0 ]]; then
@@ -409,7 +451,7 @@ fix_kiosk() {
   fi
 
   log "Restarting physical kiosk service: $SYSTEM_SERVICE"
-  sudo -n systemctl restart "$SYSTEM_SERVICE"
+  sudo -n systemctl restart -- "$SYSTEM_SERVICE"
 
   if ! wait_for_verified_display; then
     log "Display did not verify cleanly after restart"
@@ -430,12 +472,13 @@ screenshot_dp2() {
   full="$out_dir/hermes-display-full-$ts.png"
   crop="$out_dir/hermes-display-${DISPLAY_OUTPUT:-display}-$ts.png"
   xrun scrot "$full"
-  python3 - "$full" "$crop" <<'PY'
+  PYTHONPATH="$SCRIPT_DIR${PYTHONPATH:+:$PYTHONPATH}" python3 - "$full" "$crop" "$DISPLAY_MODE" "$DISPLAY_POS" <<'PY'
 import sys
 from PIL import Image
-full, crop = sys.argv[1], sys.argv[2]
+from display_runtime_checks import framebuffer_box
+full, crop, mode, position = sys.argv[1:]
 im = Image.open(full)
-im.crop((0, 0, 1920, 1280)).save(crop)
+im.crop(framebuffer_box(mode, position)).save(crop)
 print(crop)
 PY
 }

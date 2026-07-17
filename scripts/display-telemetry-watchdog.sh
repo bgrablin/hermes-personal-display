@@ -1,22 +1,78 @@
 #!/usr/bin/env bash
 set -euo pipefail
+umask 077
 
 SCRIPT_PATH="$(readlink -f -- "${BASH_SOURCE[0]}" 2>/dev/null || realpath -- "${BASH_SOURCE[0]}")"
 SCRIPT_DIR="$(cd -- "$(dirname -- "$SCRIPT_PATH")" && pwd)"
 URL="${PERSONAL_DISPLAY_STATE_URL:-http://127.0.0.1:8770/api/hermes-state}"
 SERVICE="${PERSONAL_DISPLAY_SERVICE:-hermes-personal-display-preview.service}"
-SYSTEM_SERVICE="${HERMES_DISPLAY_SYSTEM_SERVICE:-hermes-personal-display-minix.service}"
-STAMP="${XDG_RUNTIME_DIR:-/tmp}/hermes-display-telemetry-watchdog.last-restart"
+EXPECTED_SYSTEM_SERVICE="hermes-personal-display-minix.service"
+SYSTEM_SERVICE="${HERMES_DISPLAY_SYSTEM_SERVICE:-$EXPECTED_SYSTEM_SERVICE}"
+if [[ "$SYSTEM_SERVICE" != "$EXPECTED_SYSTEM_SERVICE" ]]; then
+  echo "Refusing privileged restart outside the kiosk allowlist: $SYSTEM_SERVICE" >&2
+  exit 2
+fi
+if [[ ! "$SERVICE" =~ ^[A-Za-z0-9_.@:-]+\.service$ ]]; then
+  echo "Refusing invalid user service name: $SERVICE" >&2
+  exit 2
+fi
+RUNTIME_DIR="${XDG_RUNTIME_DIR:-/run/user/$(id -u)}"
+RUNTIME_MODE="$(stat -c '%a' -- "$RUNTIME_DIR" 2>/dev/null || true)"
+if [[ -L "$RUNTIME_DIR" || ! -d "$RUNTIME_DIR" || ! -O "$RUNTIME_DIR" || ! "$RUNTIME_MODE" =~ ^[0-7]*00$ ]]; then
+  echo "Unsafe or unavailable watchdog runtime directory: $RUNTIME_DIR mode=${RUNTIME_MODE:-unknown}" >&2
+  exit 1
+fi
+STAMP="$RUNTIME_DIR/hermes-display-telemetry-watchdog.last-restart"
 COOLDOWN_SECONDS="${PERSONAL_DISPLAY_WATCHDOG_COOLDOWN:-300}"
 DISPLAY_NAME="${PERSONAL_DISPLAY_X_DISPLAY:-:0}"
 DISPLAY_OUTPUT="${PERSONAL_DISPLAY_OUTPUT:-DP-2}"
 DISPLAY_MODE="${PERSONAL_DISPLAY_OUTPUT_MODE:-1920x1280}"
 DISPLAY_ROTATE="${PERSONAL_DISPLAY_OUTPUT_ROTATE:-inverted}"
 DISPLAY_POS="${PERSONAL_DISPLAY_OUTPUT_POS:-0x0}"
-RENDER_FAILURES="${XDG_RUNTIME_DIR:-/tmp}/hermes-display-render-failures"
-RENDER_RESTART_STAMP="${XDG_RUNTIME_DIR:-/tmp}/hermes-display-render-last-restart"
+RENDER_FAILURES="$RUNTIME_DIR/hermes-display-render-failures"
+RENDER_RESTART_STAMP="$RUNTIME_DIR/hermes-display-render-last-restart"
 RENDER_RESTART_COOLDOWN="${PERSONAL_DISPLAY_RENDER_RESTART_COOLDOWN:-300}"
 HERMES_DISPLAY="${PERSONAL_DISPLAY_COMMAND:-$SCRIPT_DIR/hermes-display}"
+RUNTIME_CHECKS="$SCRIPT_DIR/display_runtime_checks.py"
+
+if [[ ! "$COOLDOWN_SECONDS" =~ ^[0-9]+$ || ! "$RENDER_RESTART_COOLDOWN" =~ ^[0-9]+$ ]]; then
+  echo "Watchdog cooldown values must be non-negative integers." >&2
+  exit 2
+fi
+
+validate_state_path() {
+  local path="$1"
+  if [[ -L "$path" || ( -e "$path" && ( ! -f "$path" || ! -O "$path" ) ) ]]; then
+    echo "Unsafe watchdog state path: $path" >&2
+    return 1
+  fi
+}
+
+write_state_file() {
+  local path="$1" value="$2" tmp
+  validate_state_path "$path"
+  tmp="$(mktemp "$RUNTIME_DIR/.hermes-display-state.XXXXXX")"
+  printf '%s' "$value" >"$tmp"
+  chmod 600 "$tmp"
+  if ! mv -fT -- "$tmp" "$path"; then
+    rm -f -- "$tmp"
+    return 1
+  fi
+}
+
+read_state_file() {
+  local path="$1"
+  validate_state_path "$path"
+  if [[ -s "$path" ]]; then
+    printf '%s' "$(<"$path")"
+  else
+    printf '0'
+  fi
+}
+
+validate_state_path "$STAMP"
+validate_state_path "$RENDER_FAILURES"
+validate_state_path "$RENDER_RESTART_STAMP"
 
 # Reassert the always-on policy every watchdog tick. This is harmless when the
 # X server has no DPMS extension, and repairs a connector that is still present
@@ -25,21 +81,29 @@ if DISPLAY="$DISPLAY_NAME" xset q >/dev/null 2>&1; then
   DISPLAY="$DISPLAY_NAME" xset s off s noblank -dpms >/dev/null 2>&1 || true
   DISPLAY="$DISPLAY_NAME" xset s reset >/dev/null 2>&1 || true
 
-  geometry_pos="${DISPLAY_POS/x/+}"
-  expected_geometry="${DISPLAY_MODE}+${geometry_pos}"
   output_line="$(DISPLAY="$DISPLAY_NAME" xrandr --query 2>/dev/null | awk -v output="$DISPLAY_OUTPUT" '$1 == output && $2 == "connected" { print; exit }')"
-  if [[ -n "$output_line" ]] && {
-    [[ "$output_line" != *"$expected_geometry"* ]] ||
-      [[ "$output_line" != *" primary "* ]] ||
-      [[ "$output_line" != *" $DISPLAY_ROTATE "* ]]
-  }; then
-    DISPLAY="$DISPLAY_NAME" xrandr \
+  if [[ -n "$output_line" ]]; then
+    layout_status=0
+    python3 "$RUNTIME_CHECKS" layout \
+      --line "$output_line" \
       --output "$DISPLAY_OUTPUT" \
       --mode "$DISPLAY_MODE" \
-      --rotate "$DISPLAY_ROTATE" \
-      --primary \
-      --pos "$DISPLAY_POS"
-    echo "Recovered $DISPLAY_OUTPUT: connector was connected but not actively driving $DISPLAY_MODE."
+      --rotation "$DISPLAY_ROTATE" \
+      --position "$DISPLAY_POS" >/dev/null 2>&1 || layout_status=$?
+    if [[ "$layout_status" -eq 1 ]]; then
+      if DISPLAY="$DISPLAY_NAME" xrandr \
+        --output "$DISPLAY_OUTPUT" \
+        --mode "$DISPLAY_MODE" \
+        --rotate "$DISPLAY_ROTATE" \
+        --primary \
+        --pos "$DISPLAY_POS"; then
+        echo "Recovered $DISPLAY_OUTPUT: connector was connected but not actively driving $DISPLAY_MODE."
+      else
+        echo "Unable to repair display layout for $DISPLAY_OUTPUT; continuing with non-restartable verification." >&2
+      fi
+    elif [[ "$layout_status" -eq 2 ]]; then
+      echo "Unable to validate configured display layout; skipping automatic xrandr repair." >&2
+    fi
   fi
 fi
 
@@ -48,31 +112,36 @@ fi
 # Chromium instance count, layout, and pixels), require two consecutive failures
 # to ignore startup transitions, then recover through the managed kiosk service.
 # The cooldown prevents a restart loop if rendering cannot recover.
+render_status=0
 if "$HERMES_DISPLAY" verify-render >/dev/null 2>&1; then
   rm -f "$RENDER_FAILURES"
 else
-  failures=0
-  [[ -s "$RENDER_FAILURES" ]] && failures="$(<"$RENDER_FAILURES")"
-  [[ "$failures" =~ ^[0-9]+$ ]] || failures=0
-  failures=$((failures + 1))
-  printf '%s' "$failures" >"$RENDER_FAILURES"
-  if [[ "$failures" -ge 2 ]]; then
-    now="$(date +%s)"
-    last_render_restart=0
-    [[ -s "$RENDER_RESTART_STAMP" ]] && last_render_restart="$(<"$RENDER_RESTART_STAMP")"
-    [[ "$last_render_restart" =~ ^[0-9]+$ ]] || last_render_restart=0
-    if [[ $((now - last_render_restart)) -ge "$RENDER_RESTART_COOLDOWN" ]]; then
-      # Record the attempt before invoking sudo so a persistent permission or
-      # service failure cannot trigger a restart attempt on every timer tick.
-      printf '%s' "$now" >"$RENDER_RESTART_STAMP"
-      if sudo -n systemctl restart "$SYSTEM_SERVICE"; then
-        rm -f "$RENDER_FAILURES"
-        echo "Restarted physical kiosk: display verification failed twice consecutively."
-      else
-        echo "Failed to restart physical kiosk after repeated display verification failures." >&2
-        exit 1
+  render_status=$?
+  if [[ "$render_status" -eq 1 ]]; then
+    failures="$(read_state_file "$RENDER_FAILURES")"
+    [[ "$failures" =~ ^[0-9]+$ ]] || failures=0
+    failures=$((failures + 1))
+    write_state_file "$RENDER_FAILURES" "$failures"
+    if [[ "$failures" -ge 2 ]]; then
+      now="$(date +%s)"
+      last_render_restart="$(read_state_file "$RENDER_RESTART_STAMP")"
+      [[ "$last_render_restart" =~ ^[0-9]+$ ]] || last_render_restart=0
+      if [[ $((now - last_render_restart)) -ge "$RENDER_RESTART_COOLDOWN" ]]; then
+        # Record the attempt before invoking sudo so a persistent permission or
+        # service failure cannot trigger a restart attempt on every timer tick.
+        write_state_file "$RENDER_RESTART_STAMP" "$now"
+        if sudo -n systemctl restart -- "$SYSTEM_SERVICE"; then
+          rm -f "$RENDER_FAILURES"
+          echo "Restarted physical kiosk: display verification failed twice consecutively."
+        else
+          echo "Failed to restart physical kiosk after repeated display verification failures." >&2
+          exit 1
+        fi
       fi
     fi
+  else
+    rm -f "$RENDER_FAILURES"
+    echo "Display verification reported a non-restartable fault (status $render_status); kiosk restart suppressed." >&2
   fi
 fi
 
@@ -128,12 +197,12 @@ if [[ "$bad" -ne 1 ]]; then
 fi
 
 now="$(date +%s)"
-last=0
-[[ -s "$STAMP" ]] && last="$(cat "$STAMP" 2>/dev/null || echo 0)"
+last="$(read_state_file "$STAMP")"
+[[ "$last" =~ ^[0-9]+$ ]] || last=0
 if [[ $((now - last)) -lt "$COOLDOWN_SECONDS" ]]; then
   exit 0
 fi
 
-printf '%s' "$now" > "$STAMP"
-systemctl --user restart "$SERVICE"
+write_state_file "$STAMP" "$now"
+systemctl --user restart -- "$SERVICE"
 echo "Restarted $SERVICE: display API telemetry was stale while host sensors were available."

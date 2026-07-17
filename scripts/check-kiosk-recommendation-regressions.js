@@ -21,6 +21,7 @@ const buildIdSource = fs.readFileSync(path.join(projectRoot, 'src', 'generated',
 const xsessionSource = fs.readFileSync(path.join(projectRoot, 'scripts', 'xsession-minix-kiosk.sh'), 'utf8');
 const displayCliSource = fs.readFileSync(path.join(projectRoot, 'scripts', 'hermes-display'), 'utf8');
 const telemetryWatchdogSource = fs.readFileSync(path.join(projectRoot, 'scripts', 'display-telemetry-watchdog.sh'), 'utf8');
+const runtimeChecksSource = fs.readFileSync(path.join(projectRoot, 'scripts', 'display_runtime_checks.py'), 'utf8');
 const captureModesSource = fs.readFileSync(path.join(projectRoot, 'scripts', 'capture-mode-artifacts.cjs'), 'utf8');
 const audioSource = fs.readFileSync(path.join(projectRoot, 'src', 'mascot', 'audio.js'), 'utf8');
 const touchFxSource = fs.readFileSync(path.join(projectRoot, 'src', 'mascot', 'touch-fx.js'), 'utf8');
@@ -239,15 +240,35 @@ requireAll(displayCliSource, [
   'OK Chromium kiosk browser instance count: 1',
   'OK visible render:',
   'scrot --overwrite "$shot"',
+  'managed-chromium --profile "$CHROME_PROFILE"',
+  'framebuffer',
+  'EXPECTED_SYSTEM_SERVICE="hermes-personal-display-minix.service"',
   'verify-render) verify_render_path',
 ], 'hermes-display must verify one managed Chromium kiosk and non-blank live framebuffer pixels.');
 requireAll(telemetryWatchdogSource, [
   'SCRIPT_DIR="$(cd -- "$(dirname -- "$SCRIPT_PATH")" && pwd)"',
   'HERMES_DISPLAY="${PERSONAL_DISPLAY_COMMAND:-$SCRIPT_DIR/hermes-display}"',
   '"$HERMES_DISPLAY" verify-render',
-  'expected_geometry="${DISPLAY_MODE}+${geometry_pos}"',
-  'if sudo -n systemctl restart "$SYSTEM_SERVICE"; then',
+  'RUNTIME_DIR="${XDG_RUNTIME_DIR:-/run/user/$(id -u)}"',
+  'write_state_file()',
+  'python3 "$RUNTIME_CHECKS" layout',
+  'render_status=$?',
+  'non-restartable fault',
+  'if sudo -n systemctl restart -- "$SYSTEM_SERVICE"; then',
 ], 'Display watchdog recovery must be working-directory independent and scoped to the managed render path.');
+requireAll(runtimeChecksSource, [
+  'def output_layout_matches(',
+  'active_segment = line.split(" (", 1)[0]',
+  'def inspect_framebuffer(',
+  'def managed_chromium_processes(',
+  'if "--kiosk" not in args',
+], 'Display runtime checks must parse active rotation, configured framebuffer geometry, and managed Chromium roots.');
+if (telemetryWatchdogSource.includes('${XDG_RUNTIME_DIR:-/tmp}')) {
+  fail('Display watchdog state must never fall back to predictable files directly under /tmp.');
+}
+if (displayCliSource.includes("pgrep -af '[c]hrom")) {
+  fail('Display verification must inspect managed Chromium browser roots, not URL-matching command lines.');
+}
 requireAll(appSource, [
   'conceptBTopAlert',
   'conceptBAuguryPresence',
@@ -663,7 +684,7 @@ if (unversionedVendor.length) {
   fail(`Vendor assets must keep an explicit ?v= cache pin; offenders: ${unversionedVendor.join(', ')}`);
 }
 requireAll(xsessionSource, ['BUILD_ID="${PERSONAL_DISPLAY_BUILD_ID:-$($SCRIPT_DIR/hermes-display build-id)}"', 'query.append((\'v\', build))'], 'Physical xsession launcher must derive the kiosk URL build id from the runtime');
-requireAll(displayCliSource, ['verify)', 'fix)', 'systemctl is-active --quiet "$SYSTEM_SERVICE"', 'sudo -n systemctl restart "$SYSTEM_SERVICE"', 'DISPLAY_BUILD_ID'], 'hermes-display CLI must verify/fix the real service-owned physical kiosk');
+requireAll(displayCliSource, ['verify)', 'fix)', 'systemctl is-active --quiet -- "$SYSTEM_SERVICE"', 'sudo -n systemctl restart -- "$SYSTEM_SERVICE"', 'DISPLAY_BUILD_ID'], 'hermes-display CLI must verify/fix the real service-owned physical kiosk');
 requireAll(captureModesSource, [
   "src', 'generated', 'build-id.js'",
   'window\\.__HERMES_DISPLAY_BUILD_ID',
