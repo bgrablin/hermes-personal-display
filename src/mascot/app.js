@@ -46,6 +46,9 @@
     edgeRimBase: 0.12,
     edgeRimGain: 0.24,
     gazeMaxHypot: 34,
+    saccadeMs: 86,
+    saccadeSettleMs: 145,
+    saccadeOvershoot: 0.04,
   });
   const CONCEPT_B_VITALS = Object.freeze({
     // Involuntary "alive" signals layered under the intentional gaze/posture system.
@@ -1420,6 +1423,13 @@
       window.__HERMES_SYNC_OVERLAYS?.();
     }
     renderer.ingestAvatarEvent?.(event);
+    const eye = window.__HERMES_CONCEPT_B_EYE_MOTION;
+    if (event.event === 'assistant.started') eye?.acknowledgeViewer?.('acknowledge', 900);
+    else if (event.event === 'assistant.tool_started') eye?.workAway?.('down_work_right', 1400);
+    else if (event.event === 'assistant.tool_finished') eye?.workAway?.('bottom_status', 720);
+    else if (event.event === 'assistant.waiting_on_user') eye?.acknowledgeViewer?.('waiting', 0);
+    else if (event.event === 'assistant.final_started') eye?.workAway?.('internal_focus', 1000);
+    else if (event.event === 'assistant.final_complete') eye?.acknowledgeViewer?.('complete', 2200);
     output.value = `Avatar event: ${safeDisplayText(display.label || display.intent, 48)}.`;
     window.dispatchEvent(new CustomEvent('hermes-avatar-event', { detail: avatarEventDebug() }));
   }
@@ -1764,8 +1774,8 @@
             </g>
             <g class="cb-field-notice-pulse"><circle class="cb-field-pulse" cx="550" cy="550" r="244" /></g>
           </g>
-          <g class="cb-eye-gaze">
-            <g class="cb-eye-core" aria-hidden="true">
+          <g class="cb-eye-core" aria-hidden="true">
+            <g class="cb-eye-socket">
               <circle class="cb-eye-aura" cx="550" cy="550" r="230" />
               <circle class="cb-eye-calibration" cx="550" cy="550" r="226" />
               <g class="cb-aperture-shell">
@@ -1773,31 +1783,34 @@
                 <path class="cb-winglet cb-winglet-right" d="M 750 550 C 714 530 690 518 662 514" />
                 <path class="cb-helmet-brow" d="M 424 482 C 474 428 626 428 676 482" />
               </g>
-              <g class="cb-eye-iris">
-                <circle class="cb-eye-lens" cx="550" cy="550" r="178" />
-                <circle class="cb-eye-ring" cx="550" cy="550" r="179" />
-                <g class="cb-eye-lens-contents" clip-path="url(#cb-eye-lens-clip)">
-                  <g class="cb-iris-lattice" aria-hidden="true"></g>
-                  <g class="cb-eye-special cb-eye-grid" aria-hidden="true"></g>
-                  <g class="cb-eye-special cb-eye-scan" aria-hidden="true">
-                    <rect class="cb-eye-scan-band" x="546" y="376" width="8" height="174" rx="4" />
-                    <line class="cb-eye-scan-line" x1="550" y1="548" x2="550" y2="380" />
+              <circle class="cb-eye-lens" cx="550" cy="550" r="178" />
+              <circle class="cb-eye-ring" cx="550" cy="550" r="179" />
+              <g class="cb-eye-window" clip-path="url(#cb-eye-lens-clip)">
+                <g class="cb-eye-gaze">
+                  <g class="cb-eye-iris">
+                    <g class="cb-eye-lens-contents">
+                      <g class="cb-iris-lattice" aria-hidden="true"></g>
+                      <g class="cb-eye-special cb-eye-grid" aria-hidden="true"></g>
+                      <g class="cb-eye-special cb-eye-scan" aria-hidden="true">
+                        <rect class="cb-eye-scan-band" x="546" y="376" width="8" height="174" rx="4" />
+                        <line class="cb-eye-scan-line" x1="550" y1="548" x2="550" y2="380" />
+                      </g>
+                      <g class="cb-eye-pupil-group">
+                        <circle class="cb-eye-pupil" cx="550" cy="550" r="44" />
+                        <circle class="cb-eye-dot cb-eye-dot-a" cx="532" cy="526" r="9" />
+                        <circle class="cb-eye-dot cb-eye-dot-b" cx="576" cy="572" r="4.5" />
+                      </g>
+                    </g>
                   </g>
-                  <path class="cb-eye-glass-sheen" d="M 446 496 C 496 430 614 420 670 486 C 615 462 516 468 462 528" />
-                  <path class="cb-eye-glass-crescent" d="M 454 618 C 516 674 620 660 676 596" />
-                  <g class="cb-eye-pupil-group">
-                    <circle class="cb-eye-pupil" cx="550" cy="550" r="44" />
-                    <circle class="cb-eye-dot cb-eye-dot-a" cx="532" cy="526" r="9" />
-                    <circle class="cb-eye-dot cb-eye-dot-b" cx="576" cy="572" r="4.5" />
-                    <circle class="cb-eye-dot cb-eye-dot-c" cx="560" cy="512" r="3.2" />
-                  </g>
-                </g>
+                </g><!-- cb-eye-gaze:end -->
+                <path class="cb-eye-glass-sheen" d="M 446 496 C 496 430 614 420 670 486 C 615 462 516 468 462 528" />
+                <path class="cb-eye-glass-crescent" d="M 454 618 C 516 674 620 660 676 596" />
                 <g class="cb-eye-lid-group" clip-path="url(#cb-eye-lens-clip)">
                   <path class="cb-eye-lid cb-eye-lid-top" />
                   <path class="cb-eye-lid cb-eye-lid-bottom" />
                 </g>
-              </g>
-            </g>
+              </g><!-- cb-eye-window:end -->
+            </g><!-- cb-eye-socket:end -->
           </g>
         </g>
         <g data-cb-arc="cpu"><path class="cb-arc-track"/><path class="cb-arc-fill"/><circle class="cb-arc-dot" r="4"/><text class="cb-arc-label"></text><text class="cb-arc-value"></text></g>
@@ -1892,6 +1905,7 @@
       hud.dataset.health = o.health;
       hud.dataset.quiet = o.quiet;
       hud.dataset.privacy = o.privacy;
+      document.body.dataset.health = o.health;
     }
     window.__HERMES_SYNC_OVERLAYS = applyBehaviorOverlays;
 
@@ -2220,7 +2234,7 @@
     const source = Array.isArray(rail?.providers) ? rail : defaultConceptBRouteRail();
     const providers = source.providers.slice(0, 5);
     const activeId = safeDisplayText(source.active_provider_id || '', 36);
-    const routeSignature = `${activeId}|${providers.map((p) => `${p.id}:${p.state}:${p.headroom ?? ''}:${p.stale_age_s ?? ''}`).join('|')}`;
+    const routeSignature = `${activeId}|${providers.map((p) => `${p.id}:${p.state}:${p.headroom ?? ''}:${p.credits_used ?? ''}:${p.credits_limit ?? ''}:${p.stale_age_s ?? ''}`).join('|')}`;
     if (root.dataset.routeSignature && root.dataset.routeSignature !== routeSignature) {
       const changed = providers.some((p) => ['stale', 'unknown', 'error'].includes(String(p.state))) || activeId !== (root.dataset.activeProviderId || '');
       if (changed) {
@@ -2254,6 +2268,21 @@
         && rawHeadroom !== ''
         && Number.isFinite(headroom)
         && !['unknown', 'error', 'disabled'].includes(state);
+      const rawCreditsUsed = provider.credits_used;
+      const creditsUsed = Number(rawCreditsUsed);
+      const knownCreditsUsed = rawCreditsUsed !== null
+        && rawCreditsUsed !== undefined
+        && rawCreditsUsed !== ''
+        && Number.isFinite(creditsUsed)
+        && creditsUsed >= 0
+        && !['unknown', 'error', 'disabled'].includes(state);
+      const rawCreditsLimit = provider.credits_limit;
+      const creditsLimit = Number(rawCreditsLimit);
+      const knownCreditsLimit = rawCreditsLimit !== null
+        && rawCreditsLimit !== undefined
+        && rawCreditsLimit !== ''
+        && Number.isFinite(creditsLimit)
+        && creditsLimit > 0;
       const clamped = knownHeadroom ? Math.max(0, Math.min(1, headroom)) : null;
       const headroomTier = knownHeadroom ? (clamped <= ROUTE_HEADROOM_LOW_THRESHOLD ? 'low' : 'ok') : 'none';
       // Quiet unknown/disabled idle rows so known/confirmed/low/error routes stay scannable.
@@ -2290,14 +2319,19 @@
       }
       setConceptBText(entry.label, safeDisplayText(provider.label || 'ROUTE', 8).toUpperCase());
       const unknownRouteCopy = state === 'disabled' ? 'OFF' : state === 'error' ? 'ERR' : 'UNK';
+      const creditsUsedSummary = knownCreditsUsed ? `${formatRouteCredits(creditsUsed)}` : '';
       const routeValue = knownHeadroom
         ? `${state === 'inferred' ? '~' : ''}${Math.round(clamped * 100)}%`
-        : state === 'inferred' && provider.reachable !== false ? 'READY' : unknownRouteCopy;
+        : knownCreditsUsed ? creditsUsedSummary
+          : state === 'inferred' && provider.reachable !== false ? 'READY' : unknownRouteCopy;
       setConceptBText(entry.value, routeValue);
       const tier = safeDisplayText(provider.tier_label || '', 14).toUpperCase();
       const age = provider.stale_age_s != null ? formatRouteAge(provider.stale_age_s) : provider.last_used_age_s != null && idx === activeIndex ? formatRouteAge(provider.last_used_age_s) : '';
       const resetCountdown = Number.isFinite(Number(provider.reset_at_epoch_s)) ? formatResetCountdown(Number(provider.reset_at_epoch_s)) : '';
-      setConceptBText(entry.tier, collapsed ? '' : [resetCountdown, tier, age].filter(Boolean).join('  ·  '));
+      const creditsContext = knownCreditsUsed
+        ? `${creditsUsedSummary}${knownCreditsLimit ? `/${formatRouteCredits(creditsLimit)}` : ''} CR${knownCreditsLimit ? '' : ' USED'}`
+        : '';
+      setConceptBText(entry.tier, collapsed ? '' : [resetCountdown, creditsContext, tier, age].filter(Boolean).join('  ·  '));
       setConceptBText(entry.glyph, glyphs[state] || '○');
     });
     setConceptBDataset(root, 'activeIndex', activeIndex >= 0 ? String(activeIndex) : 'none');
@@ -2314,6 +2348,17 @@
     const hairline = root.querySelector('.cb-route-active-hairline');
     setConceptBStyleProperty(hairline, '--route-active-y', activeIndex >= 0 ? `${97 + activeIndex * 136}px` : '-100px');
     standby?.classList.toggle('quiet', collapsedCount >= 3);
+  }
+
+  function formatRouteCredits(value) {
+    const credits = Number(value);
+    if (!Number.isFinite(credits) || credits < 0) return '';
+    if (credits >= 1000) {
+      const digits = credits >= 10000 ? 0 : 1;
+      return `${(credits / 1000).toFixed(digits).replace(/\.0$/, '')}K`;
+    }
+    if (credits >= 100) return String(Math.round(credits));
+    return credits.toFixed(1).replace(/\.0$/, '');
   }
 
   function formatRouteAge(seconds) {
@@ -2562,6 +2607,7 @@
     const iris = hud.querySelector('.cb-eye-iris');
     const pupil = hud.querySelector('.cb-eye-pupil');
     const pupilGroup = hud.querySelector('.cb-eye-pupil-group');
+    const catchlights = Array.from(hud.querySelectorAll('.cb-eye-dot'));
     const lidTop = hud.querySelector('.cb-eye-lid-top');
     const lidBottom = hud.querySelector('.cb-eye-lid-bottom');
     const glow = hud.querySelector('.cb-glow');
@@ -2607,6 +2653,9 @@
       lowerBias: 0,
       blink: 0,
       pupilFlash: 0,
+      socialLift: 0,
+      socialPresence: 'ambient',
+      socialUntil: 0,
       breath: 1,
       ringAngle: 0,
       scanAngle: 0,
@@ -2620,6 +2669,8 @@
       mode: 'idle_watch',
       special: 'none',
       frame: 0,
+      eyeRenderCount: 0,
+      fieldRenderCount: 0,
       last: performance.now(),
       raf: 0,
       lastTraceX: 0,
@@ -2639,7 +2690,8 @@
       lastTouchPulseAt: 0,
       lastResonanceAt: 0,
       resonance: { angle: 0, distance: 0, intensity: 0, startedAt: 0, ttlMs: 900 },
-      lastTouchTarget: { x: 0, y: 0, intensity: 0, pointerCount: 0 }
+      lastTouchTarget: { x: 0, y: 0, intensity: 0, pointerCount: 0 },
+      saccade: { active: false, lastAt: 0, elapsedMs: 0, fromX: 0, fromY: 0, overX: 0, overY: 0, targetX: 0, targetY: 0 }
     };
 
     // ── anime.js cadence loops ───────────────────────────────────────────────
@@ -2647,8 +2699,8 @@
     function runBlinkOnce(onComplete, allowDouble = true) {
       if (!motion?.hasAnime) { onComplete?.(); return; }
       // Two chained single-value tweens (close, then open). The RAF flush renders this
-      // scalar as a symmetric lid pinch over the lens; iris/pupil/gaze transforms remain
-      // posture-only so catchlights do not slide toward center during a blink.
+      // scalar as an upper-lid-dominant blink; iris/pupil/gaze transforms remain posture-only
+      // so catchlights do not slide toward center during a blink.
       state.anims.blink = motion.animateValue({
         targets: state, blink: 1, duration: 70, easing: 'inQuad',
         complete: () => {
@@ -2859,45 +2911,6 @@
         }));
       }
     }
-    // The pupil catchlights drift on slow independent orbits so the optic shimmers with life,
-    // not just dilation. They live inside .cb-eye-pupil-group, so they ride blink/dilation too.
-    function driftDots() {
-      if (prefersReducedMotion || !motion?.hasAnime) return;
-      // The pupil is r=44 around (550,550). Each catchlight must stay inside it, so its base
-      // distance from center + drift amplitude + its own radius is kept well under 44. Bases are
-      // pulled in toward center (vs. the static markup) to leave room for visible drift.
-      const PUPIL_R = 44;
-      const dots = [
-        { el: pupilGroup?.querySelector('.cb-eye-dot-a'), bx: 540, by: 536, r: 9.0, ax: 3.5, ay: 3.0, dur: 14200, ph: 0.0, sy: 1.2, omin: 0.56, omax: 0.74 },
-        { el: pupilGroup?.querySelector('.cb-eye-dot-b'), bx: 566, by: 562, r: 4.5, ax: 3.2, ay: 3.2, dur: 16800, ph: 1.7, sy: 0.8, omin: 0.38, omax: 0.56 },
-        { el: pupilGroup?.querySelector('.cb-eye-dot-c'), bx: 556, by: 530, r: 3.2, ax: 2.8, ay: 2.8, dur: 19600, ph: 3.1, sy: 1.5, omin: 0.30, omax: 0.46 }
-      ];
-      for (const a of state.anims.dots || []) a?.pause?.();
-      state.anims.dots = [];
-      for (const d of dots) {
-        if (!d.el) continue;
-        const o = { t: 0 };
-        state.anims.dots.push(motion.animateValue({
-          targets: o, t: [0, Math.PI * 2], duration: d.dur, easing: 'linear', loop: true,
-          update: () => {
-            // Catchlights lag the pupil (the parent group is translated by gaze), so they slide
-            // across the eye as it looks around — specular highlights of a fixed light source.
-            let cx = d.bx + Math.cos(o.t) * d.ax - (state.x || 0) * 0.5;
-            let cy = d.by + Math.sin(o.t * d.sy + d.ph) * d.ay - (state.y || 0) * 0.5;
-            // Hard clamp to keep the whole dot within the pupil rim, regardless of phase/gaze.
-            const dx = cx - 550;
-            const dy = cy - 550;
-            const max = PUPIL_R - d.r - 2;
-            const dist = Math.hypot(dx, dy);
-            if (dist > max) { const k = max / dist; cx = 550 + dx * k; cy = 550 + dy * k; }
-            setConceptBAttribute(d.el, 'cx', cx.toFixed(1));
-            setConceptBAttribute(d.el, 'cy', cy.toFixed(1));
-            const shimmer = (1 + Math.sin(o.t + d.ph)) / 2;
-            setConceptBStyleProperty(d.el, 'opacity', (d.omin + (d.omax - d.omin) * shimmer).toFixed(3));
-          }
-        }));
-      }
-    }
 
     // ── anime.js one-shot expressive transients (own dedicated elements) ──────
     function ripple(circle, { fromR, toR, peakO, dur, loop }) {
@@ -2977,10 +2990,10 @@
       searching: [['augury_left', 650, 1100], ['route_right', 650, 1100], ['front', 700, 1300]],
       listening: [['front', 3600, 7200], ['user_touch', 1200, 2200]],
       waiting_user: [['front', 4200, 8200], ['user_touch', 1800, 3400]],
-      blocked: [['bottom_status', 2400, 4800], ['route_right', 1200, 2200]],
-      critical: [['bottom_status', 2200, 4400], ['front', 1200, 2200]],
+      blocked: [['route_right', 1800, 3200], ['augury_left', 1600, 2800]],
+      critical: [['front', 1800, 3200], ['route_right', 1400, 2400]],
       complete: [['front', 3200, 6800]],
-      degraded_offline: [['bottom_status', 3800, 8200], ['front', 2600, 4600]]
+      degraded_offline: [['front', 5200, 9200]]
     };
     const FOCUS_PROFILES = {
       idle_watch: { pupil: 1.00, iris: 1.00, lid: 0.06, upperBias: 0.03, lowerBias: 0.00, blinkMs: 7400, ringMs: 150000, breathMs: 7600 },
@@ -3011,14 +3024,93 @@
       state.lastContextBlinkAt = now;
       runBlinkOnce();
     }
+    function beginPrimarySaccade(x, y) {
+      const targetX = finiteClamp(x, -34, 34, state.targetX);
+      const targetY = finiteClamp(y, -30, 30, state.targetY);
+      const dx = targetX - state.x;
+      const dy = targetY - state.y;
+      if (prefersReducedMotion || Math.hypot(dx, dy) < 0.35) {
+        state.saccade.active = false;
+        if (prefersReducedMotion) { state.x = targetX; state.y = targetY; }
+        return;
+      }
+      state.saccade = {
+        active: true,
+        lastAt: performance.now(),
+        elapsedMs: 0,
+        fromX: state.x,
+        fromY: state.y,
+        overX: targetX + dx * CONCEPT_B_BIO_MOTION.saccadeOvershoot,
+        overY: targetY + dy * CONCEPT_B_BIO_MOTION.saccadeOvershoot,
+        targetX,
+        targetY,
+      };
+    }
+    function updatePrimarySaccade(now) {
+      const saccade = state.saccade;
+      if (!saccade.active) return false;
+      // Cap accumulated frame time so a delayed renderer frame cannot skip the visible
+      // ballistic overshoot and settle entirely. Normal 60 Hz timing remains unchanged.
+      saccade.elapsedMs += Math.min(50, Math.max(0, now - saccade.lastAt));
+      saccade.lastAt = now;
+      const elapsed = saccade.elapsedMs;
+      if (elapsed <= CONCEPT_B_BIO_MOTION.saccadeMs) {
+        const p = Math.min(1, elapsed / CONCEPT_B_BIO_MOTION.saccadeMs);
+        const eased = 1 - ((1 - p) ** 3);
+        state.x = saccade.fromX + (saccade.overX - saccade.fromX) * eased;
+        state.y = saccade.fromY + (saccade.overY - saccade.fromY) * eased;
+      } else if (elapsed <= CONCEPT_B_BIO_MOTION.saccadeMs + CONCEPT_B_BIO_MOTION.saccadeSettleMs) {
+        const p = (elapsed - CONCEPT_B_BIO_MOTION.saccadeMs) / CONCEPT_B_BIO_MOTION.saccadeSettleMs;
+        const eased = 1 - ((1 - Math.min(1, p)) ** 2);
+        state.x = saccade.overX + (saccade.targetX - saccade.overX) * eased;
+        state.y = saccade.overY + (saccade.targetY - saccade.overY) * eased;
+      } else {
+        state.x = saccade.targetX;
+        state.y = saccade.targetY;
+        state.vx = 0;
+        state.vy = 0;
+        state.saccade.active = false;
+      }
+      return true;
+    }
     function setFixation(kind, holdMs = 1200, { blink = false, minBlinkGapMs = 900 } = {}) {
       const [x, y] = GAZE_TARGETS[kind] || GAZE_TARGETS.front;
       if (blink || Math.hypot((x || 0) - state.targetX, (y || 0) - state.targetY) > 22) contextualBlink(kind, minBlinkGapMs);
       state.fixation = { kind, x, y, nextAt: performance.now() + Math.max(300, holdMs) };
+      beginPrimarySaccade(x, y);
       state.targetX = x;
       state.targetY = y;
       state.lastGazeKind = kind;
       return state.fixation;
+    }
+    function setSocialPresence(kind = 'ambient', holdMs = 0) {
+      const allowed = new Set(['ambient', 'acknowledge', 'working', 'waiting', 'complete', 'touch', 'presence']);
+      state.socialPresence = allowed.has(kind) ? kind : 'ambient';
+      state.socialUntil = holdMs > 0 ? performance.now() + Math.max(300, Number(holdMs) || 0) : 0;
+      setConceptBDataset(hud, 'socialPresence', state.socialPresence);
+      setConceptBDataset(document.body, 'socialPresence', state.socialPresence);
+      return state.socialPresence;
+    }
+    function animateViewerRegard(holdMs) {
+      state.anims.regard?.pause?.();
+      state.anims.socialLift?.pause?.();
+      state.regard = Math.max(0.045, CONCEPT_B_VITALS.regardPupil);
+      state.socialLift = 0.06;
+      if (!motion?.hasAnime || prefersReducedMotion) {
+        return;
+      }
+      state.anims.regard = motion.animateValue({
+        targets: state,
+        regard: 0,
+        duration: Math.max(620, Math.min(1200, Number(holdMs) || 900)),
+        easing: 'outSine'
+      });
+      state.anims.socialLift = motion.animateValue({
+        targets: state,
+        socialLift: 0,
+        duration: Math.max(520, Math.min(900, Number(holdMs) || 760)),
+        easing: 'outSine'
+      });
     }
 
     // ── involuntary vitals (hippus / sigh / regard / spark) ──────────────────
@@ -3096,6 +3188,7 @@
       maybeSpark(now);
     }
 
+    let viewerPresenceListener = null;
     const rig = {
       setTarget(next = {}) {
         const prevMode = state.mode;
@@ -3109,6 +3202,7 @@
           const y = finiteClamp(next.y, -30, 30, state.targetY);
           const moved = Math.hypot(x - state.targetX, y - state.targetY);
           if (moved > 22) contextualBlink('large-target-change');
+          beginPrimarySaccade(x, y);
           state.targetX = x;
           state.targetY = y;
           state.fixation = { kind: 'packet', x, y, nextAt: performance.now() + 900 };
@@ -3161,12 +3255,15 @@
         const halfH = Math.max(1, window.innerHeight / 2);
         const x = finiteClamp((dx / halfW) * 34, -34, 34, state.targetX);
         const y = finiteClamp((dy / halfH) * 30, -30, 30, state.targetY);
+        state.saccade.active = false;
         state.targetX = x;
         state.targetY = y;
         state.fixation = { kind: 'user_touch', x, y, nextAt: now + (pointerCount > 1 ? 700 : 1000) };
         state.forcedUntil = now + (pointerCount > 1 ? 500 : 800);
         state.lastGazeKind = 'user_touch';
         state.lastTouchTarget = { x, y, intensity, pointerCount };
+        setSocialPresence('touch', pointerCount > 1 ? 700 : 1000);
+        animateViewerRegard(pointerCount > 1 ? 700 : 900);
         const shouldPulse = !prefersReducedMotion && intensity >= 0.75 && (now - (state.lastTouchPulseAt || 0) >= 250);
         if (shouldPulse) {
           state.lastTouchPulseAt = now;
@@ -3195,12 +3292,53 @@
       },
       pulse(kind = 'notice') { (transients[kind] || transients.notice)(); },
       blinkNow() { runBlinkOnce(); },
+      acknowledgeViewer(kind = 'acknowledge', holdMs = 900) {
+        const duration = holdMs > 0 ? Math.max(300, Number(holdMs) || 900) : 0;
+        const fixationHold = duration || 120000;
+        state.forcedUntil = duration ? performance.now() + duration : Number.POSITIVE_INFINITY;
+        setFixation('viewer', fixationHold, { blink: false });
+        setSocialPresence(kind, duration);
+        animateViewerRegard(duration || 900);
+        runHalfBlinkOnce();
+      },
+      workAway(target = 'down_work_right', holdMs = 1200) {
+        const normalized = GAZE_TARGETS[target] ? target : 'internal_focus';
+        const duration = Math.max(300, Number(holdMs) || 1200);
+        state.anims.regard?.pause?.();
+        state.regard = 0;
+        state.socialLift = 0;
+        state.forcedUntil = performance.now() + duration;
+        setFixation(normalized, duration, { blink: true, minBlinkGapMs: 520 });
+        setSocialPresence('working', 0);
+      },
+      trackViewer(detail = {}) {
+        const nx = detail?.x;
+        const ny = detail?.y;
+        const confidence = detail?.confidence;
+        if (typeof nx !== 'number' || typeof ny !== 'number' || !Number.isFinite(nx) || !Number.isFinite(ny)) return false;
+        if (nx < -1 || nx > 1 || ny < -1 || ny > 1) return false;
+        if (confidence != null && (typeof confidence !== 'number' || !Number.isFinite(confidence) || confidence < 0.3 || confidence > 1)) return false;
+        const now = performance.now();
+        const holdMs = finiteClamp(detail.holdMs, 300, 3000, 1000);
+        const x = nx * 24;
+        const y = -6 + ny * 18;
+        beginPrimarySaccade(x, y);
+        state.targetX = x;
+        state.targetY = y;
+        state.fixation = { kind: 'viewer_presence', x, y, nextAt: now + holdMs };
+        state.lastGazeKind = 'viewer_presence';
+        state.forcedUntil = now + holdMs;
+        setSocialPresence('presence', holdMs);
+        animateViewerRegard(Math.min(900, holdMs));
+        return true;
+      },
       // Cancel every anime.js loop/transient and the RAF flush. All long-running animations are
       // tracked in state.anims so they can be re-armed or torn down cleanly (no orphan loops).
       teardown() {
         window.cancelAnimationFrame(state.raf);
         window.clearTimeout(state.blinkTimer);
-        const all = [state.anims.blink, state.anims.halfBlink, state.anims.pupilFlash, state.anims.breath, state.anims.sigh, state.anims.regard, state.anims.ring, state.anims.scan, state.anims.pulse, state.anims.irisLattice, state.anims.latticeFlare, ...(state.anims.dots || []), ...(state.anims.fieldRings || [])];
+        if (viewerPresenceListener) window.removeEventListener('hermes-viewer-presence', viewerPresenceListener);
+        const all = [state.anims.blink, state.anims.halfBlink, state.anims.pupilFlash, state.anims.breath, state.anims.sigh, state.anims.regard, state.anims.socialLift, state.anims.ring, state.anims.scan, state.anims.pulse, state.anims.irisLattice, state.anims.latticeFlare, ...(state.anims.fieldRings || [])];
         for (const a of all) a?.pause?.();
       },
       forceGaze(name = 'front', holdMs = 1200) {
@@ -3209,13 +3347,19 @@
         setFixation(normalized, holdMs, { blink: true, minBlinkGapMs: 520 });
       },
       debug() {
-        return { build: DISPLAY_BUILD_ID, irisAngle: state.irisAngle, irisMs: state.irisMs, x: state.x, y: state.y, targetX: state.targetX, targetY: state.targetY, microX: state.micro?.x || 0, microY: state.micro?.y || 0, nextMicroAt: state.micro?.nextAt || 0, targetName: state.fixation?.kind || 'front', forcedUntil: state.forcedUntil || 0, iris: state.iris, pupil: state.pupil, pupilFlash: state.pupilFlash || 0, lid: state.lid, upperBias: state.upperBias, lowerBias: state.lowerBias, blink: state.blink, breath: state.breath, touchTarget: state.lastTouchTarget, lastResonanceAt: state.lastResonanceAt || 0, mode: state.mode, special: state.special, anime: Boolean(motion?.hasAnime), hippus: state.hippus || 0, regard: state.regard || 0, vitals: { mode: state.vitals.mode, nextSighAt: state.vitals.nextSighAt, nextRegardAt: state.vitals.nextRegardAt, nextSparkAt: state.vitals.nextSparkAt, sighing: state.vitals.sighing } };
+        return { build: DISPLAY_BUILD_ID, irisAngle: state.irisAngle, irisMs: state.irisMs, x: state.x, y: state.y, targetX: state.targetX, targetY: state.targetY, microX: state.micro?.x || 0, microY: state.micro?.y || 0, nextMicroAt: state.micro?.nextAt || 0, targetName: state.fixation?.kind || 'front', forcedUntil: state.forcedUntil || 0, iris: state.iris, pupil: state.pupil, pupilFlash: state.pupilFlash || 0, lid: state.lid, upperBias: state.upperBias, lowerBias: state.lowerBias, blink: state.blink, breath: state.breath, touchTarget: state.lastTouchTarget, lastResonanceAt: state.lastResonanceAt || 0, mode: state.mode, special: state.special, anime: Boolean(motion?.hasAnime), hippus: state.hippus || 0, regard: state.regard || 0, socialLift: state.socialLift || 0, socialPresence: state.socialPresence || 'ambient', saccadeActive: Boolean(state.saccade?.active), eyeRenderCount: state.eyeRenderCount || 0, fieldRenderCount: state.fieldRenderCount || 0, vitals: { mode: state.vitals.mode, nextSighAt: state.vitals.nextSighAt, nextRegardAt: state.vitals.nextRegardAt, nextSparkAt: state.vitals.nextSparkAt, sighing: state.vitals.sighing } };
       }
     };
+    viewerPresenceListener = (event) => rig.trackViewer(event?.detail || {});
+    window.addEventListener('hermes-viewer-presence', viewerPresenceListener);
     const step = (now) => {
       const dt = Math.max(0.001, Math.min(0.050, (now - state.last) / 1000));
       state.last = now;
       const seconds = now / 1000;
+      if (state.socialUntil > 0 && now >= state.socialUntil) {
+        setSocialPresence('ambient', 0);
+        state.socialUntil = 0;
+      }
       // Reduced motion: hold the gaze still (no continuous micro-wander); only state-driven
       // posture/color changes remain. anime.js cadence loops are already disabled in that mode.
       if (!prefersReducedMotion && now >= (state.forcedUntil || 0) && now >= (state.fixation?.nextAt || 0)) {
@@ -3227,19 +3371,21 @@
       const saccade = updateMicroSaccade(now);
       const tx = state.targetX + micro.x + saccade.x;
       const ty = state.targetY + micro.y + saccade.y;
-      const stiffness = state.mode === 'searching' || state.special === 'scan_sweep' ? 86 : 54;
-      const damping = state.mode === 'searching' || state.special === 'scan_sweep' ? 15 : 12;
-      state.vx += (tx - state.x) * stiffness * dt;
-      state.vy += (ty - state.y) * stiffness * dt;
-      if (Math.hypot(tx - state.x, ty - state.y) > 38) {
-        state.vx *= 0.35;
-        state.vy *= 0.35;
+      if (!updatePrimarySaccade(now)) {
+        const stiffness = state.mode === 'searching' || state.special === 'scan_sweep' ? 86 : 54;
+        const damping = state.mode === 'searching' || state.special === 'scan_sweep' ? 15 : 12;
+        state.vx += (tx - state.x) * stiffness * dt;
+        state.vy += (ty - state.y) * stiffness * dt;
+        if (Math.hypot(tx - state.x, ty - state.y) > 38) {
+          state.vx *= 0.35;
+          state.vy *= 0.35;
+        }
+        state.vx *= Math.exp(-damping * dt);
+        state.vy *= Math.exp(-damping * dt);
+        state.x += state.vx * dt;
+        state.y += state.vy * dt;
       }
-      state.vx *= Math.exp(-damping * dt);
-      state.vy *= Math.exp(-damping * dt);
-      state.x += state.vx * dt;
-      state.y += state.vy * dt;
-      renderConceptBEyeMotion({ root, hud, gazeGroup, iris, pupil, pupilGroup, glow, glowGradient, scanSweep, core, orbitSpin, lidTop, lidBottom, field, axisNodes, debugOverlay, bgA: bgParallax.a, bgB: bgParallax.b, glassSheen, glassCrescent, irisLattice, activityPanel }, state);
+      renderConceptBEyeMotion({ root, hud, gazeGroup, iris, pupil, pupilGroup, catchlights, glow, glowGradient, scanSweep, core, orbitSpin, lidTop, lidBottom, field, axisNodes, debugOverlay, bgA: bgParallax.a, bgB: bgParallax.b, glassSheen, glassCrescent, irisLattice, activityPanel }, state);
       state.raf = window.requestAnimationFrame(step);
     };
     // Kick the anime.js cadence loops once; setTarget re-arms them when a packet changes period.
@@ -3248,7 +3394,6 @@
     armRing();
     armFieldRings();
     armIrisLattice();
-    driftDots();
     scheduleNextMicro(performance.now());
     state.raf = window.requestAnimationFrame(step);
     hud.__cbEyeMotion = rig;
@@ -3274,6 +3419,7 @@
     const y = Number.isFinite(state.y) ? state.y : 0;
     const blink = Number.isFinite(state.blink) ? Math.max(0, Math.min(1, state.blink)) : 0;
     state.frame = (state.frame + 1) % 120;
+    state.eyeRenderCount = (state.eyeRenderCount || 0) + 1;
     if (parts.hud) {
       const edge = Math.min(1, Math.hypot(x, y) / CONCEPT_B_BIO_MOTION.gazeMaxHypot);
       setConceptBStyleProperty(parts.hud, '--cb-edge-rim-opacity', (CONCEPT_B_BIO_MOTION.edgeRimBase + CONCEPT_B_BIO_MOTION.edgeRimGain * edge).toFixed(3));
@@ -3287,8 +3433,8 @@
     // It also parallaxes gently with gaze (mid-depth layer behind the eye) so the instrument
     // housing reacts when the optic looks around, without swimming like the anchored telemetry arcs.
     if (parts.orbitSpin) setConceptBTransform(parts.orbitSpin, `translate(${(x * 0.14).toFixed(2)} ${(y * 0.14).toFixed(2)}) rotate(${(state.ringAngle % 360).toFixed(2)} 550 550)`);
-    // Blink is an anime.js cadence loop writing state.blink (0..1). Render it as a
-    // symmetric lid pinch over the lens, not by scaling the iris/pupil. Scaling the
+    // Blink is an anime.js cadence loop writing state.blink (0..1). Render it as an
+    // upper-lid-dominant closure over the lens, not by scaling the iris/pupil. Scaling the
     // asymmetric catchlights toward center reads as a down-right dart on the physical panel.
     // Upper lid follows vertical gaze: down-gaze drops the lid with the eye, up-gaze
     // widens it slightly. Coupling posture to gaze is one of the strongest "this is an
@@ -3297,7 +3443,8 @@
     const gazeUp = Math.max(0, Math.min(1, -y / 30));
     const lidFollow = gazeDown * CONCEPT_B_VITALS.lidGazeFollow;
     const lidWiden = gazeUp * CONCEPT_B_VITALS.lidGazeFollow * 0.5;
-    const lidFrac = Math.max(Math.max(0, state.lid - lidWiden), blink);
+    const socialLift = Math.max(0, Number(state.socialLift) || 0);
+    const lidFrac = Math.max(Math.max(0, state.lid - lidWiden - socialLift), blink);
     // Pupil composes intent (posture + flash) with involuntary life (hippus + regard swell).
     const effPupil = Math.max(0.60, Math.min(1.35, state.pupil + (Number(state.pupilFlash) || 0) + (Number(state.hippus) || 0) + (Number(state.regard) || 0)));
     // Scale the whole pupil assembly so the pupil, catchlights, and specular dots stay
@@ -3305,12 +3452,23 @@
     // looking like fixed screen artifacts as the eye breathes or changes state.
     if (parts.pupilGroup) setConceptBTransform(parts.pupilGroup, `translate(550 550) scale(${effPupil.toFixed(3)}) translate(-550 -550)`);
     if (parts.pupil) setConceptBAttribute(parts.pupil, 'r', '44');
+    // Reflections belong to the fixed room light, not to a free-running particle loop. They
+    // counter-parallax a fraction of the iris motion while remaining safely inside the pupil.
+    const catchlightProfiles = [
+      { x: 540, y: 536, px: 0.18, py: 0.14 },
+      { x: 566, y: 562, px: 0.11, py: 0.10 },
+    ];
+    parts.catchlights?.forEach((dot, index) => {
+      const profile = catchlightProfiles[index] || catchlightProfiles[1];
+      setConceptBAttribute(dot, 'cx', (profile.x - x * profile.px).toFixed(2));
+      setConceptBAttribute(dot, 'cy', (profile.y - y * profile.py).toFixed(2));
+    });
     if (parts.glassSheen) setConceptBTransform(parts.glassSheen, `translate(${(-x * 0.18).toFixed(2)} ${(-y * 0.14).toFixed(2)})`);
     if (parts.glassCrescent) setConceptBTransform(parts.glassCrescent, `translate(${(-x * 0.10).toFixed(2)} ${(-y * 0.08).toFixed(2)})`);
     // Lattice rotation is the anime.js irisAngle loop; the slight counter-gaze lag layers
     // it between the lens body and the glass sheen so the iris reads as depth, not a decal.
     if (parts.irisLattice) setConceptBTransform(parts.irisLattice, `translate(${(-x * 0.07).toFixed(2)} ${(-y * 0.05).toFixed(2)}) rotate(${(state.irisAngle % 360).toFixed(2)} 550 550)`);
-    renderConceptBLids(parts.lidTop, parts.lidBottom, lidFrac, state.upperBias + lidFollow, state.lowerBias + lidFollow * 0.45);
+    renderConceptBLids(parts.lidTop, parts.lidBottom, lidFrac, Math.max(0, state.upperBias + lidFollow - socialLift), state.lowerBias + lidFollow * 0.45, x);
     if (parts.glow) {
       setConceptBAttribute(parts.glow, 'cx', (550 + x * 0.42).toFixed(2));
       setConceptBAttribute(parts.glow, 'cy', (550 + y * 0.42).toFixed(2));
@@ -3348,6 +3506,11 @@
     if (!field?.root) return;
     const now = performance.now();
     const reducedMotion = prefersReducedMotion;
+    // The eye remains at display RAF cadence. Ambient instrumentation is deliberately
+    // half-rate with a 30 ms floor, preserving responsive gaze while reducing SVG churn.
+    if (!reducedMotion && (((state.eyeRenderCount || 0) % 2) !== 0 || (field.__lastRenderAt && now - field.__lastRenderAt < 30))) return;
+    field.__lastRenderAt = now;
+    state.fieldRenderCount = (state.fieldRenderCount || 0) + 1;
     const mode = state.mode || 'idle_watch';
     const active = ['reasoning', 'planning', 'tool_shell', 'writing', 'searching'].includes(mode) || state.special === 'scan_sweep';
     const blocked = ['blocked', 'critical', 'degraded_offline'].includes(mode);
@@ -3469,8 +3632,10 @@
     const opticSpecial = safeDisplayText(puppet?.special || 'none', 32).replace(/[^a-z0-9_-]+/gi, '_');
     setConceptBDataset(hud, 'puppetMode', opticMode);
     setConceptBDataset(hud, 'opticMode', opticMode);
+    setConceptBDataset(document.body, 'opticMode', opticMode);
     setConceptBDataset(hud, 'puppetSpecial', opticSpecial);
     setConceptBDataset(hud, 'opticSpecial', opticSpecial);
+    setConceptBStyleProperty(hud, '--cb-catchlight-opacity', String(clamp01(puppet?.eyes?.catchlight_opacity ?? 0.72)));
     applyConceptBFieldVars(hud, opticMode, opticSpecial);
 
     const eyeMotion = ensureConceptBEyeMotion(hud);
@@ -3490,8 +3655,8 @@
     const blinkMs = Math.max(800, Math.min(12000, Number(puppet?.blink?.interval_ms) || 5200));
     const ringMs = Math.max(6000, Math.min(420000, (Number(puppet?.ring?.period_s) || 34) * 1000));
     const breathMs = Math.max(2400, Math.min(8000, (Number(puppet?.breath?.period_s) || 5.2) * 1000));
-    // Reference captures move the whole optic as one eyeball-like assembly.
-    // Drive it through the Concept B motion rig so gaze changes become smooth saccades,
+    // The fixed socket frames a moving iris/pupil assembly.
+    // Drive the inner optic through the Concept B motion rig so gaze changes become bounded saccades,
     // and the glow/background parallax follows the eye instead of sitting behind it.
     // lid/blinkMs/ringMs/breathMs re-arm the anime.js cadence loops + eased posture tweens.
     eyeMotion.setTarget({
@@ -3541,14 +3706,18 @@
     }
   }
 
-  function renderConceptBLids(top, bottom, lid, upperBias = 0, lowerBias = 0) {
+  function renderConceptBLids(top, bottom, lid, upperBias = 0, lowerBias = 0, gazeX = 0) {
     const amount = Math.max(0, Math.min(1, lid));
     const topY = 374;
     const bottomY = 726;
-    const topH = Math.max(0, 176 * Math.max(0, Math.min(1, amount + (Number(upperBias) || 0))));
-    const bottomH = Math.max(0, 176 * Math.max(0, Math.min(1, amount + (Number(lowerBias) || 0))));
-    if (top) top.setAttribute('d', topH < 1 ? '' : `M 374 ${topY} H 726 V ${(topY + topH).toFixed(1)} C 650 ${(topY + topH + 18).toFixed(1)} 450 ${(topY + topH + 18).toFixed(1)} 374 ${(topY + topH).toFixed(1)} Z`);
-    if (bottom) bottom.setAttribute('d', bottomH < 1 ? '' : `M 374 ${bottomY} H 726 V ${(bottomY - bottomH).toFixed(1)} C 650 ${(bottomY - bottomH - 14).toFixed(1)} 450 ${(bottomY - bottomH - 14).toFixed(1)} 374 ${(bottomY - bottomH).toFixed(1)} Z`);
+    const fullTravel = bottomY - topY;
+    const topAmount = Math.max(0, Math.min(1, amount + (Number(upperBias) || 0)));
+    const bottomAmount = Math.max(0, Math.min(1, amount + (Number(lowerBias) || 0)));
+    const topH = fullTravel * 0.82 * topAmount;
+    const bottomH = fullTravel * 0.18 * bottomAmount;
+    const curveShift = Math.max(-18, Math.min(18, (Number(gazeX) || 0) * 0.55));
+    if (top) top.setAttribute('d', topH < 1 ? '' : `M 374 ${topY} H 726 V ${(topY + topH).toFixed(1)} C ${(650 + curveShift).toFixed(1)} ${(topY + topH + 18).toFixed(1)} ${(450 + curveShift).toFixed(1)} ${(topY + topH + 18).toFixed(1)} 374 ${(topY + topH).toFixed(1)} Z`);
+    if (bottom) bottom.setAttribute('d', bottomH < 1 ? '' : `M 374 ${bottomY} H 726 V ${(bottomY - bottomH).toFixed(1)} C ${(650 + curveShift * 0.45).toFixed(1)} ${(bottomY - bottomH - 14).toFixed(1)} ${(450 + curveShift * 0.45).toFixed(1)} ${(bottomY - bottomH - 14).toFixed(1)} 374 ${(bottomY - bottomH).toFixed(1)} Z`);
   }
 
   function clamp01(value) {
@@ -3738,6 +3907,24 @@
     const isCurrent = Boolean(work.active) && ageKnown && age <= CURRENT_WORK_MAX_AGE_SECONDS;
     const chips = buildActivityChips(work, ageKnown ? age : null, packet);
 
+    const resolver = live?.resolver || {};
+    const attentionFallback = ({
+      critical_local_issue: 'Critical local issue needs attention.',
+      blocked_user_task: 'Blocked user task needs Brian.',
+      needs_attention: 'Local warning needs attention.',
+    })[resolver.display_state];
+    if (attentionFallback) {
+      const contradictoryAttentionCopy = /(?:\bquiet watch\b|\bsystems? (?:steady|calm)\b|\bnothing needs attention\b|\ball monitored signals (?:are )?calm\b|\bwatching local systems quietly\b|\bno active turn\b|\b\d+\s+tasks?\s+queued\b|\bqueued calmly\b|\bonline\b|\blocal\s*[·-]\s*ready\b)/i;
+      const attentionSummary = [packet.caption?.text, work.summary, work.detail]
+        .map((value) => safeDisplayText(value, 58))
+        .find((value) => value && !contradictoryAttentionCopy.test(value));
+      return {
+        label: 'ATTENTION',
+        summary: displaySentence(attentionSummary || attentionFallback),
+        chips
+      };
+    }
+
     if (status.failures) {
       if (isCurrent) {
         return {
@@ -3753,7 +3940,6 @@
       };
     }
 
-    const resolver = live?.resolver || {};
     if (isCurrent) {
       return {
         label: 'CURRENT TASK',

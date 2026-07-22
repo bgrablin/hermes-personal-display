@@ -208,7 +208,7 @@ detect_audio_sink() {
 
 check_thermal_policy() {
   local path="/sys/devices/system/cpu/intel_pstate/max_perf_pct" value expected
-  expected="${HERMES_DISPLAY_MAX_PERF_PCT:-${PERSONAL_DISPLAY_MAX_PERF_PCT:-85}}"
+  expected="${HERMES_DISPLAY_MAX_PERF_PCT:-${PERSONAL_DISPLAY_MAX_PERF_PCT:-80}}"
   if [[ ! -r "$path" ]]; then
     echo "WARN thermal policy: $path unavailable"
     return 0

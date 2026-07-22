@@ -16,6 +16,7 @@ from __future__ import annotations
 
 import datetime as dt
 import json
+import math
 import os
 import re
 import subprocess
@@ -24,6 +25,7 @@ import time
 from pathlib import Path
 from typing import Any
 import urllib.error
+import urllib.parse
 import urllib.request
 
 HOME = Path(os.path.expanduser("~"))
@@ -31,6 +33,13 @@ PROJECT_ROOT = Path(__file__).resolve().parents[1]
 LOG_PATH = HOME / ".hermes/logs/agent.log"
 OUT_PATH = HOME / ".hermes/display/provider_route_rail.json"
 CCUSAGE_BIN = Path(os.environ.get("HERMES_DISPLAY_CCUSAGE_BIN", PROJECT_ROOT / "node_modules/.bin/ccusage"))
+GH_BIN = Path(os.environ.get("HERMES_DISPLAY_GH_BIN", HOME / ".local/bin/gh"))
+GITHUB_API_VERSION = "2026-03-10"
+COPILOT_PLAN_CREDIT_LIMITS = {
+    "pro": 1500.0,
+    "pro-plus": 7000.0,
+    "max": 20000.0,
+}
 
 # Per-provider plan budgets, expressed as a rolling-window request cap.
 # Subscription tier caps are public guidance; tune as needed.
@@ -338,6 +347,158 @@ def fetch_copilot_reachable() -> bool:
     return False
 
 
+def _copilot_plan() -> str:
+    raw = str(os.environ.get("HERMES_DISPLAY_COPILOT_PLAN") or "").strip().lower()
+    normalized = raw.replace("_", "-").replace("+", "-plus").replace(" ", "-")
+    aliases = {
+        "proplus": "pro-plus",
+        "pro--plus": "pro-plus",
+        "copilot-pro": "pro",
+        "copilot-pro-plus": "pro-plus",
+        "copilot-max": "max",
+    }
+    return aliases.get(normalized, normalized)
+
+
+def _copilot_credit_limit() -> float | None:
+    override = str(os.environ.get("HERMES_DISPLAY_COPILOT_CREDIT_LIMIT") or "").strip()
+    if override:
+        try:
+            value = float(override)
+            if math.isfinite(value) and 0 < value <= 1_000_000_000:
+                return value
+        except ValueError:
+            return None
+        return None
+    return COPILOT_PLAN_CREDIT_LIMITS.get(_copilot_plan())
+
+
+def _next_month_reset_epoch(now: dt.datetime) -> float:
+    if now.month == 12:
+        reset = dt.datetime(now.year + 1, 1, 1, tzinfo=dt.timezone.utc)
+    else:
+        reset = dt.datetime(now.year, now.month + 1, 1, tzinfo=dt.timezone.utc)
+    return reset.timestamp()
+
+
+def _copilot_billing_tokens() -> list[str]:
+    _load_hermes_env_and_path()
+    tokens: list[str] = []
+    for name in (
+        "HERMES_DISPLAY_GITHUB_TOKEN",
+        "GITHUB_TOKEN",
+        "GH_TOKEN",
+        "COPILOT_GITHUB_TOKEN",
+    ):
+        token = str(os.environ.get(name) or "").strip()
+        if token and token not in tokens:
+            tokens.append(token)
+    if GH_BIN.is_file():
+        try:
+            result = subprocess.run(
+                [str(GH_BIN), "auth", "token"],
+                text=True,
+                capture_output=True,
+                timeout=5,
+                check=False,
+            )
+            token = result.stdout.strip() if result.returncode == 0 else ""
+            if token and token not in tokens:
+                tokens.append(token)
+        except (OSError, subprocess.TimeoutExpired):
+            pass
+    return tokens
+
+
+def _github_json(url: str, token: str) -> dict:
+    request = urllib.request.Request(
+        url,
+        headers={
+            "Authorization": f"Bearer {token}",
+            "Accept": "application/vnd.github+json",
+            "X-GitHub-Api-Version": GITHUB_API_VERSION,
+            "User-Agent": "hermes-personal-display",
+        },
+        method="GET",
+    )
+    with urllib.request.urlopen(request, timeout=12.0) as response:
+        payload = json.loads(response.read().decode("utf-8")) or {}
+    return payload if isinstance(payload, dict) else {}
+
+
+def _copilot_billing_account(token: str) -> str | None:
+    configured = str(os.environ.get("HERMES_DISPLAY_COPILOT_ACCOUNT") or "").strip()
+    account_pattern = r"[A-Za-z0-9](?:[A-Za-z0-9-]{0,37}[A-Za-z0-9])?"
+    if configured and re.fullmatch(account_pattern, configured):
+        return configured
+    payload = _github_json("https://api.github.com/user", token)
+    login = str(payload.get("login") or "").strip()
+    return login if login and re.fullmatch(account_pattern, login) else None
+
+
+def fetch_copilot_usage() -> dict[str, Any] | None:
+    """Return confirmed Copilot AI-credit usage from GitHub's billing API.
+
+    Personal-plan allowance comes from an explicit local plan or credit-limit
+    setting. If GitHub reports consumption but no limit is configured, retain
+    the confirmed credits-used value without inventing percentage headroom.
+    """
+    try:
+        tokens = _copilot_billing_tokens()
+    except Exception as exc:
+        print(f"copilot billing credential load failed: {type(exc).__name__}", file=sys.stderr)
+        return None
+    if not tokens:
+        return None
+
+    now = dt.datetime.now(dt.timezone.utc)
+    query = urllib.parse.urlencode({"year": now.year, "month": now.month})
+    for token in tokens:
+        try:
+            account = _copilot_billing_account(token)
+            if not account:
+                continue
+            payload = _github_json(
+                f"https://api.github.com/users/{account}/settings/billing/ai_credit/usage?{query}",
+                token,
+            )
+            items = payload.get("usageItems")
+            if not isinstance(items, list):
+                continue
+            credits_used = 0.0
+            for item in items:
+                if not isinstance(item, dict):
+                    continue
+                unit = str(item.get("unitType") or "").strip().lower()
+                if unit not in {"ai-credits", "credits"}:
+                    continue
+                # grossQuantity is total AI-credit consumption before included
+                # allowance discounts. netQuantity can be zero while allowance
+                # was still consumed.
+                try:
+                    quantity = float(item.get("grossQuantity") or 0.0)
+                except (TypeError, ValueError):
+                    continue
+                if quantity >= 0:
+                    credits_used += quantity
+            credit_limit = _copilot_credit_limit()
+            headroom = None
+            if credit_limit is not None:
+                headroom = max(0.0, min(1.0, 1.0 - credits_used / credit_limit))
+            plan = _copilot_plan()
+            tier = {"pro": "PRO", "pro-plus": "PRO+", "max": "MAX"}.get(plan, "CREDITS")
+            return {
+                "headroom": headroom,
+                "credits_used": credits_used,
+                "credits_limit": credit_limit,
+                "tier_label": tier,
+                "reset_at_epoch_s": _next_month_reset_epoch(now),
+            }
+        except Exception:
+            continue
+    return None
+
+
 def apply_verified_reachability(providers: list[dict]) -> None:
     """Promote safely probed unmetered providers to READY semantics."""
     if not fetch_copilot_reachable():
@@ -425,6 +586,7 @@ def apply_confirmed_quota(providers: list[dict]) -> None:
     codex_headroom, codex_secondary, codex_tier, codex_reset_at = fetch_codex_headroom()
     anthropic_headroom, anthropic_secondary, anthropic_reset_at = fetch_anthropic_headroom()
     nous_headroom, nous_tier, nous_reset_at = fetch_nous_headroom()
+    copilot_usage = fetch_copilot_usage()
 
     quota_updates: dict[str, dict[str, Any]] = {}
     if codex_headroom is not None:
@@ -452,6 +614,17 @@ def apply_confirmed_quota(providers: list[dict]) -> None:
             "secondary_headroom": None,
             "tier_label": nous_tier or PROVIDER_PLAN["nous"]["tier_label"],
             "reset_at_epoch_s": nous_reset_at,
+            "last_used_age_s": 0,
+        }
+    if copilot_usage is not None:
+        quota_updates["copilot"] = {
+            "state": "confirmed",
+            "headroom": copilot_usage.get("headroom"),
+            "secondary_headroom": None,
+            "credits_used": copilot_usage.get("credits_used"),
+            "credits_limit": copilot_usage.get("credits_limit"),
+            "tier_label": copilot_usage.get("tier_label") or "CREDITS",
+            "reset_at_epoch_s": copilot_usage.get("reset_at_epoch_s"),
             "last_used_age_s": 0,
         }
 
@@ -500,6 +673,8 @@ def build_providers(now: float, counts: dict[str, dict]) -> tuple[list[dict], st
             "state": state,
             "headroom": headroom,
             "secondary_headroom": None,
+            "credits_used": None,
+            "credits_limit": None,
             "reachable": True,
             "last_used_age_s": last_age,
             "stale_age_s": None,

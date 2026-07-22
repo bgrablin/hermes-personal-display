@@ -129,3 +129,107 @@ def test_display_server_passes_route_reset_at_epoch_s(tmp_path: Path, monkeypatc
 
     assert rail["providers"][0]["headroom"] == 0.0
     assert rail["providers"][0]["reset_at_epoch_s"] == pytest.approx(reset_at)
+
+
+def test_display_server_passes_sanitized_copilot_credit_usage(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    route_path = tmp_path / "provider_route_rail.json"
+    route_path.write_text(
+        json.dumps(
+            {
+                "as_of_ms": int(time.time() * 1000),
+                "active_provider_id": "copilot",
+                "providers": [
+                    {
+                        "id": "copilot",
+                        "label": "COPILOT",
+                        "tier_label": "PRO",
+                        "rank": 4,
+                        "state": "confirmed",
+                        "headroom": 0.7,
+                        "secondary_headroom": None,
+                        "credits_used": 450.25,
+                        "credits_limit": 1500,
+                        "reachable": True,
+                        "last_used_age_s": 0,
+                        "stale_age_s": None,
+                        "account": "must-not-pass",
+                    }
+                ],
+            }
+        ),
+        encoding="utf-8",
+    )
+    monkeypatch.setattr(server, "PROVIDER_ROUTE_RAIL_PATH", route_path)
+
+    rail = server.load_provider_route_rail()
+
+    copilot = rail["providers"][0]
+    assert copilot["credits_used"] == pytest.approx(450.25)
+    assert copilot["credits_limit"] == pytest.approx(1500)
+    assert "account" not in copilot
+
+
+def test_display_server_rejects_invalid_copilot_credit_usage(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    route_path = tmp_path / "provider_route_rail.json"
+    route_path.write_text(
+        json.dumps(
+            {
+                "as_of_ms": int(time.time() * 1000),
+                "providers": [
+                    {
+                        "id": "copilot",
+                        "label": "COPILOT",
+                        "rank": 4,
+                        "state": "confirmed",
+                        "headroom": None,
+                        "credits_used": "not-a-number",
+                        "credits_limit": -1,
+                    }
+                ],
+            }
+        ),
+        encoding="utf-8",
+    )
+    monkeypatch.setattr(server, "PROVIDER_ROUTE_RAIL_PATH", route_path)
+
+    copilot = server.load_provider_route_rail()["providers"][0]
+
+    assert copilot["credits_used"] is None
+    assert copilot["credits_limit"] is None
+
+
+def test_display_server_expires_copilot_credit_usage_with_old_route_artifact(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    route_path = tmp_path / "provider_route_rail.json"
+    route_path.write_text(
+        json.dumps(
+            {
+                "as_of_ms": int((time.time() - 3_700) * 1000),
+                "active_provider_id": "copilot",
+                "providers": [
+                    {
+                        "id": "copilot",
+                        "label": "COPILOT",
+                        "tier_label": "PRO",
+                        "rank": 4,
+                        "state": "confirmed",
+                        "headroom": 0.7,
+                        "credits_used": 450,
+                        "credits_limit": 1500,
+                    }
+                ],
+            }
+        ),
+        encoding="utf-8",
+    )
+    monkeypatch.setattr(server, "PROVIDER_ROUTE_RAIL_PATH", route_path)
+
+    rail = server.load_provider_route_rail()
+    copilot = rail["providers"][0]
+
+    assert copilot["state"] == "unknown"
+    assert copilot["headroom"] is None
+    assert copilot["credits_used"] is None
+    assert copilot["credits_limit"] is None
+    assert rail["active_provider_id"] == ""

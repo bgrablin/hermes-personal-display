@@ -2833,12 +2833,13 @@ body.kiosk-mode.kiosk-landscape.claude-concept-b .cb-eye-lens {
 body.kiosk-mode.kiosk-landscape.claude-concept-b .cb-eye-gaze,
 body.kiosk-mode.kiosk-landscape.claude-concept-b .cb-eye-iris,
 body.kiosk-mode.kiosk-landscape.claude-concept-b .cb-eye-pupil-group {
-  transform-origin: 550px 550px;
-  transform-box: view-box;
+  /* app.js writes explicit SVG translate/scale pivots. A CSS transform-origin here double-pivots
+     nested scales in Chromium and pushes the pupil/catchlights toward the lens edge. */
   transition: none;
 }
 
 body.kiosk-mode.kiosk-landscape.claude-concept-b .cb-eye-gaze,
+body.kiosk-mode.kiosk-landscape.claude-concept-b .cb-eye-iris,
 body.kiosk-mode.kiosk-landscape.claude-concept-b .cb-eye-pupil-group {
   will-change: transform;
 }
@@ -2949,7 +2950,7 @@ body.kiosk-mode.kiosk-landscape.claude-concept-b .cb-eye-dot {
   /* Specular catchlights: a bright near-white core tinted by the mode accent, so they read as
      reflections off something shiny — brighter than the halo, same hue family. */
   fill: color-mix(in srgb, rgb(255, 250, 238) 72%, var(--cb-accent));
-  opacity: 0.96;
+  opacity: var(--cb-catchlight-opacity, 0.72);
   filter: drop-shadow(0 0 9px color-mix(in srgb, var(--cb-accent) 60%, rgba(255, 250, 238, 0.6)));
   transition: fill 600ms ease, opacity 500ms ease;
 }
@@ -3514,4 +3515,80 @@ body.kiosk-mode.kiosk-landscape.claude-concept-b.family-theater .cb-mode-hold[da
   color: #fff8dc;
   border-color: color-mix(in srgb, #ffe7a0 58%, transparent);
   box-shadow: 0 0 22px rgba(247, 211, 107, 0.18);
+}
+
+/* Social-presence aperture: when Hermes meets the viewer, instrumentation yields to the
+   optic instead of competing with it. Alerts and stopped modes always retain full authority. */
+body.kiosk-mode.kiosk-landscape.claude-concept-b .cb-route-rail,
+body.kiosk-mode.kiosk-landscape.claude-concept-b .cb-activity,
+body.kiosk-mode.kiosk-landscape.claude-concept-b .cb-bottom-rail,
+body.kiosk-mode.kiosk-landscape.claude-concept-b .cb-field-instrumentation {
+  transition: opacity 320ms ease;
+}
+
+body.kiosk-mode.kiosk-landscape.claude-concept-b:is(
+  [data-social-presence="acknowledge"],
+  [data-social-presence="waiting"],
+  [data-social-presence="complete"],
+  [data-social-presence="presence"]
+):not([data-health="critical"]):not([data-cb-offline="true"]):not([data-optic-mode="blocked"]):not([data-optic-mode="critical"]):not([data-optic-mode="degraded_offline"]) .cb-route-rail {
+  opacity: 0.48;
+}
+
+body.kiosk-mode.kiosk-landscape.claude-concept-b:is(
+  [data-social-presence="acknowledge"],
+  [data-social-presence="waiting"],
+  [data-social-presence="complete"],
+  [data-social-presence="presence"]
+):not([data-health="critical"]):not([data-cb-offline="true"]):not([data-optic-mode="blocked"]):not([data-optic-mode="critical"]):not([data-optic-mode="degraded_offline"]) .cb-activity {
+  opacity: 0.62;
+}
+
+body.kiosk-mode.kiosk-landscape.claude-concept-b:is(
+  [data-social-presence="acknowledge"],
+  [data-social-presence="waiting"],
+  [data-social-presence="complete"],
+  [data-social-presence="presence"]
+):not([data-health="critical"]):not([data-cb-offline="true"]):not([data-optic-mode="blocked"]):not([data-optic-mode="critical"]):not([data-optic-mode="degraded_offline"]) .cb-bottom-rail {
+  opacity: 0.52;
+}
+
+body.kiosk-mode.kiosk-landscape.claude-concept-b:is(
+  [data-social-presence="acknowledge"],
+  [data-social-presence="waiting"],
+  [data-social-presence="complete"],
+  [data-social-presence="presence"]
+):not([data-health="critical"]):not([data-cb-offline="true"]):not([data-optic-mode="blocked"]):not([data-optic-mode="critical"]):not([data-optic-mode="degraded_offline"]) .cb-field-instrumentation {
+  opacity: 0.28;
+}
+
+body.kiosk-mode.kiosk-landscape.claude-concept-b:is(
+  [data-health="critical"],
+  [data-cb-offline="true"],
+  [data-optic-mode="blocked"],
+  [data-optic-mode="critical"],
+  [data-optic-mode="degraded_offline"]
+) .cb-route-rail,
+body.kiosk-mode.kiosk-landscape.claude-concept-b:is(
+  [data-health="critical"],
+  [data-cb-offline="true"],
+  [data-optic-mode="blocked"],
+  [data-optic-mode="critical"],
+  [data-optic-mode="degraded_offline"]
+) .cb-activity,
+body.kiosk-mode.kiosk-landscape.claude-concept-b:is(
+  [data-health="critical"],
+  [data-cb-offline="true"],
+  [data-optic-mode="blocked"],
+  [data-optic-mode="critical"],
+  [data-optic-mode="degraded_offline"]
+) .cb-bottom-rail,
+body.kiosk-mode.kiosk-landscape.claude-concept-b:is(
+  [data-health="critical"],
+  [data-cb-offline="true"],
+  [data-optic-mode="blocked"],
+  [data-optic-mode="critical"],
+  [data-optic-mode="degraded_offline"]
+) .cb-field-instrumentation {
+  opacity: 1;
 }

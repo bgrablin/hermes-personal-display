@@ -725,7 +725,16 @@
     get sequences() { return state.sequences; }
   };
   window.HermesWatchSequences = Object.freeze(watchApi);
-  window.addEventListener('sensor:motion:entry', () => { if (entertainmentEnabled()) playSequence('daily_creature_visit', { trigger: 'sensor:motion:entry:first-daily', zone: 'center' }) || playSequence('peek_a_blink', { trigger: 'sensor:motion:entry' }); });
+  window.addEventListener('sensor:motion:entry', () => {
+    // Notice the person before performing for them. The short delay preserves a readable
+    // acknowledgment beat and keeps room-entry presence useful even when entertainment is off.
+    window.__HERMES_CONCEPT_B_EYE_MOTION?.acknowledgeViewer?.('presence', 1400);
+    if (!entertainmentEnabled()) return;
+    timer(() => {
+      playSequence('daily_creature_visit', { trigger: 'sensor:motion:entry:first-daily', zone: 'center' })
+        || playSequence('peek_a_blink', { trigger: 'sensor:motion:entry' });
+    }, 220);
+  });
   window.addEventListener('hermes-watch-abort', abortCurrent);
   window.addEventListener('hermes-watch-speak-start', () => { document.body.dataset.watchSpeaking = 'true'; window.__HERMES_CONCEPT_B_EYE_MOTION?.pulse?.('notice'); });
   window.addEventListener('hermes-watch-speak-stop', () => { document.body.removeAttribute('data-watch-speaking'); window.__HERMES_CONCEPT_B_EYE_MOTION?.setTarget?.(currentOpticTarget()); });

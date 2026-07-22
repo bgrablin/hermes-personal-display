@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import math
 import os
 import re
 import subprocess
@@ -380,13 +381,25 @@ def load_provider_route_rail() -> dict:
                 return max(0.0, min(1.0, float(value)))
             except Exception:
                 return None
+        def safe_nonnegative_number(value):
+            if value is None or isinstance(value, bool):
+                return None
+            try:
+                number = float(value)
+            except (TypeError, ValueError):
+                return None
+            return number if math.isfinite(number) and number >= 0 else None
         label = re.sub(r"[^A-Z0-9]", "", str(item.get("label") or provider_id).upper())[:8] or "ROUTE"
         tier = re.sub(r"[^A-Z0-9/ ._-]", "", str(item.get("tier_label") or "").upper())[:12] or None
         headroom = safe_headroom(item.get("headroom"))
         secondary = safe_headroom(item.get("secondary_headroom"))
+        credits_used = safe_nonnegative_number(item.get("credits_used"))
+        credits_limit = safe_nonnegative_number(item.get("credits_limit"))
         if state in {"unknown", "error", "disabled"}:
             headroom = None
             secondary = None
+            credits_used = None
+            credits_limit = None
             if state == "unknown":
                 tier = None
         stale_age_s = int(item["stale_age_s"]) if item.get("stale_age_s") is not None else (age_seconds if state == "stale" else None)
@@ -398,6 +411,8 @@ def load_provider_route_rail() -> dict:
             "state": state,
             "headroom": headroom,
             "secondary_headroom": secondary,
+            "credits_used": credits_used,
+            "credits_limit": credits_limit,
             "reachable": item.get("reachable") if isinstance(item.get("reachable"), bool) else True,
             "last_used_age_s": int(item["last_used_age_s"]) if item.get("last_used_age_s") is not None else None,
             "stale_age_s": stale_age_s,

@@ -21,11 +21,11 @@
         "scale": 1.018
       },
       "eyes": {
-        "catchlight_opacity": 0.46,
-        "iris_scale": 0.82,
-        "lid": 0.42,
-        "lid_open": 0.58,
-        "pupil_scale": 0.78
+        "catchlight_opacity": 0.82,
+        "iris_scale": 0.9,
+        "lid": 0.24,
+        "lid_open": 0.76,
+        "pupil_scale": 0.84
       },
       "gaze": {
         "jitter": 0.0,
@@ -119,11 +119,11 @@
         "scale": 1.01
       },
       "eyes": {
-        "catchlight_opacity": 0.28,
-        "iris_scale": 0.82,
-        "lid": 0.55,
-        "lid_open": 0.45,
-        "pupil_scale": 0.8
+        "catchlight_opacity": 0.48,
+        "iris_scale": 0.88,
+        "lid": 0.28,
+        "lid_open": 0.72,
+        "pupil_scale": 0.86
       },
       "gaze": {
         "jitter": 0.0,

@@ -375,12 +375,12 @@ if (appSource.includes('pupilGroup.removeAttribute(\'transform\')')) {
 if (!appSource.includes("setConceptBTransform(parts.pupilGroup, `translate(550 550) scale(${effPupil.toFixed(3)}) translate(-550 -550)`)") || !appSource.includes("setConceptBAttribute(parts.pupil, 'r', '44')")) {
   fail('Concept B pupil dilation/blink must scale the full pupil group so catchlights/specular dots remain attached to the pupil.');
 }
-// Blink is the reference's signature motion. On the single-iris optic it must read as a
-// symmetric lid pinch over a stable lens, not as iris/pupil zoom or lower-right dart.
-// It is still driven by an anime.js cadence loop (state.blink), but the RAF flush keeps
-// gaze/iris/pupil transforms posture-only while lids occlude the eye.
-if (!appSource.includes('function armBlink()') || !appSource.includes('blink: 1, duration:') || appSource.includes('blinkHoldX') || appSource.includes('blinkZoom') || !appSource.includes('const lidFrac = Math.max(Math.max(0, state.lid - lidWiden), blink);') || !appSource.includes('const effPupil = Math.max(0.60, Math.min(1.35, state.pupil + (Number(state.pupilFlash) || 0) + (Number(state.hippus) || 0) + (Number(state.regard) || 0)))') || !appSource.includes('const topH = Math.max(0, 176 * Math.max(0, Math.min(1, amount + (Number(upperBias) || 0))))') || !appSource.includes('const bottomH = Math.max(0, 176 * Math.max(0, Math.min(1, amount + (Number(lowerBias) || 0))))') || !appSource.includes('renderConceptBLids(parts.lidTop, parts.lidBottom, lidFrac, state.upperBias + lidFollow, state.lowerBias + lidFollow * 0.45)')) {
-  fail('Concept B must blink via an anime.js cadence loop: symmetric lid pinch over stable iris/pupil on blink.interval_ms.');
+// Blink is the optic's signature motion. It must read as an upper-lid-dominant ocular closure
+// over a stable iris/pupil, not as a symmetric shutter, iris zoom, or lower-right dart.
+// It is still driven by an anime.js cadence loop (state.blink), while the RAF flush keeps
+// gaze/iris/pupil transforms posture-only and lets the asymmetrical lids occlude the eye.
+if (!appSource.includes('function armBlink()') || !appSource.includes('blink: 1, duration:') || appSource.includes('blinkHoldX') || appSource.includes('blinkZoom') || !appSource.includes('const lidFrac = Math.max(Math.max(0, state.lid - lidWiden - socialLift), blink);') || !appSource.includes('const effPupil = Math.max(0.60, Math.min(1.35, state.pupil + (Number(state.pupilFlash) || 0) + (Number(state.hippus) || 0) + (Number(state.regard) || 0)))') || !appSource.includes('const topH = fullTravel * 0.82 * topAmount;') || !appSource.includes('const bottomH = fullTravel * 0.18 * bottomAmount;') || !appSource.includes('renderConceptBLids(parts.lidTop, parts.lidBottom, lidFrac, Math.max(0, state.upperBias + lidFollow - socialLift), state.lowerBias + lidFollow * 0.45, x)')) {
+  fail('Concept B must blink via an anime.js cadence loop: upper-lid-dominant closure over stable iris/pupil on blink.interval_ms.');
 }
 // anime.js must actually drive the optic cadence + expressive transients, not just be loaded.
 requireAll(appSource, [
@@ -388,8 +388,14 @@ requireAll(appSource, [
   'function armBlink()', 'function armBreath()', 'function armRing()', 'function armScan()',
   'motion.animateValue(',
   'setConceptBTransform(parts.orbitSpin', 'state.ringAngle', 'state.scanAngle', 'setConceptBTransform(parts.core', 'state.breath',
-  'ripple(pulseCircle', 'fireModeTransition', 'function driftDots()',
-], 'anime.js must drive optic cadence (blink/breath/ring/scan), drifting catchlights, and one-shot transients (notice/complete/blocked/touch).');
+  'ripple(pulseCircle', 'fireModeTransition',
+], 'anime.js must drive optic cadence (blink/breath/ring/scan) and one-shot transients (notice/complete/blocked/touch).');
+requireAll(appSource, [
+  'const catchlightProfiles = [',
+  'parts.catchlights?.forEach((dot, index) => {',
+  "setConceptBAttribute(dot, 'cx', (profile.x - x * profile.px).toFixed(2))",
+  "setConceptBAttribute(dot, 'cy', (profile.y - y * profile.py).toFixed(2))",
+], 'Catchlights must remain attached to deterministic room-light profiles with bounded gaze counter-parallax, not free-running drift.');
 // Involuntary vitals layer: hippus/sigh/regard/spark plus lid-gaze coupling are what make
 // the optic read as alive rather than instrumented. Each has a parking/eligibility rule
 // that must not silently regress.
@@ -424,20 +430,20 @@ if (!(doubleBlinkChance > 0 && doubleBlinkChance <= 0.3)) {
 if (!stateSource.includes('MODE_OPTIC_POSTURE') || !stateSource.includes('...(MODE_OPTIC_POSTURE[packet.mode]')) {
   fail('opticPacketToPersonaPacket must re-attach per-mode posture so previewed modes are not all flat idle.');
 }
-if (!appSource.includes('<g class="cb-eye-gaze">')) {
-  fail('Concept B must wrap the optic core in cb-eye-gaze so the eyeball looks around together.');
+if (!appSource.includes('<g class="cb-eye-socket">') || !appSource.includes('<g class="cb-eye-window" clip-path="url(#cb-eye-lens-clip)">') || !appSource.includes('<g class="cb-eye-gaze">')) {
+  fail('Concept B must keep a fixed eye socket/window around the independently moving cb-eye-gaze iris/pupil assembly.');
 }
 if (!appSource.includes('<g class="cb-orbit-spin"><circle class="cb-orbit cb-orbit-main"')) {
-  fail('The outer animated ring must have a dedicated rotating wrapper so the ring remains visibly animated while the eye assembly moves.');
+  fail('The outer animated ring must have a dedicated rotating wrapper so it remains animated independently of the inner-eye gaze assembly.');
 }
 if (!appSource.includes("setConceptBTransform(parts.gazeGroup, `translate(${x.toFixed(2)} ${y.toFixed(2)})`)")) {
-  fail('Optic gaze must translate cb-eye-gaze through the RAF eye-motion rig, not only the iris or pupil.');
+  fail('Optic gaze must translate the clipped cb-eye-gaze iris/pupil assembly through the RAF eye-motion rig.');
 }
 if (!appSource.includes("setConceptBTransform(parts.iris, `translate(550 550) scale(${state.iris.toFixed(3)}) translate(-550 -550)`)") || !appSource.includes('eyeMotion.setTarget')) {
-  fail('Iris transform should be smooth dilation only; gaze target belongs to cb-eye-gaze.');
+  fail('Iris transform should be smooth dilation only; gaze translation belongs to the nested cb-eye-gaze assembly.');
 }
 if (!appSource.includes('<circle class="cb-eye-lens"')) {
-  fail('The dark lens circle must remain in the transformed eye markup.');
+  fail('The dark lens circle must remain anchored in the fixed eye socket markup.');
 }
 requireAll(appSource, ['cb-bg-parallax-a', 'cb-bg-parallax-b', 'cb-core-glow', '.cb-axis, .cb-cardinal'], 'Eye motion must carry the center glow, background parallax layers, and nearby highlight/axis cues with gaze.');
 requireAll(cssSource, ['.cb-bg-parallax-a', '.cb-bg-parallax-b', 'radial-gradient(circle at 50% 44.85%', 'radial-gradient(circle at 50% 58.09%', 'transition: none;'], 'Concept B background gradient must parallax with gaze via transform-only layers and preserve viewport-equivalent halo placement.');
@@ -497,7 +503,10 @@ requireAll(appSource, [
   'for (let i = 0; i < 5; i += 1)',
   "state === 'inferred' && provider.reachable !== false ? 'READY'",
   "setConceptBDataset(row, 'hasHeadroom', knownHeadroom ? 'true' : 'false')",
-], 'Route rail must render five honest provider rows, including XAI, and distinguish unmetered READY routes from measured percentages.');
+  'formatRouteCredits(creditsUsed)',
+  "const creditsUsedSummary = knownCreditsUsed ? `${formatRouteCredits(creditsUsed)}` : ''",
+  "p.credits_used ?? ''",
+], 'Route rail must render five honest provider rows, including XAI, distinguish unmetered READY routes from measured percentages, and show confirmed Copilot credits when no limit exists.');
 requireAll(cssSource, ['right: 64px', 'width: 430px', 'width: 104px', 'transform: scaleX(var(--route-headroom))', 'transition: transform 600ms ease, opacity 450ms ease', 'grid-template-columns: minmax(118px, auto) 80px', 'min-width: 76px', 'body.kiosk-mode.kiosk-landscape.claude-concept-b[data-cb-mode="active-turn"] .cb-activity', '[data-cb-mode="active-turn"] .cb-activity', 'background: transparent', 'box-shadow: none', 'font: 640 46px/1.06'], 'Route values must use a fixed aligned column clear of the route whisker, animate the whisker via transform instead of width, and active turns must promote body-scoped activity text without a box that blocks the optic.');
 if (!cssSource.includes('body.kiosk-mode.kiosk-landscape.claude-concept-b[data-cb-mode="active-turn"] .cb-activity')) {
   fail('Active-turn activity panel CSS must target body[data-cb-mode] so the promoted activity card actually applies.');
@@ -708,9 +717,16 @@ if (/cb-eye-dot-[abc][\s\S]{0,220}translate\(/.test(cssSource)) {
   fail('Concept B catchlights must not use independent translate() animations.');
 }
 if (/cb-eye-dot-pulse-[abc]/.test(cssSource)) {
-  fail('Concept B catchlight opacity shimmer must be owned by the anime.js driftDots loop, not independent CSS keyframes.');
+  fail('Concept B catchlights must not shimmer through independent CSS opacity keyframes.');
 }
-requireAll(appSource, ['d.omin', 'd.omax', "setConceptBStyleProperty(d.el, 'opacity'", "setConceptBAttribute(d.el, 'cx'", "setConceptBAttribute(d.el, 'cy'"], 'Concept B catchlight drift must keep position and opacity shimmer in one anime.js loop with cached writers.');
+requireAll(appSource, [
+  'const catchlightProfiles = [',
+  'parts.catchlights?.forEach((dot, index) => {',
+  "setConceptBStyleProperty(hud, '--cb-catchlight-opacity'",
+], 'Concept B catchlights must use stable room-light profiles with schema-driven opacity.');
+if (!cssSource.includes('opacity: var(--cb-catchlight-opacity, 0.72)')) {
+  fail('Concept B catchlight CSS must consume the schema-driven --cb-catchlight-opacity value.');
+}
 requireAll(appSource, [
   'const scanSweep = hud.querySelector(\'.cb-eye-scan\')',
   "setConceptBTransform(parts.scanSweep, `rotate(${sweepAngle.toFixed(2)} 550 550)`)",
@@ -728,11 +744,46 @@ requireAll(cssSource, [
   '.cb-eye-scan-line',
   'will-change: transform',
 ], 'Searching mode must keep the scan beam visible and transform-ready in the MINIX landscape runtime');
-for (const cls of ['cb-aperture-shell', 'cb-winglet-left', 'cb-winglet-right', 'cb-helmet-brow', 'cb-eye-lens', 'cb-eye-ring', 'cb-eye-grid', 'cb-eye-scan', 'cb-eye-pupil-group', 'cb-eye-lid-top', 'cb-eye-lid-bottom', 'cb-eye-lens-contents', 'cb-eye-lid-group']) {
-  const gazeIdx = appSource.indexOf('class="cb-eye-gaze"');
-  const closeIdx = appSource.indexOf('</g>\n        </g>\n        <g data-cb-arc="cpu"', gazeIdx);
+const socketIdx = appSource.indexOf('class="cb-eye-socket"');
+const windowIdx = appSource.indexOf('class="cb-eye-window"', socketIdx);
+const gazeIdx = appSource.indexOf('class="cb-eye-gaze"', windowIdx);
+const gazeEndIdx = appSource.indexOf('<!-- cb-eye-gaze:end -->', gazeIdx);
+const windowEndIdx = appSource.indexOf('<!-- cb-eye-window:end -->', gazeEndIdx);
+const socketEndIdx = appSource.indexOf('<!-- cb-eye-socket:end -->', windowEndIdx);
+if (![socketIdx, windowIdx, gazeIdx, gazeEndIdx, windowEndIdx, socketEndIdx].every((index) => index !== -1) ||
+    !(socketIdx < windowIdx && windowIdx < gazeIdx && gazeIdx < gazeEndIdx && gazeEndIdx < windowEndIdx && windowEndIdx < socketEndIdx)) {
+  fail('Concept B source must nest the moving gaze group inside the clipped eye window and fixed socket boundaries.');
+}
+const socketTagIdx = appSource.lastIndexOf('<g ', socketIdx);
+const socketBoundary = '<!-- cb-eye-socket:end -->';
+const socketMarkup = appSource.slice(socketTagIdx, socketEndIdx + socketBoundary.length);
+const groupStack = [];
+let windowAncestors = null;
+let gazeAncestors = null;
+for (const match of socketMarkup.matchAll(/<g\b[^>]*>|<\/g>/g)) {
+  const tag = match[0];
+  if (tag === '</g>') {
+    if (!groupStack.length) fail('Concept B eye socket SVG group nesting closes outside its source boundary.');
+    groupStack.pop();
+    continue;
+  }
+  const classes = (tag.match(/\bclass="([^"]*)"/)?.[1] || '').split(/\s+/).filter(Boolean);
+  const ancestors = groupStack.flatMap((group) => group.classes);
+  if (classes.includes('cb-eye-window')) windowAncestors = ancestors;
+  if (classes.includes('cb-eye-gaze')) gazeAncestors = ancestors;
+  groupStack.push({ classes });
+}
+if (socketTagIdx === -1 || groupStack.length || !windowAncestors?.includes('cb-eye-socket') || !gazeAncestors?.includes('cb-eye-window')) {
+  fail('Concept B source must structurally contain the clipped eye window in the socket and the moving gaze group in that window.');
+}
+for (const cls of ['cb-eye-iris', 'cb-eye-lens-contents', 'cb-iris-lattice', 'cb-eye-grid', 'cb-eye-scan', 'cb-eye-pupil-group']) {
   const clsIdx = appSource.indexOf(cls, gazeIdx);
-  if (gazeIdx === -1 || closeIdx === -1 || clsIdx === -1 || clsIdx > closeIdx) fail(`${cls} must remain inside the Concept B optic gaze group.`);
+  if (gazeIdx === -1 || gazeEndIdx === -1 || clsIdx === -1 || clsIdx >= gazeEndIdx) fail(`${cls} must remain inside the moving Concept B iris/pupil gaze group.`);
+}
+for (const cls of ['cb-aperture-shell', 'cb-winglet-left', 'cb-winglet-right', 'cb-helmet-brow', 'cb-eye-lens', 'cb-eye-ring', 'cb-eye-glass-sheen', 'cb-eye-glass-crescent', 'cb-eye-lid-top', 'cb-eye-lid-bottom', 'cb-eye-lid-group']) {
+  const clsIdx = appSource.indexOf(cls, socketIdx);
+  const insideGaze = clsIdx > gazeIdx && clsIdx < gazeEndIdx;
+  if (socketIdx === -1 || socketEndIdx === -1 || clsIdx === -1 || clsIdx >= socketEndIdx || insideGaze) fail(`${cls} must remain anchored in the fixed Concept B eye socket outside the moving gaze group.`);
 }
 if (!appSource.includes('installConceptBOpticDebug') || !appSource.includes('__HERMES_CONCEPT_B_EYE_MOTION')) {
   fail('Concept B must expose opticDebug/build-id and forced gaze hooks for physical QA.');
@@ -770,7 +821,7 @@ if (/__lastMoteBucket[\s\S]{0,400}Math\.round\(seconds\s*\*\s*60\)/.test(appSour
 }
 requireAll(cssSource, ['.cb-eye-gaze,', '.cb-eye-pupil-group {', 'will-change: transform;'], 'Hot Concept B gaze and pupil transform targets must retain compositor promotion hints.');
 requireAll(xsessionSource, ['--disable-backgrounding-occluded-windows', 'configure_audio', 'PERSONAL_DISPLAY_AUDIO_VOLUME', 'PERSONAL_DISPLAY_AUDIO_SINK'], 'Physical kiosk launcher must prevent Chromium from treating the kiosk as occluded/backgrounded and must use env-configured SF10T/HDMI audio.');
-requireAll(envExampleSource, ['PERSONAL_DISPLAY_AUDIO_SINK=alsa_output.pci-0000_00_1f.3.hdmi-stereo', 'PERSONAL_DISPLAY_OUTPUT=DP-2'], 'Display/audio hardware defaults must live in the env template, not be hard-coded into launcher logic.');
+requireAll(envExampleSource, ['PERSONAL_DISPLAY_AUDIO_SINK=alsa_output.pci-0000_00_1f.3.hdmi-stereo', 'PERSONAL_DISPLAY_OUTPUT=DP-2', 'HERMES_DISPLAY_COPILOT_ACCOUNT=github-login', 'HERMES_DISPLAY_COPILOT_PLAN=pro'], 'Display/audio hardware defaults and optional Copilot billing scope must live in the env template, not be hard-coded into runtime logic.');
 requireAll(displayCliSource, ['check_audio', 'configure_audio', 'HERMES_DISPLAY_AUDIO_VOLUME', 'setfacl -m', 'OK audio sink'], 'hermes-display CLI must verify and repair physical kiosk audio routing.');
 if (!appSource.includes('field.__tracePool')) {
   fail('Concept B gaze traces must reuse SVG path nodes instead of create/remove DOM nodes during RAF.');

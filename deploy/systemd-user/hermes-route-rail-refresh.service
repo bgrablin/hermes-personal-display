@@ -4,6 +4,7 @@ Documentation=https://github.com/bgrablin/hermes-personal-display
 
 [Service]
 Type=oneshot
+EnvironmentFile=-%h/.config/hermes-personal-display.env
 ExecStart=%h/.hermes/hermes-agent/venv/bin/python %h/.hermes/projects/personal-display/scripts/update_provider_route_rail.py
 Nice=10
 IOSchedulingClass=best-effort

@@ -54,7 +54,19 @@ Do not confuse `launch-kiosk.sh` with the live `xsession-minix-kiosk.sh` path. T
    PERSONAL_DISPLAY_OUTPUT_POS=0x0
    PERSONAL_DISPLAY_AUDIO_SINK=alsa_output.pci-0000_00_1f.3.hdmi-stereo
    PERSONAL_DISPLAY_AUDIO_VOLUME=90%
+   HERMES_DISPLAY_COPILOT_ACCOUNT=github-login
+   HERMES_DISPLAY_COPILOT_PLAN=pro
    ```
+
+   The route-rail refresh unit loads this file. Copilot headroom uses GitHub's
+   read-only billing API and needs either an existing `gh` login with billing
+   access or a protected Hermes token with personal `Plan: read` permission.
+   Keep tokens out of `~/.config/hermes-personal-display.env`, which is not a
+   secret store. This collector intentionally supports only the personal user
+   endpoint. Organization and enterprise billing require different endpoints
+   and permissions and are not represented as personal headroom. If consumption
+   is confirmed but no valid individual limit is available, the rail shows
+   credits used without inventing remaining percentage headroom.
 
 4. Enable the user timers/services as needed:
 
@@ -91,4 +103,4 @@ npm test
 ./scripts/hermes-display screenshot
 ```
 
-`hermes-display verify` checks the generated build id, canonical Chromium URL, configured display output geometry, audio sink/volume, and Intel p-state thermal policy (`max_perf_pct` target defaults to 85 on the Hermes NUC kiosk baseline).
+`hermes-display verify` checks the generated build id, canonical Chromium URL, configured display output geometry, audio sink/volume, and Intel p-state thermal policy (`max_perf_pct` target defaults to 80 on the Hermes NUC kiosk baseline).

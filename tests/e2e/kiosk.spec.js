@@ -728,7 +728,10 @@ test.describe('Hermes kiosk smoke and visual regression anchors', () => {
     expect(first.vitals.mode).toBe('idle_watch');
     expect(first.vitals.nextSighAt).toBeGreaterThan(0);
     expect(first.vitals.nextRegardAt).toBeGreaterThan(0);
-    await page.waitForTimeout(500);
+    await expect.poll(
+      () => page.evaluate(() => window.__HERMES_CONCEPT_B_EYE_MOTION.debug().hippus),
+      { timeout: 3000 },
+    ).not.toBe(first.hippus);
     const second = await page.evaluate(() => window.__HERMES_CONCEPT_B_EYE_MOTION.debug());
     // Continuous pupillary unrest: the hippus scalar moves between samples but stays subtle.
     expect(second.hippus).not.toBe(first.hippus);
@@ -839,7 +842,7 @@ test.describe('Hermes kiosk smoke and visual regression anchors', () => {
                 { id: 'openai-codex', label: 'CHATGPT', tier_label: 'PRO', state: 'confirmed', headroom: 0.79, reachable: true },
                 { id: 'anthropic', label: 'CLAUDE', tier_label: 'MAX', state: 'confirmed', headroom: 0.95, reset_at_epoch_s: Date.now() / 1000 + 10_800, reachable: true },
                 { id: 'google-gemini-cli', label: 'GEMINI', tier_label: 'CLI', state: 'confirmed', headroom: 1.0, reachable: true },
-                { id: 'copilot', label: 'COPILOT', tier_label: '', state: 'unknown', headroom: null, reachable: true },
+                { id: 'copilot', label: 'COPILOT', tier_label: 'PRO', state: 'confirmed', headroom: 0.7, credits_used: 450, credits_limit: 1500, reset_at_epoch_s: Date.now() / 1000 + 900_000, reachable: true },
                 { id: 'xai-oauth', label: 'XAI', tier_label: 'SUPERGROK', state: 'inferred', headroom: null, reachable: true },
               ],
             },
@@ -864,8 +867,11 @@ test.describe('Hermes kiosk smoke and visual regression anchors', () => {
       opacity: Number.parseFloat(getComputedStyle(row).opacity),
     })));
     expect(collapseState.slice(0, 3).every((row) => row.collapsed === 'false' && row.opacity > 0.8)).toBe(true);
-    expect(collapseState[3]).toMatchObject({ label: 'COPILOT', state: 'unknown', collapsed: 'true' });
-    expect(collapseState[3].opacity).toBeLessThan(0.4);
+    expect(collapseState[3]).toMatchObject({ label: 'COPILOT', state: 'confirmed', collapsed: 'false' });
+    expect(collapseState[3].opacity).toBeGreaterThan(0.8);
+    await expect(page.locator('[data-route-value]').nth(3)).toHaveText('70%');
+    await expect(page.locator('[data-route-tier]').nth(3)).toContainText('450/1.5K CR');
+    await expect(page.locator('[data-route-tier]').nth(3)).toContainText('PRO');
     await expect(page.locator('[data-route-label]').nth(4)).toHaveText('XAI');
     await expect(page.locator('[data-route-value]').nth(4)).toHaveText('READY');
     await expect(page.locator('[data-route-tier]').nth(4)).toContainText('SUPERGROK');
@@ -891,6 +897,59 @@ test.describe('Hermes kiosk smoke and visual regression anchors', () => {
       }
       expect(row.valueRight).toBeLessThanOrEqual(row.nodeLeft - 8);
     }
+  });
+
+  test('Concept B route rail shows confirmed Copilot credits used without fake headroom', async ({ page }, testInfo) => {
+    test.skip(testInfo.project.name !== 'minix-sf10t-landscape', 'MINIX-only landscape project');
+    await page.route('**/api/hermes-state', async (route) => {
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({
+          schema_version: '0.4.0',
+          generated_at: new Date().toISOString(),
+          mood: 'idle_watchful',
+          skin: 'retro-robot-core',
+          state_preset: 'quiet_watch',
+          state_label: 'LOCAL WATCH',
+          caption: { text: 'Systems steady.', tone: 'calm', priority: 'ambient' },
+          snippet: { id: 'test', text: 'display-safe credits-used route test', kind: 'system', sensitivity: 'display_safe' },
+          live: {
+            gateway_ok: true,
+            tasks: 0,
+            freshness: { tier: 'fresh', valid_measurements: 5, stale_measurements: [] },
+            system: { cpu: 0.12, memory: 0.31, temp_c: 52, cpu_temp_c: 52, uptime: '3h' },
+            current_work: { active: false, summary: 'Systems steady.', age_seconds: 0, source: 'local' },
+            route_rail: {
+              as_of_ms: Date.now(),
+              age_seconds: 0,
+              active_provider_id: '',
+              providers: [
+                { id: 'openai-codex', label: 'CHATGPT', state: 'unknown', headroom: null, reachable: true },
+                { id: 'anthropic', label: 'CLAUDE', state: 'unknown', headroom: null, reachable: true },
+                { id: 'google-gemini-cli', label: 'GEMINI', state: 'unknown', headroom: null, reachable: true },
+                { id: 'copilot', label: 'COPILOT', tier_label: 'CREDITS', state: 'confirmed', headroom: null, credits_used: 126.25, credits_limit: null, reachable: true },
+                { id: 'xai-oauth', label: 'XAI', state: 'unknown', headroom: null, reachable: true },
+              ],
+            },
+          },
+          optic_state_packet: { mode: 'idle_watch', special: 'none', halo: { color: 'cyan', opacity: 0.3 }, ring: { period_s: 40, opacity: 0.35 }, breath: { period_s: 6, scale: 1.01 }, blink: { interval_ms: 6200 }, eyes: { lid_open: 1, pupil_scale: 1, iris_scale: 1 }, gaze: { offset_x: 0, offset_y: 0 } },
+          safety: { boundary: 'local_trusted_display', contains_credentials: false },
+        }),
+      });
+    });
+
+    await page.goto(`${runtimeUrl('idle_watch', testInfo)}&live=1`);
+    const copilot = page.locator('.cb-route-row').nth(3);
+    await expect(copilot).toHaveAttribute('data-state', 'confirmed');
+    await expect(copilot).toHaveAttribute('data-has-headroom', 'false');
+    await expect(copilot.locator('[data-route-value]')).toHaveText('126');
+    await expect(copilot.locator('[data-route-tier]')).toContainText('126 CR USED');
+    await expect(copilot.locator('[data-route-tier]')).toContainText('CREDITS');
+    expect(await copilot.evaluate((row) => ({
+      track: Number.parseFloat(getComputedStyle(row.querySelector('.cb-route-track')).opacity),
+      whisker: Number.parseFloat(getComputedStyle(row.querySelector('.cb-route-whisker')).opacity),
+    }))).toEqual({ track: 0, whisker: 0 });
   });
 
   test('Concept B route rail provider handoff reads as a row event', async ({ page }, testInfo) => {
@@ -1012,6 +1071,45 @@ test.describe('Hermes kiosk smoke and visual regression anchors', () => {
     await expect(page.locator('[data-cb-task-dot]')).toHaveClass(/ok/);
     await expect(page.locator('.cb-radial-stage')).toHaveAttribute('data-optic-mode', 'idle_watch');
     await expect(page.locator('.cb-radial-stage')).toHaveAttribute('data-optic-special', 'none');
+  });
+
+  test('Concept B blocked task uses attention copy instead of quiet-watch queue copy', async ({ page }, testInfo) => {
+    test.skip(testInfo.project.name !== 'minix-sf10t-landscape', 'MINIX-only landscape project');
+    await page.route('**/api/hermes-state', async (route) => {
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({
+          schema_version: '0.4.0',
+          generated_at: new Date().toISOString(),
+          mood: 'blocked_annoyed',
+          skin: 'retro-amber-watch',
+          state_preset: 'blocked',
+          state_label: 'BLOCKED',
+          caption: { text: 'Quiet watch. Nothing needs attention.', tone: 'calm', priority: 'ambient' },
+          live: {
+            gateway_ok: true,
+            freshness: { tier: 'fresh', valid_measurements: 3, stale_measurements: [] },
+            system: { cpu: 0.20, memory: 0.40, temp_c: 54, cpu_temp_c: 54, uptime: '1d' },
+            current_work: { active: false, state: 'blocked', summary: '1 task queued. Quiet watch.', age_seconds: 30, source: 'kanban' },
+            kanban: { active: 1, queued: 1, blocked: 1 },
+            resolver: { display_state: 'blocked_user_task', priority: 100, reason_codes: ['blocked_user_task'] },
+            route_rail: { as_of_ms: null, age_seconds: null, active_provider_id: '', providers: [] },
+          },
+          optic_state_packet: { mode: 'blocked' },
+          safety: { boundary: 'local_trusted_display', contains_credentials: false },
+        }),
+      });
+    });
+    await page.goto(`${runtimeUrl('blocked', testInfo)}&live=1`);
+    await expect(page.locator('[data-cb-state]')).toHaveText('BLOCKED');
+    await expect(page.locator('[data-cb-activity]')).toHaveText('Blocked user task needs Brian.');
+    await expect(page.locator('[data-cb-activity]')).not.toContainText('Quiet watch');
+    await expect(page.locator('[data-cb-source]')).toHaveText('KANBAN');
+    await expect(page.locator('[data-cb-top-alert]')).toHaveText('WAITING FOR BRIAN');
+    await expect(page.locator('[data-cb-top-alert-detail]')).toHaveText(/^BLOCKED USER TASK NEEDS BRI/);
+    await expect(page.locator('[data-cb-tasks]')).toHaveText('1 QUEUED');
+    await expect(page.locator('.cb-radial-stage')).toHaveAttribute('data-optic-mode', 'blocked');
   });
 
   test('Concept B live packet with only optic_state_packet.mode synchronizes XState behavior', async ({ page }, testInfo) => {
@@ -1218,7 +1316,10 @@ test.describe('Hermes kiosk smoke and visual regression anchors', () => {
     test.skip(testInfo.project.name !== 'minix-sf10t-landscape', 'MINIX-only landscape project');
     await page.goto(runtimeUrl('idle_watch', testInfo));
     const moteBefore = await page.locator('.cb-field-mote').first().evaluate((node) => [node.getAttribute('cx'), node.getAttribute('cy'), window.getComputedStyle(node).opacity].join(','));
-    await page.waitForTimeout(260);
+    await expect.poll(
+      () => page.locator('.cb-field-mote').first().evaluate((node) => [node.getAttribute('cx'), node.getAttribute('cy'), window.getComputedStyle(node).opacity].join(',')),
+      { timeout: 3000 },
+    ).not.toBe(moteBefore);
     const moteAfter = await page.locator('.cb-field-mote').first().evaluate((node) => [node.getAttribute('cx'), node.getAttribute('cy'), window.getComputedStyle(node).opacity].join(','));
     expect(moteAfter).not.toBe(moteBefore);
 
@@ -1385,12 +1486,67 @@ test.describe('Hermes kiosk smoke and visual regression anchors', () => {
     expect(observed.scaleSpread).toBeLessThan(0.02);
   });
 
-  test('optic blink uses symmetric lids while iris and pupil stay anchored', async ({ page }, testInfo) => {
+  test('optic gaze moves the inner iris while the socket and lids stay anchored', async ({ page }, testInfo) => {
+    test.skip(testInfo.project.name !== 'minix-sf10t-landscape', 'MINIX-only landscape project');
+    await page.goto(runtimeUrl('idle_watch', testInfo));
+    await page.waitForFunction(() => Boolean(window.__HERMES_CONCEPT_B_EYE_MOTION), null, { timeout: 8000 });
+
+    const snapshot = () => page.evaluate(() => {
+      const socket = document.querySelector('.cb-eye-socket');
+      const gaze = document.querySelector('.cb-eye-gaze');
+      return {
+        socketTransform: socket?.getAttribute('transform') || '',
+        gazeTransform: gaze?.getAttribute('transform') || '',
+      };
+    });
+
+    await page.evaluate(() => window.__HERMES_CONCEPT_B_EYE_MOTION.forceGaze('augury_left', 1200));
+    await expect.poll(() => page.evaluate(() => window.__HERMES_CONCEPT_B_EYE_MOTION.debug().x), { timeout: 5000 }).toBeLessThan(-20);
+    const left = await snapshot();
+    await page.evaluate(() => window.__HERMES_CONCEPT_B_EYE_MOTION.forceGaze('route_right', 1200));
+    await expect.poll(() => page.evaluate(() => window.__HERMES_CONCEPT_B_EYE_MOTION.debug().x), { timeout: 5000 }).toBeGreaterThan(20);
+    const right = await snapshot();
+
+    const structure = await page.evaluate(() => {
+      const socket = document.querySelector('.cb-eye-socket');
+      const gaze = document.querySelector('.cb-eye-gaze');
+      const fixedSelectors = [
+        '.cb-aperture-shell',
+        '.cb-helmet-brow',
+        '.cb-eye-lens',
+        '.cb-eye-ring',
+        '.cb-eye-glass-sheen',
+        '.cb-eye-lid-group',
+      ];
+      const movingSelectors = ['.cb-iris-lattice', '.cb-eye-pupil-group'];
+      return {
+        socketExists: Boolean(socket),
+        socketContainsGaze: Boolean(socket?.contains(gaze)),
+        fixedOutsideGaze: fixedSelectors.every((selector) => {
+          const node = document.querySelector(selector);
+          return Boolean(node && socket?.contains(node) && !gaze?.contains(node));
+        }),
+        movingInsideGaze: movingSelectors.every((selector) => {
+          const node = document.querySelector(selector);
+          return Boolean(node && gaze?.contains(node));
+        }),
+      };
+    });
+
+    expect(structure.socketExists).toBe(true);
+    expect(structure.socketContainsGaze).toBe(true);
+    expect(structure.fixedOutsideGaze).toBe(true);
+    expect(structure.movingInsideGaze).toBe(true);
+    expect(left.socketTransform).toBe(right.socketTransform);
+    expect(left.gazeTransform).not.toBe(right.gazeTransform);
+  });
+
+  test('optic blink is upper-lid dominant while iris and pupil stay anchored', async ({ page }, testInfo) => {
     test.skip(testInfo.project.name !== 'minix-sf10t-landscape', 'MINIX-only landscape project');
     await page.goto(runtimeUrl('searching', testInfo));
     await page.waitForFunction(() => Boolean(window.__HERMES_CONCEPT_B_EYE_MOTION), null, { timeout: 8000 });
-    // Trigger the blink and sample entirely in-browser at RAF cadence. The blink must be
-    // carried by symmetric lid paths, not by iris/pupil scale changes that drag catchlights.
+    // Trigger the blink and sample entirely in-browser at RAF cadence. A living optic closes
+    // mostly with the upper lid; the iris/pupil must not collapse like a camera aperture.
     const result = await page.evaluate(async () => {
       const scaleOf = (selector) => {
         const t = document.querySelector(selector)?.getAttribute('transform') || '';
@@ -1426,7 +1582,7 @@ test.describe('Hermes kiosk smoke and visual regression anchors', () => {
       const peak = active
         .map((s) => ({ ...s, topY: parseCloseY(s.top), bottomY: parseCloseY(s.bottom) }))
         .filter((s) => Number.isFinite(s.topY) && Number.isFinite(s.bottomY))
-        .sort((a, b) => Math.abs(a.topY - 550) + Math.abs(a.bottomY - 550) - (Math.abs(b.topY - 550) + Math.abs(b.bottomY - 550)))[0];
+        .sort((a, b) => Math.abs(a.topY - a.bottomY) - Math.abs(b.topY - b.bottomY))[0];
       return { before, samples, activeCount: active.length, peak };
     });
     const irisScales = result.samples.map((s) => s.iris).filter((v) => v != null);
@@ -1434,11 +1590,273 @@ test.describe('Hermes kiosk smoke and visual regression anchors', () => {
     expect(Math.max(...irisScales) - Math.min(...irisScales)).toBeLessThan(0.01);
     expect(Math.max(...pupilScales) - Math.min(...pupilScales)).toBeLessThan(0.01);
     expect(result.activeCount).toBeGreaterThan(0);
-    expect(result.peak.topY).toBeGreaterThan(535);
-    expect(result.peak.topY).toBeLessThan(565);
-    expect(result.peak.bottomY).toBeGreaterThan(535);
-    expect(result.peak.bottomY).toBeLessThan(565);
-    expect(Math.abs(result.peak.topY + result.peak.bottomY - 1100)).toBeLessThan(3);
+    const upperTravel = result.peak.topY - 374;
+    const lowerTravel = 726 - result.peak.bottomY;
+    expect(Math.abs(result.peak.topY - result.peak.bottomY)).toBeLessThan(3);
+    expect(upperTravel).toBeGreaterThan(lowerTravel * 3.5);
+    expect(result.peak.topY).toBeGreaterThan(640);
+    expect(result.peak.topY).toBeLessThan(680);
+  });
+
+  test('optic uses two stable catchlights with deterministic gaze counter-parallax', async ({ page }, testInfo) => {
+    test.skip(testInfo.project.name !== 'minix-sf10t-landscape', 'MINIX-only landscape project');
+    await page.goto(runtimeUrl('idle_watch', testInfo));
+    await page.waitForFunction(() => Boolean(window.__HERMES_CONCEPT_B_EYE_MOTION), null, { timeout: 8000 });
+
+    const result = await page.evaluate(async () => {
+      const rig = window.__HERMES_CONCEPT_B_EYE_MOTION;
+      const snapshot = () => ({
+        gaze: window.__HERMES_CONCEPT_B_EYE_MOTION.debug(),
+        dots: [...document.querySelectorAll('.cb-eye-dot')].map((node) => ({
+          x: Number(node.getAttribute('cx')),
+          y: Number(node.getAttribute('cy')),
+        })),
+      });
+      rig.forceGaze('augury_left', 1800);
+      await new Promise((resolve) => setTimeout(resolve, 700));
+      const left = snapshot();
+      rig.forceGaze('route_right', 1800);
+      await new Promise((resolve) => setTimeout(resolve, 700));
+      const right = snapshot();
+      await new Promise((resolve) => setTimeout(resolve, 450));
+      const rightSettled = snapshot();
+      return { count: document.querySelectorAll('.cb-eye-dot').length, left, right, rightSettled };
+    });
+
+    expect(result.count).toBe(2);
+    expect(result.left.dots[0].x).toBeGreaterThan(result.right.dots[0].x);
+    for (const sample of [result.left, result.right, result.rightSettled]) {
+      expect(Math.abs(sample.dots[0].x - (540 - sample.gaze.x * 0.18))).toBeLessThan(0.02);
+      expect(Math.abs(sample.dots[0].y - (536 - sample.gaze.y * 0.14))).toBeLessThan(0.02);
+      expect(Math.abs(sample.dots[1].x - (566 - sample.gaze.x * 0.11))).toBeLessThan(0.02);
+      expect(Math.abs(sample.dots[1].y - (562 - sample.gaze.y * 0.10))).toBeLessThan(0.02);
+    }
+  });
+
+  test('avatar lifecycle acknowledges the viewer, looks away to work, and returns', async ({ page }, testInfo) => {
+    test.skip(testInfo.project.name !== 'minix-sf10t-landscape', 'MINIX-only landscape project');
+    await page.goto(runtimeUrl('idle_watch', testInfo));
+    await page.waitForFunction(() => Boolean(window.HermesDisplayRuntime?.publishAvatarEvent && window.__HERMES_CONCEPT_B_EYE_MOTION), null, { timeout: 8000 });
+
+    const observed = await page.evaluate(async () => {
+      const publish = async (event, intent) => {
+        window.HermesDisplayRuntime.publishAvatarEvent({
+          schema_version: '0.1.0',
+          id: `living-eye-${event}`,
+          event,
+          occurred_at: new Date().toISOString(),
+          source: 'test',
+          boundary: 'localhost_only',
+          privacy: 'display_safe_intent',
+          ttl_ms: 12000,
+          priority: 'normal',
+          display: { intent, label: intent, visual_kind: 'unknown', side: 'center', intensity: 0.6 },
+          meta: {},
+        });
+        await new Promise((resolve) => setTimeout(resolve, 120));
+        const rig = window.__HERMES_CONCEPT_B_EYE_MOTION.debug();
+        const stage = document.querySelector('.cb-radial-stage');
+        return { targetName: rig.targetName, socialPresence: rig.socialPresence, regard: rig.regard, stagePresence: stage?.dataset.socialPresence };
+      };
+      return {
+        started: await publish('assistant.started', 'assistant_active'),
+        working: await publish('assistant.tool_started', 'tool_active'),
+        waiting: await publish('assistant.waiting_on_user', 'waiting_on_user'),
+        complete: await publish('assistant.final_complete', 'final_complete'),
+      };
+    });
+
+    expect(observed.started).toMatchObject({ targetName: 'viewer', socialPresence: 'acknowledge', stagePresence: 'acknowledge' });
+    expect(observed.started.regard).toBeGreaterThan(0);
+    expect(observed.working.socialPresence).toBe('working');
+    expect(observed.working.targetName).not.toBe('viewer');
+    expect(observed.waiting).toMatchObject({ targetName: 'viewer', socialPresence: 'waiting', stagePresence: 'waiting' });
+    expect(observed.complete).toMatchObject({ targetName: 'viewer', socialPresence: 'complete', stagePresence: 'complete' });
+  });
+
+  test('primary gaze changes use a fast bounded ocular saccade and settle', async ({ page }, testInfo) => {
+    test.skip(testInfo.project.name !== 'minix-sf10t-landscape', 'MINIX-only landscape project');
+    await page.goto(runtimeUrl('idle_watch', testInfo));
+    await page.waitForFunction(() => Boolean(window.__HERMES_CONCEPT_B_EYE_MOTION), null, { timeout: 8000 });
+
+    const result = await page.evaluate(async () => {
+      const rig = window.__HERMES_CONCEPT_B_EYE_MOTION;
+      rig.forceGaze('route_right', 120000);
+      const samples = [];
+      for (let frame = 0; frame < 18; frame += 1) {
+        await new Promise(requestAnimationFrame);
+        const debug = rig.debug();
+        samples.push({ frame: frame + 1, x: debug.x, targetX: debug.targetX, active: debug.saccadeActive });
+      }
+      const target = samples.at(-1).targetX;
+      const reached = samples.find((sample) => sample.x >= target * 0.9);
+      return {
+        reachedFrame: reached?.frame ?? null,
+        target,
+        maxX: Math.max(...samples.map((sample) => sample.x)),
+        finalX: samples.at(-1).x,
+        activeAtStart: samples.slice(0, 4).some((sample) => sample.active),
+        activeAtEnd: samples.at(-1).active,
+      };
+    });
+
+    expect(result.activeAtStart).toBe(true);
+    expect(result.reachedFrame).not.toBeNull();
+    expect(result.reachedFrame).toBeLessThanOrEqual(8);
+    expect(result.maxX).toBeGreaterThan(result.target);
+    expect(result.maxX).toBeLessThan(result.target + 3);
+    expect(Math.abs(result.finalX - result.target)).toBeLessThan(1.2);
+    expect(result.activeAtEnd).toBe(false);
+  });
+
+  test('touch, room entry, and normalized local presence acknowledge without camera access', async ({ page }, testInfo) => {
+    test.skip(testInfo.project.name !== 'minix-sf10t-landscape', 'MINIX-only landscape project');
+    await page.goto(`${runtimeUrl('idle_watch', testInfo)}&touchtest=1`);
+    await page.waitForFunction(() => Boolean(window.__HERMES_CONCEPT_B_EYE_MOTION && window.HermesEntertainment), null, { timeout: 8000 });
+
+    const result = await page.evaluate(async () => {
+      const rig = window.__HERMES_CONCEPT_B_EYE_MOTION;
+      let cameraCalls = 0;
+      if (navigator.mediaDevices?.getUserMedia) {
+        navigator.mediaDevices.getUserMedia = async () => { cameraCalls += 1; throw new Error('camera disabled in test'); };
+      }
+
+      rig.touchPulse({ dx: 0, dy: 0, intensity: 0.8, pointerCount: 1 });
+      const touch = rig.debug();
+
+      window.dispatchEvent(new CustomEvent('sensor:motion:entry'));
+      const motionEntry = rig.debug();
+
+      window.dispatchEvent(new CustomEvent('hermes-viewer-presence', { detail: { x: 0.5, y: -0.25, confidence: 0.9 } }));
+      await new Promise((resolve) => setTimeout(resolve, 40));
+      const tracked = rig.debug();
+
+      window.dispatchEvent(new CustomEvent('hermes-viewer-presence', { detail: { x: '0.1', y: 2 } }));
+      await new Promise((resolve) => setTimeout(resolve, 20));
+      const afterMalformed = rig.debug();
+
+      return {
+        touch: { targetName: touch.targetName, socialPresence: touch.socialPresence },
+        motionEntry: { targetName: motionEntry.targetName, socialPresence: motionEntry.socialPresence },
+        tracked: { targetName: tracked.targetName, targetX: tracked.targetX, targetY: tracked.targetY, socialPresence: tracked.socialPresence },
+        afterMalformed: { targetName: afterMalformed.targetName, targetX: afterMalformed.targetX, targetY: afterMalformed.targetY, socialPresence: afterMalformed.socialPresence },
+        cameraCalls,
+      };
+    });
+
+    expect(result.touch).toMatchObject({ targetName: 'user_touch', socialPresence: 'touch' });
+    expect(result.motionEntry).toMatchObject({ targetName: 'viewer', socialPresence: 'presence' });
+    expect(result.tracked).toMatchObject({ targetName: 'viewer_presence', socialPresence: 'presence' });
+    expect(result.tracked.targetX).toBeCloseTo(12, 2);
+    expect(result.tracked.targetY).toBeCloseTo(-10.5, 2);
+    expect(result.afterMalformed).toEqual(result.tracked);
+    expect(result.cameraCalls).toBe(0);
+  });
+
+  test('direct social presence recedes peripheral UI but critical state stays prominent', async ({ page }, testInfo) => {
+    test.skip(testInfo.project.name !== 'minix-sf10t-landscape', 'MINIX-only landscape project');
+    await page.goto(runtimeUrl('idle_watch', testInfo));
+    await page.waitForFunction(() => Boolean(window.__HERMES_CONCEPT_B_EYE_MOTION), null, { timeout: 8000 });
+
+    const result = await page.evaluate(async () => {
+      const read = () => {
+        const opacity = (selector) => Number(getComputedStyle(document.querySelector(selector)).opacity);
+        return {
+          route: opacity('.cb-route-rail'),
+          activity: opacity('.cb-activity'),
+          bottom: opacity('.cb-bottom-rail'),
+          field: opacity('.cb-field-instrumentation'),
+        };
+      };
+      const ambient = read();
+      for (const selector of ['.cb-route-rail', '.cb-activity', '.cb-bottom-rail', '.cb-field-instrumentation']) {
+        document.querySelector(selector).style.transition = 'none';
+      }
+      window.__HERMES_CONCEPT_B_EYE_MOTION.acknowledgeViewer('waiting', 0);
+      await new Promise(requestAnimationFrame);
+      const direct = read();
+      document.body.dataset.health = 'critical';
+      await new Promise(requestAnimationFrame);
+      const critical = read();
+      return { ambient, direct, critical, bodyPresence: document.body.dataset.socialPresence };
+    });
+
+    expect(result.bodyPresence).toBe('waiting');
+    expect(result.direct.route).toBeLessThan(result.ambient.route - 0.2);
+    expect(result.direct.activity).toBeLessThan(result.ambient.activity - 0.15);
+    expect(result.direct.bottom).toBeLessThan(result.ambient.bottom - 0.2);
+    expect(result.direct.field).toBeLessThan(result.ambient.field - 0.2);
+    expect(result.critical.route).toBeGreaterThanOrEqual(0.95);
+    expect(result.critical.activity).toBeGreaterThanOrEqual(0.95);
+    expect(result.critical.bottom).toBeGreaterThanOrEqual(0.95);
+    expect(result.critical.field).toBeGreaterThanOrEqual(0.95);
+  });
+
+  test('ambient field rendering is bounded below the ocular RAF cadence', async ({ page }, testInfo) => {
+    test.skip(testInfo.project.name !== 'minix-sf10t-landscape', 'MINIX-only landscape project');
+    await page.goto(runtimeUrl('idle_watch', testInfo));
+    await page.waitForFunction(() => Boolean(window.__HERMES_CONCEPT_B_EYE_MOTION), null, { timeout: 8000 });
+
+    const before = await page.evaluate(() => window.__HERMES_CONCEPT_B_EYE_MOTION.debug());
+    expect(typeof before.eyeRenderCount).toBe('number');
+    expect(typeof before.fieldRenderCount).toBe('number');
+    await page.waitForFunction(
+      (start) => window.__HERMES_CONCEPT_B_EYE_MOTION.debug().eyeRenderCount - start >= 8,
+      before.eyeRenderCount,
+      { timeout: 8000 },
+    );
+    const after = await page.evaluate(() => window.__HERMES_CONCEPT_B_EYE_MOTION.debug());
+    const eyeFrames = after.eyeRenderCount - before.eyeRenderCount;
+    const fieldFrames = after.fieldRenderCount - before.fieldRenderCount;
+
+    expect(eyeFrames).toBeGreaterThanOrEqual(8);
+    expect(fieldFrames).toBeGreaterThanOrEqual(Math.floor(eyeFrames * 0.35));
+    expect(fieldFrames).toBeLessThanOrEqual(Math.ceil(eyeFrames * 0.60));
+  });
+
+  test('stopped modes keep a catchlight visible instead of becoming a blank aperture', async ({ page }, testInfo) => {
+    test.skip(testInfo.project.name !== 'minix-sf10t-landscape', 'MINIX-only landscape project');
+    const cases = [
+      { mode: 'blocked', fixation: 'route_right', maxLid: 0.26, minVisibleDots: 2, catchlightOpacity: 0.82 },
+      { mode: 'degraded_offline', fixation: 'front', maxLid: 0.30, minVisibleDots: 1, catchlightOpacity: 0.48 },
+    ];
+
+    for (const entry of cases) {
+      await page.goto(runtimeUrl(entry.mode, testInfo));
+      await page.waitForFunction(() => Boolean(window.__HERMES_CONCEPT_B_EYE_MOTION), null, { timeout: 8000 });
+      await page.evaluate(({ fixation }) => {
+        window.__HERMES_CONCEPT_B_EYE_MOTION.forceGaze(fixation, 120000);
+      }, entry);
+      await page.waitForTimeout(1800);
+      await page.waitForFunction(() => window.__HERMES_CONCEPT_B_EYE_MOTION.debug().blink < 0.05);
+
+      const view = await page.evaluate(() => {
+        const top = document.querySelector('.cb-eye-lid-top');
+        const bottom = document.querySelector('.cb-eye-lid-bottom');
+        const visibleDots = [...document.querySelectorAll('.cb-eye-dot')].filter((node) => {
+          const center = new DOMPoint(Number(node.getAttribute('cx')), Number(node.getAttribute('cy')))
+            .matrixTransform(node.getScreenCTM());
+          const topPoint = center.matrixTransform(top.getScreenCTM().inverse());
+          const bottomPoint = center.matrixTransform(bottom.getScreenCTM().inverse());
+          return !top.isPointInFill(topPoint) && !bottom.isPointInFill(bottomPoint);
+        }).length;
+        const irisCenter = new DOMPoint(550, 550).matrixTransform(document.querySelector('.cb-eye-iris').getScreenCTM());
+        const pupilCenter = new DOMPoint(550, 550).matrixTransform(document.querySelector('.cb-eye-pupil-group').getScreenCTM());
+        return {
+          debug: window.__HERMES_CONCEPT_B_EYE_MOTION.debug(),
+          visibleDots,
+          irisPupilCenterSeparation: Math.hypot(irisCenter.x - pupilCenter.x, irisCenter.y - pupilCenter.y),
+          catchlightOpacity: Number(getComputedStyle(document.querySelector('.cb-eye-dot')).opacity),
+        };
+      });
+
+      expect(view.debug.mode).toBe(entry.mode);
+      expect(view.debug.targetName).toBe(entry.fixation);
+      expect(view.debug.lid).toBeLessThanOrEqual(entry.maxLid);
+      expect(view.visibleDots).toBeGreaterThanOrEqual(entry.minVisibleDots);
+      expect(view.irisPupilCenterSeparation).toBeLessThan(1.5);
+      expect(view.catchlightOpacity).toBeCloseTo(entry.catchlightOpacity, 2);
+    }
   });
 
   test('modes carry distinct posture (halo color, ring period) in preview', async ({ page }, testInfo) => {
@@ -1570,17 +1988,24 @@ test.describe('MINIX SF10T 1920x1280 landscape optic gates', () => {
 
       const contract = await page.evaluate(() => {
         const gaze = document.querySelector('.cb-eye-gaze');
+        const socket = document.querySelector('.cb-eye-socket');
+        const eyeWindow = document.querySelector('.cb-eye-window');
         const requiredInsideGaze = [
+          'cb-eye-iris',
+          'cb-eye-lens-contents',
+          'cb-iris-lattice',
+          'cb-eye-pupil-group',
+        ];
+        const requiredFixedInSocket = [
           'cb-aperture-shell',
           'cb-winglet-left',
           'cb-winglet-right',
           'cb-helmet-brow',
           'cb-eye-lens',
           'cb-eye-ring',
-          'cb-eye-lens-contents',
+          'cb-eye-window',
           'cb-eye-glass-sheen',
           'cb-eye-glass-crescent',
-          'cb-eye-pupil-group',
           'cb-eye-lid-group',
         ];
         const requiredField = [
@@ -1592,6 +2017,10 @@ test.describe('MINIX SF10T 1920x1280 landscape optic gates', () => {
           'cb-field-notice-pulse',
         ];
         const missingInsideGaze = requiredInsideGaze.filter((cls) => !gaze?.querySelector(`.${cls}`));
+        const missingFixedInSocket = requiredFixedInSocket.filter((cls) => {
+          const node = socket?.querySelector(`.${cls}`);
+          return !node || gaze?.contains(node);
+        });
         const missingField = requiredField.filter((cls) => !document.querySelector(`.${cls}`));
         const translatedCatchlightAnimations = [...document.styleSheets]
           .flatMap((sheet) => {
@@ -1602,9 +2031,12 @@ test.describe('MINIX SF10T 1920x1280 landscape optic gates', () => {
           .map((rule) => rule.cssText);
         return {
           missingInsideGaze,
+          missingFixedInSocket,
           translatedCatchlightAnimations,
+          catchlightCount: document.querySelectorAll('.cb-eye-dot').length,
           lensClip: Boolean(document.querySelector('#cb-eye-lens-clip')),
-          clippedLensContents: document.querySelector('.cb-eye-lens-contents')?.getAttribute('clip-path') || '',
+          clippedEyeWindow: eyeWindow?.getAttribute('clip-path') || '',
+          gazeInsideClippedEyeWindow: Boolean(eyeWindow?.contains(gaze)),
           gazeTransform: gaze?.getAttribute('transform') || '',
           fieldMode: document.querySelector('.cb-radial-stage')?.dataset.fieldMode || '',
           fieldVars: {
@@ -1622,6 +2054,7 @@ test.describe('MINIX SF10T 1920x1280 landscape optic gates', () => {
 
       expect(contract.viewport).toEqual({ width: 1920, height: 1280 });
       expect(contract.missingInsideGaze).toEqual([]);
+      expect(contract.missingFixedInSocket).toEqual([]);
       expect(contract.missingField).toEqual([]);
       expect(contract.fieldChildren.ticks).toBeGreaterThanOrEqual(24);
       expect(contract.fieldChildren.motes).toBeGreaterThanOrEqual(3);
@@ -1629,8 +2062,10 @@ test.describe('MINIX SF10T 1920x1280 landscape optic gates', () => {
       expect(Number(contract.fieldVars.intensity)).toBeGreaterThan(0);
       expect(Number(contract.fieldVars.focus)).toBeGreaterThan(0);
       expect(contract.translatedCatchlightAnimations).toEqual([]);
+      expect(contract.catchlightCount).toBe(2);
       expect(contract.lensClip).toBe(true);
-      expect(contract.clippedLensContents).toBe('url(#cb-eye-lens-clip)');
+      expect(contract.clippedEyeWindow).toBe('url(#cb-eye-lens-clip)');
+      expect(contract.gazeInsideClippedEyeWindow).toBe(true);
       expect(contract.gazeTransform).toMatch(/^translate\(/);
     });
   }
@@ -1656,7 +2091,10 @@ test.describe('MINIX SF10T 1920x1280 landscape optic gates', () => {
       transform: node.getAttribute('transform'),
       opacity: window.getComputedStyle(node).opacity,
     }));
-    await page.waitForTimeout(240);
+    await expect.poll(
+      () => page.locator('.cb-eye-scan').evaluate((node) => node.getAttribute('transform')),
+      { timeout: 3000 },
+    ).not.toBe(first.transform);
     const second = await page.locator('.cb-eye-scan').evaluate((node) => ({
       transform: node.getAttribute('transform'),
       active: node.dataset.active,
@@ -1682,7 +2120,7 @@ test.describe('reduced motion', () => {
     // anime.js cadence loops and gaze micro-wander must stop; only state-driven posture remains.
     await page.goto(runtimeUrl('searching', testInfo));
     await page.waitForFunction(() => Boolean(window.__HERMES_CONCEPT_B_EYE_MOTION), null, { timeout: 8000 });
-    await page.waitForTimeout(800); // let the gaze spring settle to its static target
+    await page.waitForTimeout(800); // let the bounded gaze motion settle to its static target
     const sample = () => page.evaluate(() => ({
       orbit: document.querySelector('.cb-orbit-spin')?.getAttribute('transform'),
       scan: document.querySelector('.cb-eye-scan')?.getAttribute('transform'),
