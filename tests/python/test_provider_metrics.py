@@ -226,6 +226,89 @@ def test_copilot_billing_usage_without_limit_reports_used_credits_only(
     assert usage["tier_label"] == "CREDITS"
 
 
+@pytest.mark.parametrize(
+    "usage_items",
+    [
+        [{"unitType": "ai-credits", "grossQuantity": "not-a-number"}],
+        [{"unitType": "other", "grossQuantity": 125}],
+        [{"unitType": "ai-credits", "grossQuantity": float("inf")}],
+        [{"unitType": "ai-credits", "grossQuantity": -1}],
+        [None],
+        [
+            {"unitType": "ai-credits", "grossQuantity": 25},
+            {"unitType": "future-credit-unit", "grossQuantity": 500},
+        ],
+    ],
+)
+def test_copilot_billing_rejects_malformed_usage_items(
+    usage_items: list[object], tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setattr(updater, "_load_hermes_env_and_path", lambda: None)
+    monkeypatch.setattr(updater, "GH_BIN", tmp_path / "missing-gh")
+    monkeypatch.setenv("HERMES_DISPLAY_GITHUB_TOKEN", "billing-token")
+    monkeypatch.setenv("HERMES_DISPLAY_COPILOT_ACCOUNT", "bgrablin")
+    monkeypatch.setenv("HERMES_DISPLAY_COPILOT_PLAN", "pro")
+    monkeypatch.setattr(
+        updater.urllib.request,
+        "urlopen",
+        lambda request, timeout: _FakeBillingResponse({"usageItems": usage_items}),
+    )
+
+    assert updater.fetch_copilot_usage() is None
+
+
+def test_copilot_billing_accepts_empty_usage_items(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setattr(updater, "_load_hermes_env_and_path", lambda: None)
+    monkeypatch.setattr(updater, "GH_BIN", tmp_path / "missing-gh")
+    monkeypatch.setenv("HERMES_DISPLAY_GITHUB_TOKEN", "billing-token")
+    monkeypatch.setenv("HERMES_DISPLAY_COPILOT_ACCOUNT", "bgrablin")
+    monkeypatch.setenv("HERMES_DISPLAY_COPILOT_PLAN", "pro")
+    monkeypatch.setattr(
+        updater.urllib.request,
+        "urlopen",
+        lambda request, timeout: _FakeBillingResponse({"usageItems": []}),
+    )
+
+    usage = updater.fetch_copilot_usage()
+
+    assert usage is not None
+    assert usage["credits_used"] == 0.0
+    assert usage["credits_limit"] == 1500.0
+    assert usage["headroom"] == 1.0
+
+
+def test_invalid_explicit_copilot_account_does_not_fall_back_to_token_owner(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setenv("HERMES_DISPLAY_COPILOT_ACCOUNT", "bad/account")
+    requests = []
+
+    def fake_urlopen(request, timeout):
+        requests.append(request.full_url)
+        return _FakeBillingResponse({"login": "token-owner"})
+
+    monkeypatch.setattr(updater.urllib.request, "urlopen", fake_urlopen)
+
+    assert updater._copilot_billing_account("billing-token") is None
+    assert requests == []
+
+
+def test_unset_copilot_account_uses_token_owner(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.delenv("HERMES_DISPLAY_COPILOT_ACCOUNT", raising=False)
+    requests = []
+
+    def fake_urlopen(request, timeout):
+        requests.append(request.full_url)
+        return _FakeBillingResponse({"login": "token-owner"})
+
+    monkeypatch.setattr(updater.urllib.request, "urlopen", fake_urlopen)
+
+    assert updater._copilot_billing_account("billing-token") == "token-owner"
+    assert requests == ["https://api.github.com/user"]
+
+
 @pytest.mark.parametrize("invalid_limit", ["0", "-1", "nan", "inf", "bogus", "1000000001"])
 def test_invalid_explicit_copilot_limit_fails_closed(
     invalid_limit: str, monkeypatch: pytest.MonkeyPatch

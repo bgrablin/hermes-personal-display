@@ -3094,11 +3094,13 @@
     function animateViewerRegard(holdMs) {
       state.anims.regard?.pause?.();
       state.anims.socialLift?.pause?.();
-      state.regard = Math.max(0.045, CONCEPT_B_VITALS.regardPupil);
-      state.socialLift = 0.06;
       if (!motion?.hasAnime || prefersReducedMotion) {
+        state.regard = 0;
+        state.socialLift = 0;
         return;
       }
+      state.regard = Math.max(0.045, CONCEPT_B_VITALS.regardPupil);
+      state.socialLift = 0.06;
       state.anims.regard = motion.animateValue({
         targets: state,
         regard: 0,

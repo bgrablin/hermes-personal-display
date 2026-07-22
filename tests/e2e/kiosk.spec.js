@@ -750,10 +750,35 @@ test.describe('Hermes kiosk smoke and visual regression anchors', () => {
     await page.goto(runtimeUrl('idle_watch', testInfo));
     await page.waitForFunction(() => Boolean(window.__HERMES_CONCEPT_B_EYE_MOTION?.debug));
     await page.waitForTimeout(600);
-    const d = await page.evaluate(() => window.__HERMES_CONCEPT_B_EYE_MOTION.debug());
-    expect(d.hippus).toBe(0);
-    expect(d.regard).toBe(0);
-    expect(d.vitals.sighing).toBe(false);
+    const snapshots = await page.evaluate(async () => {
+      const rig = window.__HERMES_CONCEPT_B_EYE_MOTION;
+      const idle = rig.debug();
+      rig.acknowledgeViewer('presence', 300);
+      await new Promise((resolve) => setTimeout(resolve, 50));
+      return { idle, acknowledged: rig.debug() };
+    });
+    expect(snapshots.idle.hippus).toBe(0);
+    expect(snapshots.idle.regard).toBe(0);
+    expect(snapshots.idle.vitals.sighing).toBe(false);
+    expect(snapshots.acknowledged.regard).toBe(0);
+    expect(snapshots.acknowledged.socialLift).toBe(0);
+  });
+
+  test('Concept B optic regard stays inert when anime is unavailable', async ({ page }, testInfo) => {
+    await page.route('**/vendor/anime.iife.min.js*', (route) => route.abort());
+    await page.goto(runtimeUrl('idle_watch', testInfo));
+    await page.waitForFunction(() => Boolean(window.__HERMES_CONCEPT_B_EYE_MOTION?.debug));
+
+    const vitals = await page.evaluate(async () => {
+      const rig = window.__HERMES_CONCEPT_B_EYE_MOTION;
+      rig.acknowledgeViewer('presence', 300);
+      await new Promise((resolve) => setTimeout(resolve, 50));
+      return { ...rig.debug(), animeAvailable: Boolean(window.anime) };
+    });
+
+    expect(vitals.regard).toBe(0);
+    expect(vitals.socialLift).toBe(0);
+    expect(vitals.animeAvailable).toBe(false);
   });
 
   test('legacy mood-only preset JSON normalizes before rich behavior enrichment', async ({ page }, testInfo) => {
@@ -1603,25 +1628,26 @@ test.describe('Hermes kiosk smoke and visual regression anchors', () => {
     await page.goto(runtimeUrl('idle_watch', testInfo));
     await page.waitForFunction(() => Boolean(window.__HERMES_CONCEPT_B_EYE_MOTION), null, { timeout: 8000 });
 
-    const result = await page.evaluate(async () => {
-      const rig = window.__HERMES_CONCEPT_B_EYE_MOTION;
-      const snapshot = () => ({
+    const snapshot = () => page.evaluate(() => ({
         gaze: window.__HERMES_CONCEPT_B_EYE_MOTION.debug(),
         dots: [...document.querySelectorAll('.cb-eye-dot')].map((node) => ({
           x: Number(node.getAttribute('cx')),
           y: Number(node.getAttribute('cy')),
         })),
-      });
-      rig.forceGaze('augury_left', 1800);
-      await new Promise((resolve) => setTimeout(resolve, 700));
-      const left = snapshot();
-      rig.forceGaze('route_right', 1800);
-      await new Promise((resolve) => setTimeout(resolve, 700));
-      const right = snapshot();
-      await new Promise((resolve) => setTimeout(resolve, 450));
-      const rightSettled = snapshot();
-      return { count: document.querySelectorAll('.cb-eye-dot').length, left, right, rightSettled };
-    });
+      }));
+    const settleGaze = async (name) => {
+      await page.evaluate((target) => window.__HERMES_CONCEPT_B_EYE_MOTION.forceGaze(target, 15000), name);
+      await page.waitForFunction((target) => {
+        const gaze = window.__HERMES_CONCEPT_B_EYE_MOTION.debug();
+        return gaze.targetName === target && !gaze.saccadeActive;
+      }, name, { polling: 'raf', timeout: 10000 });
+      return snapshot();
+    };
+    const left = await settleGaze('augury_left');
+    const right = await settleGaze('route_right');
+    await page.waitForTimeout(450);
+    const rightSettled = await snapshot();
+    const result = { count: right.dots.length, left, right, rightSettled };
 
     expect(result.count).toBe(2);
     expect(result.left.dots[0].x).toBeGreaterThan(result.right.dots[0].x);

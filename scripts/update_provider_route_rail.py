@@ -429,8 +429,8 @@ def _github_json(url: str, token: str) -> dict:
 def _copilot_billing_account(token: str) -> str | None:
     configured = str(os.environ.get("HERMES_DISPLAY_COPILOT_ACCOUNT") or "").strip()
     account_pattern = r"[A-Za-z0-9](?:[A-Za-z0-9-]{0,37}[A-Za-z0-9])?"
-    if configured and re.fullmatch(account_pattern, configured):
-        return configured
+    if configured:
+        return configured if re.fullmatch(account_pattern, configured) else None
     payload = _github_json("https://api.github.com/user", token)
     login = str(payload.get("login") or "").strip()
     return login if login and re.fullmatch(account_pattern, login) else None
@@ -466,21 +466,35 @@ def fetch_copilot_usage() -> dict[str, Any] | None:
             if not isinstance(items, list):
                 continue
             credits_used = 0.0
+            recognized_items = 0
+            malformed_items = False
             for item in items:
                 if not isinstance(item, dict):
-                    continue
+                    malformed_items = True
+                    break
                 unit = str(item.get("unitType") or "").strip().lower()
                 if unit not in {"ai-credits", "credits"}:
-                    continue
+                    malformed_items = True
+                    break
                 # grossQuantity is total AI-credit consumption before included
                 # allowance discounts. netQuantity can be zero while allowance
                 # was still consumed.
+                raw_quantity = item.get("grossQuantity")
+                if isinstance(raw_quantity, bool) or not isinstance(raw_quantity, (int, float, str)):
+                    malformed_items = True
+                    break
                 try:
-                    quantity = float(item.get("grossQuantity") or 0.0)
+                    quantity = float(raw_quantity)
                 except (TypeError, ValueError):
-                    continue
-                if quantity >= 0:
-                    credits_used += quantity
+                    malformed_items = True
+                    break
+                if not math.isfinite(quantity) or quantity < 0:
+                    malformed_items = True
+                    break
+                recognized_items += 1
+                credits_used += quantity
+            if malformed_items or (items and recognized_items == 0) or not math.isfinite(credits_used):
+                continue
             credit_limit = _copilot_credit_limit()
             headroom = None
             if credit_limit is not None:
@@ -805,7 +819,7 @@ def main() -> int:
 
     OUT_PATH.parent.mkdir(parents=True, exist_ok=True)
     tmp = OUT_PATH.with_suffix(".json.tmp")
-    tmp.write_text(json.dumps(payload, indent=2))
+    tmp.write_text(json.dumps(payload, indent=2, allow_nan=False))
     os.replace(tmp, OUT_PATH)
     print(
         f"route-rail updated: active={active_id or '-'} "
