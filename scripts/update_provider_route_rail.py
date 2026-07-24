@@ -41,17 +41,17 @@ COPILOT_PLAN_CREDIT_LIMITS = {
     "max": 20000.0,
 }
 
-# Per-provider plan budgets, expressed as a rolling-window request cap.
-# Subscription tier caps are public guidance; tune as needed.
+# Per-provider fallback signals. Request counts are not provider quota and must
+# only be used where the row is explicitly documented as an estimate.
 PROVIDER_PLAN = {
-    # Caps are API-call counts per rolling window (each agent turn fires
-    # multiple internal calls — tune from observed agent.log volume).
     "openai-codex": {
         "label": "CHATGPT",
         "tier_label": "PROLITE 5H",
         "rank": 1,
-        "window_minutes": 300,
-        "request_cap": 1200,
+        # ChatGPT quota comes from WHAM. Local request counts do not map to
+        # five-hour or weekly usage and must never become percentage headroom.
+        "window_minutes": None,
+        "request_cap": None,
     },
     "anthropic": {
         "label": "CLAUDE",
@@ -179,6 +179,20 @@ def _codex_usage_url(base_url: str | None) -> str:
     return f"{normalized}/api/codex/usage"
 
 
+def _codex_window_duration_label(value: Any) -> str | None:
+    try:
+        seconds = int(value)
+    except (TypeError, ValueError):
+        return None
+    if seconds <= 0:
+        return None
+    if seconds % 86_400 == 0:
+        return f"{seconds // 86_400}D"
+    if seconds % 3_600 == 0:
+        return f"{seconds // 3_600}H"
+    return None
+
+
 def fetch_codex_headroom() -> tuple[float | None, float | None, str | None, float | None]:
     """Return confirmed ChatGPT/Codex primary and secondary headroom.
 
@@ -190,11 +204,15 @@ def fetch_codex_headroom() -> tuple[float | None, float | None, str | None, floa
         from agent.credential_pool import load_pool
 
         pool = load_pool("openai-codex")
-        # peek() skips exhausted entries, but the WHAM/usage endpoint is a
+        # select() refreshes an expiring OAuth credential before returning it.
+        # A read-only timer that uses peek() can hold a stale access token and
+        # emit 401s until some unrelated model request refreshes the pool.
+        #
+        # select() skips exhausted entries, but the WHAM/usage endpoint is a
         # read-only GET that may still work with an exhausted token.  Try
         # the usable subset first, then fall through to any credential so
         # we can surface the real used_percent even when quota is exhausted.
-        entry = pool.peek() if pool else None
+        entry = pool.select() if pool else None
         if entry is None:
             entries = getattr(pool, "_entries", None) or []
             if entries:
@@ -228,6 +246,9 @@ def fetch_codex_headroom() -> tuple[float | None, float | None, str | None, floa
         if secondary.get("used_percent") is not None:
             secondary_headroom = max(0.0, min(1.0, 1.0 - float(secondary.get("used_percent")) / 100.0))
         tier = str(payload.get("plan_type") or "").strip().upper().replace("_", "-") or None
+        duration_label = _codex_window_duration_label(primary.get("limit_window_seconds"))
+        if duration_label:
+            tier = f"{tier} {duration_label}" if tier else duration_label
         # When the credential pool marks this entry as exhausted (a real 429
         # was received) and the pool's reset time is still in the future,
         # that signal is more trustworthy than the WHAM primary_window.
@@ -608,7 +629,7 @@ def apply_confirmed_quota(providers: list[dict]) -> None:
             "state": "confirmed",
             "headroom": codex_headroom,
             "secondary_headroom": codex_secondary,
-            "tier_label": f"{codex_tier} 5H" if codex_tier else PROVIDER_PLAN["openai-codex"]["tier_label"],
+            "tier_label": codex_tier or PROVIDER_PLAN["openai-codex"]["tier_label"],
             "reset_at_epoch_s": codex_reset_at,
             "last_used_age_s": 0,
         }
