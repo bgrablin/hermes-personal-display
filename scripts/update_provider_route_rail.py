@@ -562,7 +562,12 @@ def load_config_fallback_routes() -> dict[str, tuple[str, str]]:
     model_cfg = cfg.get("model") or {}
     if model_cfg.get("provider") and model_cfg.get("default"):
         routes[str(model_cfg["provider"])] = (str(model_cfg["provider"]), str(model_cfg["default"]))
-    for entry in cfg.get("fallback_providers") or []:
+    fallback_routes = cfg.get("fallback_providers") or []
+    if not isinstance(fallback_routes, list):
+        fallback_routes = []
+    for entry in fallback_routes:
+        if not isinstance(entry, dict):
+            continue
         provider = str(entry.get("provider") or "").strip()
         model = str(entry.get("model") or "").strip()
         if provider and model:

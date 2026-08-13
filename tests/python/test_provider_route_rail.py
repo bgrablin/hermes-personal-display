@@ -159,6 +159,26 @@ def test_codex_without_confirmed_quota_never_fabricates_request_headroom() -> No
     assert codex["headroom"] is None
 
 
+def test_config_fallback_routes_ignore_malformed_string_without_losing_primary_route(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    config_dir = tmp_path / ".hermes"
+    config_dir.mkdir()
+    (config_dir / "config.yaml").write_text(
+        """model:
+  provider: openai-codex
+  default: gpt-5.6-sol
+fallback_providers: '[{"provider":"copilot","model":"gpt-5.4"}]'
+""",
+        encoding="utf-8",
+    )
+    monkeypatch.setattr(updater, "HOME", tmp_path)
+
+    assert updater.load_config_fallback_routes() == {
+        "openai-codex": ("openai-codex", "gpt-5.6-sol")
+    }
+
+
 def test_display_server_passes_route_reset_at_epoch_s(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     reset_at = time.time() + 1800
     route_path = tmp_path / "provider_route_rail.json"
