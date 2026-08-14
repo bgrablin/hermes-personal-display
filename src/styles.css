@@ -2351,6 +2351,53 @@ body.kiosk-mode.kiosk-landscape.claude-concept-b .cb-route-standby.quiet {
   opacity: 0.42;
 }
 
+body.kiosk-mode.kiosk-landscape.claude-concept-b .cb-route-refresh {
+  position: absolute;
+  right: 2px;
+  top: 681px;
+  width: 44px;
+  height: 44px;
+  padding: 0;
+  border: 1px solid color-mix(in srgb, var(--cb-steel) 32%, transparent);
+  border-radius: 50%;
+  background: rgba(12, 18, 22, 0.34);
+  color: color-mix(in srgb, var(--cb-fg-2) 54%, transparent);
+  font: 500 22px/42px ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  text-align: center;
+  cursor: pointer;
+  pointer-events: auto;
+  opacity: 0.42;
+  transition: opacity 180ms ease, color 180ms ease, border-color 180ms ease;
+  -webkit-tap-highlight-color: transparent;
+}
+
+body.kiosk-mode.kiosk-landscape.claude-concept-b .cb-route-refresh:focus-visible,
+body.kiosk-mode.kiosk-landscape.claude-concept-b .cb-route-refresh:active {
+  color: var(--cb-amber);
+  border-color: color-mix(in srgb, var(--cb-amber) 58%, transparent);
+  opacity: 0.92;
+  outline: none;
+}
+
+body.kiosk-mode.kiosk-landscape.claude-concept-b .cb-route-refresh[data-refresh-state="pending"] {
+  color: var(--cb-amber);
+  border-color: color-mix(in srgb, var(--cb-amber) 48%, transparent);
+  opacity: 0.76;
+}
+
+body.kiosk-mode.kiosk-landscape.claude-concept-b .cb-route-refresh[data-refresh-state="queued"],
+body.kiosk-mode.kiosk-landscape.claude-concept-b .cb-route-refresh[data-refresh-state="cooldown"] {
+  color: var(--cb-accent);
+  border-color: color-mix(in srgb, var(--cb-accent) 48%, transparent);
+  opacity: 0.78;
+}
+
+body.kiosk-mode.kiosk-landscape.claude-concept-b .cb-route-refresh[data-refresh-state="unavailable"] {
+  color: var(--cb-rust);
+  border-color: color-mix(in srgb, var(--cb-rust) 48%, transparent);
+  opacity: 0.78;
+}
+
 /* Unknown/idle route rows collapse visually while keeping spine geometry for hairline/whiskers. */
 body.kiosk-mode.kiosk-landscape.claude-concept-b .cb-route-row[data-collapsed="true"] {
   opacity: 0.24;

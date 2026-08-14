@@ -16,7 +16,7 @@ export default defineConfig({
     command: 'npm run build && npx vite preview --host 127.0.0.1 --port 4173 --strictPort',
     url: 'http://127.0.0.1:4173/src/character-runtime.html?kiosk=1&mode=idle_watch',
     reuseExistingServer: !process.env.CI,
-    timeout: 10_000,
+    timeout: 60_000,
   },
   projects: [
     {

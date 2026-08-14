@@ -160,24 +160,24 @@ test.describe('Hermes kiosk smoke and visual regression anchors', () => {
     }
   });
 
-  test('Concept B developer touch grid requires explicit debug flag', async ({ page }, testInfo) => {
+  for (const [name, query] of [
+    ['touchzones alone', 'touchzones=1'],
+    ['touch test mode', 'touchtest=1'],
+    ['debug without legacy touch', 'debug=1&touchzones=1'],
+  ]) {
+    test(`Concept B developer touch grid stays hidden for ${name}`, async ({ page }, testInfo) => {
+      test.skip(testInfo.project.name !== 'minix-sf10t-landscape', 'MINIX-only Concept B touch grid');
+      await page.goto(`${runtimeUrl('idle_watch', testInfo)}&${query}`);
+      await expect(page.locator('.cb-touch-zones')).toHaveCount(0);
+      await expect(page.locator('.cb-touch')).toHaveCount(0);
+      await expect(page.locator('text=DIAGNOSTICS')).toHaveCount(0);
+      await expect(page.locator('text=SAFE RESET')).toHaveCount(0);
+      await expect(page.locator('text=GLANCE PREV')).toHaveCount(0);
+    });
+  }
+
+  test('Concept B developer touch grid requires explicit legacy debug flags', async ({ page }, testInfo) => {
     test.skip(testInfo.project.name !== 'minix-sf10t-landscape', 'MINIX-only Concept B touch grid');
-
-    await page.goto(`${runtimeUrl('idle_watch', testInfo)}&touchzones=1`);
-    await expect(page.locator('.cb-touch-zones')).toHaveCount(0);
-    await expect(page.locator('.cb-touch')).toHaveCount(0);
-
-    await page.goto(`${runtimeUrl('idle_watch', testInfo)}&touchtest=1`);
-    await expect(page.locator('.cb-touch-zones')).toHaveCount(0);
-    await expect(page.locator('.cb-touch')).toHaveCount(0);
-
-    await page.goto(`${runtimeUrl('idle_watch', testInfo)}&debug=1&touchzones=1`);
-    await expect(page.locator('.cb-touch-zones')).toHaveCount(0);
-    await expect(page.locator('.cb-touch')).toHaveCount(0);
-    await expect(page.locator('text=DIAGNOSTICS')).toHaveCount(0);
-    await expect(page.locator('text=SAFE RESET')).toHaveCount(0);
-    await expect(page.locator('text=GLANCE PREV')).toHaveCount(0);
-
     await page.goto(`${runtimeUrl('idle_watch', testInfo)}&touch=legacy&debug=1&touchzones=1`);
     await expect(page.locator('.cb-touch-zones')).toBeVisible();
     await expect(page.locator('.cb-touch')).toHaveCount(5);
@@ -602,6 +602,64 @@ test.describe('Hermes kiosk smoke and visual regression anchors', () => {
     expect(await page.evaluate(() => document.body.dataset.systemLoad)).toBe('ok');
   });
 
+  test('family audience requests the family-safe state contract', async ({ page }, testInfo) => {
+    test.skip(testInfo.project.name !== 'minix-sf10t-landscape', 'MINIX-only family privacy boundary');
+    const stateRequests = [];
+    const avatarStreamRequests = [];
+    page.on('request', (request) => {
+      if (new URL(request.url()).pathname === '/avatar-events/stream') avatarStreamRequests.push(request.url());
+    });
+    await page.route('**/api/hermes-state**', async (route) => {
+      stateRequests.push(route.request().url());
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({
+          schema_version: '0.4.0',
+          state_preset: 'quiet_watch',
+          state_label: 'FAMILY MODE',
+          caption: { text: 'Family mode.', tone: 'calm', priority: 'ambient' },
+          safety: { boundary: 'local_trusted_display', redaction_level: 'public_status', contains_credentials: false },
+          live: { family_mode: true, system: { cpu: 0.2, temp_c: 52 } },
+        }),
+      });
+    });
+
+    await page.goto(`${runtimeUrl('idle_watch', testInfo)}&live=1&audience=family`);
+    await expect.poll(() => stateRequests.length).toBeGreaterThan(0);
+    expect(stateRequests.every((url) => new URL(url).searchParams.get('audience') === 'family')).toBe(true);
+    expect(avatarStreamRequests).toEqual([]);
+  });
+
+  test('route rail offers a discreet manual quota refresh control', async ({ page }, testInfo) => {
+    test.skip(testInfo.project.name !== 'minix-sf10t-landscape', 'MINIX-only route rail control');
+    let refreshRequests = 0;
+    await page.route('**/api/provider-route-rail/refresh', async (route) => {
+      refreshRequests += 1;
+      await route.fulfill({
+        status: 202,
+        contentType: 'application/json',
+        body: JSON.stringify({ ok: true, status: 'queued' }),
+      });
+    });
+
+    await page.goto(runtimeUrl('idle_watch', testInfo));
+    const refresh = page.locator('.cb-route-refresh');
+    await expect(refresh).toBeVisible();
+    await expect(refresh).toHaveAttribute('aria-label', 'Refresh model availability and quota headroom');
+    await refresh.evaluate((element) => {
+      window.__HERMES_ROUTE_REFRESH_STATES = [element.dataset.refreshState];
+      new MutationObserver(() => {
+        window.__HERMES_ROUTE_REFRESH_STATES.push(element.dataset.refreshState);
+      }).observe(element, { attributes: true, attributeFilter: ['data-refresh-state'] });
+    });
+    await refresh.click();
+    await expect.poll(() => refreshRequests).toBe(1);
+    await expect.poll(
+      () => page.evaluate(() => window.__HERMES_ROUTE_REFRESH_STATES),
+    ).toContain('queued');
+  });
+
   test('touch FX creates optic resonance, constellation stars, motes, and Concept B touch pulse', async ({ page }, testInfo) => {
     test.skip(testInfo.project.name !== 'minix-sf10t-landscape', 'MINIX-only Concept B touch integration');
     await page.goto(`${runtimeUrl('idle_watch', testInfo)}&touchtest=1`);
@@ -621,13 +679,11 @@ test.describe('Hermes kiosk smoke and visual regression anchors', () => {
       const w = window.innerWidth;
       const h = window.innerHeight;
       window.HermesTouchFxController.spawnForZone('boop', w * 0.78, h * 0.47);
-      window.HermesTouchFxController.testLongPressStar(w * 0.52, h * 0.52);
       const afterDebug = motion?.debug?.();
       const afterMode = window.__HERMES_DISPLAY_BEHAVIOR?.mode || null;
       return {
         motes: document.querySelectorAll('.touch-fx-mote').length,
         resonance: document.querySelectorAll('.touch-fx-resonance').length,
-        stars: document.querySelectorAll('.touch-fx-constellation-star').length,
         pulseCalls: pulseCalls.map((call) => ({
           zone: call.detail.zone,
           distance: call.detail.distance,
@@ -643,25 +699,31 @@ test.describe('Hermes kiosk smoke and visual regression anchors', () => {
         beforeMode,
         afterMode,
         vectorDistance: window.HermesTouchFxController.touchVectorFromOptic(w * 0.78, h * 0.47).distance,
-        playMemory: window.HermesTouchFxController.playMemory(),
       };
     });
     expect(result.motes).toBeGreaterThan(0);
     expect(result.resonance).toBeGreaterThan(0);
-    expect(result.stars).toBeGreaterThan(0);
     const boopPulse = result.pulseCalls.find((call) => call.zone === 'boop');
     expect(boopPulse).toBeTruthy();
     expect(boopPulse.applied.x).toBeGreaterThan(0);
     expect(boopPulse.targetName).toBe('user_touch');
     expect(boopPulse.forcedUntil).toBeGreaterThan(result.beforeDebug.forcedUntil || 0);
     expect(result.afterDebug.touchTarget.pointerCount).toBeGreaterThanOrEqual(1);
+    expect(result.afterDebug.targetName).toBe('user_touch');
+    expect(result.afterDebug.targetX).toBeCloseTo(boopPulse.applied.x, 4);
     expect(result.afterMode).toBe(result.beforeMode);
-    await expect.poll(
-      () => page.evaluate(() => Math.abs(window.__HERMES_CONCEPT_B_EYE_MOTION?.debug?.().x || 0)),
-      { timeout: 1500 }
-    ).toBeGreaterThan(0.005);
+    const starResult = await page.evaluate(() => {
+      const w = window.innerWidth;
+      const h = window.innerHeight;
+      window.HermesTouchFxController.testLongPressStar(w * 0.52, h * 0.52);
+      return {
+        stars: document.querySelectorAll('.touch-fx-constellation-star').length,
+        playMemory: window.HermesTouchFxController.playMemory(),
+      };
+    });
+    expect(starResult.stars).toBeGreaterThan(0);
     expect(Number.isFinite(result.vectorDistance)).toBe(true);
-    expect(result.playMemory.taps).toBeGreaterThan(0);
+    expect(starResult.playMemory.taps).toBeGreaterThan(0);
   });
 
   test('touch FX keeps side comets and bottom fireflies despite thermal reduced display state', async ({ page }, testInfo) => {
@@ -1007,13 +1069,12 @@ test.describe('Hermes kiosk smoke and visual regression anchors', () => {
       },
       safety: { boundary: 'local_trusted_display', contains_credentials: false },
     });
-    let requestCount = 0;
+    let currentRailPacket = railPacket('anthropic', 0.62);
     await page.route('**/api/hermes-state', async (route) => {
-      requestCount += 1;
       await route.fulfill({
         status: 200,
         contentType: 'application/json',
-        body: JSON.stringify(requestCount <= 2 ? railPacket('anthropic', 0.62) : railPacket('openai-codex', 0.08)),
+        body: JSON.stringify(currentRailPacket),
       });
     });
     await page.goto(`${runtimeUrl('idle_watch', testInfo)}&live=1`);
@@ -1022,17 +1083,28 @@ test.describe('Hermes kiosk smoke and visual regression anchors', () => {
       const transform = window.getComputedStyle(node).transform;
       return transform.startsWith('matrix(') ? Number.parseFloat(transform.slice(7, -1).split(',')[5]) : NaN;
     });
+    const hairlineTarget = () => page.locator('.cb-route-active-hairline').evaluate((node) => (
+      Number.parseFloat(node.style.getPropertyValue('--route-active-y'))
+    ));
+    const settleHairline = () => page.locator('.cb-route-active-hairline').evaluate((node) => {
+      for (const animation of node.getAnimations()) animation.finish();
+    });
 
     await expect(rows.nth(1)).toHaveAttribute('data-active', 'true');
     await expect(rows.nth(1)).toHaveAttribute('data-headroom-tier', 'ok');
-    await expect.poll(hairlineY).toBe(278);
+    await expect.poll(hairlineTarget).toBe(233);
+    await settleHairline();
+    await expect.poll(hairlineY).toBeCloseTo(278, 0);
     const ticksBeforeHandoff = await page.evaluate(() => window.__HERMES_STATUS_TICKS);
 
+    currentRailPacket = railPacket('openai-codex', 0.08);
     await expect(rows.nth(0)).toHaveAttribute('data-active', 'true', { timeout: 15000 });
     await expect(rows.nth(1)).toHaveAttribute('data-active', 'false');
     await expect(rows.nth(1)).toHaveAttribute('data-headroom-tier', 'low');
     await expect(rows.nth(1).locator('[data-route-value]')).toHaveText('8%');
-    await expect.poll(hairlineY).toBe(142);
+    await expect.poll(hairlineTarget).toBe(97);
+    await settleHairline();
+    await expect.poll(hairlineY).toBeCloseTo(142, 0);
     expect(await page.evaluate(() => window.__HERMES_STATUS_TICKS)).toBeGreaterThan(ticksBeforeHandoff);
 
     const lanes = await rows.evaluateAll((nodes) => nodes.map((node) => {
@@ -1315,21 +1387,20 @@ test.describe('Hermes kiosk smoke and visual regression anchors', () => {
     await expect(page.locator('.cb-radial-stage')).toHaveAttribute('data-health', 'nominal');
   });
 
-  test('Augury presence uses accepted mode-aware vocabulary', async ({ page }, testInfo) => {
-    test.skip(testInfo.project.name !== 'minix-sf10t-landscape', 'MINIX-only landscape project');
-    await page.goto(`${runtimeUrl('idle_watch', testInfo)}&augury=1`);
-    await expect(page.locator('body')).toHaveAttribute('data-augury-presence', 'focus');
-    await page.goto(`${runtimeUrl('reasoning', testInfo)}&augury=1`);
-    await expect(page.locator('body')).toHaveAttribute('data-augury-presence', 'subdued');
-    await page.goto(`${runtimeUrl('tool_shell', testInfo)}&augury=1`);
-    await expect(page.locator('body')).toHaveAttribute('data-augury-presence', 'subdued');
-    await page.goto(`${runtimeUrl('waiting_user', testInfo)}&augury=1`);
-    await expect(page.locator('body')).toHaveAttribute('data-augury-presence', 'hidden');
-    await page.goto(`${runtimeUrl('blocked', testInfo)}&augury=1`);
-    await expect(page.locator('body')).toHaveAttribute('data-augury-presence', 'hidden');
-    await page.goto(`${runtimeUrl('degraded_offline', testInfo)}&augury=1`);
-    await expect(page.locator('body')).toHaveAttribute('data-augury-presence', 'hidden');
-  });
+  for (const [mode, expected] of [
+    ['idle_watch', 'focus'],
+    ['reasoning', 'subdued'],
+    ['tool_shell', 'subdued'],
+    ['waiting_user', 'hidden'],
+    ['blocked', 'hidden'],
+    ['degraded_offline', 'hidden'],
+  ]) {
+    test(`Augury presence uses accepted vocabulary for ${mode}`, async ({ page }, testInfo) => {
+      test.skip(testInfo.project.name !== 'minix-sf10t-landscape', 'MINIX-only landscape project');
+      await page.goto(`${runtimeUrl(mode, testInfo)}&augury=1`);
+      await expect(page.locator('body')).toHaveAttribute('data-augury-presence', expected);
+    });
+  }
 
   test('runtime exposes the synchronized display build id', async ({ page }, testInfo) => {
     await page.goto(runtimeUrl('idle_watch', testInfo));
@@ -1425,33 +1496,38 @@ test.describe('Hermes kiosk smoke and visual regression anchors', () => {
     ).toBeGreaterThan(0.0005);
   });
 
-  test('iris lattice cadence is state-aware and parks under reduced motion', async ({ page }, testInfo) => {
-    const debugIris = () => page.evaluate(() => {
-      const d = window.__HERMES_CONCEPT_B_EYE_MOTION.debug();
-      return { irisMs: d.irisMs, irisAngle: d.irisAngle };
-    });
-    const waitForRig = () => page.waitForFunction(() => Boolean(window.__HERMES_CONCEPT_B_EYE_MOTION), null, { timeout: 8000 });
+  test('iris lattice cadence is state-aware and parks under reduced motion', async ({ browser }, testInfo) => {
+    const sampleMode = async (mode, reducedMotion = 'no-preference') => {
+      const {
+        viewport, deviceScaleFactor, hasTouch, isMobile, userAgent,
+      } = testInfo.project.use;
+      const modePage = await browser.newPage({
+        viewport,
+        deviceScaleFactor,
+        hasTouch,
+        isMobile,
+        userAgent,
+        reducedMotion,
+      });
+      try {
+        await modePage.goto(`${runtimeUrl(mode, testInfo)}${reducedMotion === 'reduce' ? '&case=reduced' : ''}`);
+        await modePage.waitForFunction(() => Boolean(window.__HERMES_CONCEPT_B_EYE_MOTION), null, { timeout: 8000 });
+        if (reducedMotion === 'reduce') await modePage.waitForTimeout(600);
+        return await modePage.evaluate(() => {
+          const d = window.__HERMES_CONCEPT_B_EYE_MOTION.debug();
+          return { irisMs: d.irisMs, irisAngle: d.irisAngle };
+        });
+      } finally {
+        await modePage.close();
+      }
+    };
 
-    await page.goto(runtimeUrl('reasoning', testInfo));
-    await waitForRig();
-    await expect.poll(async () => (await debugIris()).irisMs).toBeLessThan(0); // inward modes counter-rotate
-
-    await page.goto(runtimeUrl('searching', testInfo));
-    await waitForRig();
-    const searching = await debugIris();
+    expect((await sampleMode('reasoning')).irisMs).toBeLessThan(0); // inward modes counter-rotate
+    const searching = await sampleMode('searching');
     expect(searching.irisMs).toBeGreaterThan(0);
     expect(Math.abs(searching.irisMs)).toBeLessThan(150000); // faster than reasoning
-
-    await page.goto(runtimeUrl('blocked', testInfo));
-    await waitForRig();
-    await expect.poll(async () => (await debugIris()).irisMs).toBe(0); // halted work parks the lattice
-
-    await page.emulateMedia({ reducedMotion: 'reduce' });
-    await page.goto(`${runtimeUrl('idle_watch', testInfo)}&case=reduced`);
-    await waitForRig();
-    await page.waitForTimeout(600);
-    const reduced = await debugIris();
-    expect(reduced.irisAngle).toBe(0);
+    expect((await sampleMode('blocked')).irisMs).toBe(0); // halted work parks the lattice
+    expect((await sampleMode('idle_watch', 'reduce')).irisAngle).toBe(0);
   });
 
   test('semantic gaze targets drive Augury, route, bottom, and touch fixations', async ({ page }, testInfo) => {
@@ -1519,9 +1595,18 @@ test.describe('Hermes kiosk smoke and visual regression anchors', () => {
     const snapshot = () => page.evaluate(() => {
       const socket = document.querySelector('.cb-eye-socket');
       const gaze = document.querySelector('.cb-eye-gaze');
+      const hud = document.querySelector('.cb-radial-stage');
+      const eyeRing = document.querySelector('.cb-eye-ring');
+      const ringStyle = eyeRing ? getComputedStyle(eyeRing) : null;
       return {
         socketTransform: socket?.getAttribute('transform') || '',
         gazeTransform: gaze?.getAttribute('transform') || '',
+        hudEdgeOpacity: hud?.style.getPropertyValue('--cb-edge-rim-opacity') || '',
+        hudEdgeBlur: hud?.style.getPropertyValue('--cb-edge-rim-blur') || '',
+        ringEdgeOpacity: eyeRing?.style.getPropertyValue('--cb-edge-rim-opacity') || '',
+        ringEdgeBlur: eyeRing?.style.getPropertyValue('--cb-edge-rim-blur') || '',
+        computedRingOpacity: ringStyle?.opacity || '',
+        computedRingFilter: ringStyle?.filter || '',
       };
     });
 
@@ -1564,6 +1649,14 @@ test.describe('Hermes kiosk smoke and visual regression anchors', () => {
     expect(structure.movingInsideGaze).toBe(true);
     expect(left.socketTransform).toBe(right.socketTransform);
     expect(left.gazeTransform).not.toBe(right.gazeTransform);
+    for (const gaze of [left, right]) {
+      expect(gaze.hudEdgeOpacity).toBe('');
+      expect(gaze.hudEdgeBlur).toBe('');
+      expect(Number(gaze.ringEdgeOpacity)).toBeGreaterThanOrEqual(0.12);
+      expect(gaze.ringEdgeBlur).toMatch(/^\d+(?:\.\d+)?px$/);
+      expect(Number(gaze.computedRingOpacity)).toBeGreaterThan(0.68);
+      expect(gaze.computedRingFilter).toContain('drop-shadow');
+    }
   });
 
   test('optic blink is upper-lid dominant while iris and pupil stay anchored', async ({ page }, testInfo) => {
@@ -1630,10 +1723,18 @@ test.describe('Hermes kiosk smoke and visual regression anchors', () => {
 
     const snapshot = () => page.evaluate(() => ({
         gaze: window.__HERMES_CONCEPT_B_EYE_MOTION.debug(),
-        dots: [...document.querySelectorAll('.cb-eye-dot')].map((node) => ({
-          x: Number(node.getAttribute('cx')),
-          y: Number(node.getAttribute('cy')),
-        })),
+        dots: [...document.querySelectorAll('.cb-eye-dot')].map((node) => {
+          const matrix = node.transform.baseVal.consolidate()?.matrix;
+          const baseX = Number(node.getAttribute('cx'));
+          const baseY = Number(node.getAttribute('cy'));
+          return {
+            baseX,
+            baseY,
+            transform: node.getAttribute('transform') || '',
+            x: baseX + (matrix?.e || 0),
+            y: baseY + (matrix?.f || 0),
+          };
+        }),
       }));
     const settleGaze = async (name) => {
       await page.evaluate((target) => window.__HERMES_CONCEPT_B_EYE_MOTION.forceGaze(target, 15000), name);
@@ -1652,6 +1753,8 @@ test.describe('Hermes kiosk smoke and visual regression anchors', () => {
     expect(result.count).toBe(2);
     expect(result.left.dots[0].x).toBeGreaterThan(result.right.dots[0].x);
     for (const sample of [result.left, result.right, result.rightSettled]) {
+      expect(sample.dots.map(({ baseX, baseY }) => [baseX, baseY])).toEqual([[540, 536], [566, 562]]);
+      expect(sample.dots.every(({ transform }) => transform.startsWith('translate('))).toBe(true);
       expect(Math.abs(sample.dots[0].x - (540 - sample.gaze.x * 0.18))).toBeLessThan(0.02);
       expect(Math.abs(sample.dots[0].y - (536 - sample.gaze.y * 0.14))).toBeLessThan(0.02);
       expect(Math.abs(sample.dots[1].x - (566 - sample.gaze.x * 0.11))).toBeLessThan(0.02);

@@ -391,10 +391,12 @@ requireAll(appSource, [
   'ripple(pulseCircle', 'fireModeTransition',
 ], 'anime.js must drive optic cadence (blink/breath/ring/scan) and one-shot transients (notice/complete/blocked/touch).');
 requireAll(appSource, [
-  'const catchlightProfiles = [',
+  'const CONCEPT_B_CATCHLIGHTS = Object.freeze([',
+  'Object.freeze({ x: 540, y: 536, px: 0.18, py: 0.14 })',
+  'Object.freeze({ x: 566, y: 562, px: 0.11, py: 0.10 })',
   'parts.catchlights?.forEach((dot, index) => {',
-  "setConceptBAttribute(dot, 'cx', (profile.x - x * profile.px).toFixed(2))",
-  "setConceptBAttribute(dot, 'cy', (profile.y - y * profile.py).toFixed(2))",
+  'const profile = CONCEPT_B_CATCHLIGHTS[index] || CONCEPT_B_CATCHLIGHTS[1]',
+  'setConceptBTransform(dot, `translate(${(-x * profile.px).toFixed(2)} ${(-y * profile.py).toFixed(2)})`)',
 ], 'Catchlights must remain attached to deterministic room-light profiles with bounded gaze counter-parallax, not free-running drift.');
 // Involuntary vitals layer: hippus/sigh/regard/spark plus lid-gaze coupling are what make
 // the optic read as alive rather than instrumented. Each has a parking/eligibility rule
@@ -720,7 +722,7 @@ if (/cb-eye-dot-pulse-[abc]/.test(cssSource)) {
   fail('Concept B catchlights must not shimmer through independent CSS opacity keyframes.');
 }
 requireAll(appSource, [
-  'const catchlightProfiles = [',
+  'const CONCEPT_B_CATCHLIGHTS = Object.freeze([',
   'parts.catchlights?.forEach((dot, index) => {',
   "setConceptBStyleProperty(hud, '--cb-catchlight-opacity'",
 ], 'Concept B catchlights must use stable room-light profiles with schema-driven opacity.');

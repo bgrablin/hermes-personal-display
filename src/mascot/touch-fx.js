@@ -61,7 +61,8 @@
     document.body.appendChild(feedBadge);
 
     document.body.style.touchAction = 'none';
-    document.body.addEventListener('contextmenu', (event) => event.preventDefault());
+    const onContextMenu = (event) => event.preventDefault();
+    document.body.addEventListener('contextmenu', onContextMenu);
 
     const activeTouches = new Map();
     const activeCharges = new Map();
@@ -595,10 +596,13 @@
       setTouchFxActive();
       updateTheme();
       const mapping = FX_BY_ZONE[zone] || FX_BY_ZONE.field;
-      const vector = sendTouchPulse(zone, x, y, activeTouches.size || 1, intensity);
       spawnImpactFlash(x, y, zone, intensity);
       renderer.reactToTouch?.(zone, { intent: mapping.intent, holdMs: 760 }) ||
         (renderer.pulseGaze?.(mapping.gaze, 760), renderer.triggerIntent?.(mapping.intent));
+      // Apply the physical pointer vector last. The renderer intent may choose a semantic
+      // fixation, but an active touch must own the final gaze target so the optic follows
+      // the finger instead of snapping back to the packet posture in the same event turn.
+      const vector = sendTouchPulse(zone, x, y, activeTouches.size || 1, intensity);
       spawnResonanceWave(x, y, vector);
       stirMotes(x, y, zone === 'boop' ? 0.9 : 0.55);
       for (const fx of mapping.fx) {
@@ -709,14 +713,29 @@
       activeCharges.delete(event.pointerId);
     }
 
+    function onResize() {
+      invalidateOpticRect();
+      syncMoteAnchors(true);
+    }
+
+    function onLivePacket() {
+      updateTheme();
+      updateFeedBadge();
+    }
+
     function dispose() {
       disposed = true;
+      document.body.removeEventListener('contextmenu', onContextMenu);
       document.body.removeEventListener('pointerdown', onFxPointerDown);
       document.body.removeEventListener('pointermove', onFxPointerMove);
       document.body.removeEventListener('pointerup', onFxPointerUp);
       document.body.removeEventListener('pointercancel', onFxPointerCancel);
       document.body.removeEventListener('pointerleave', onFxPointerCancel);
-      window.removeEventListener('resize', invalidateOpticRect);
+      window.removeEventListener('resize', onResize);
+      window.removeEventListener('hermes-live-packet', onLivePacket);
+      if (typeof options.updateAudioBadge === 'function') {
+        window.removeEventListener('hermes-audio-muted', options.updateAudioBadge);
+      }
       fxLayer.remove();
       feedBadge.remove();
       window.clearTimeout(touchIdleTimer);
@@ -729,9 +748,9 @@
     document.body.addEventListener('pointerup', onFxPointerUp, { passive: false });
     document.body.addEventListener('pointercancel', onFxPointerCancel, { passive: false });
     document.body.addEventListener('pointerleave', onFxPointerCancel, { passive: false });
-    window.addEventListener('resize', () => { invalidateOpticRect(); syncMoteAnchors(true); }, { passive: true });
+    window.addEventListener('resize', onResize, { passive: true });
 
-    window.addEventListener('hermes-live-packet', () => { updateTheme(); updateFeedBadge(); });
+    window.addEventListener('hermes-live-packet', onLivePacket);
     if (typeof options.updateAudioBadge === 'function') {
       window.addEventListener('hermes-audio-muted', options.updateAudioBadge);
     }

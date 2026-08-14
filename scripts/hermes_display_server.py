@@ -20,7 +20,7 @@ import urllib.request
 from datetime import datetime, timezone, timedelta
 from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
-from urllib.parse import parse_qs, urlparse
+from urllib.parse import parse_qs, unquote, urlparse
 
 from avatar_event_bus import (
     AvatarEventBus,
@@ -140,6 +140,8 @@ AVATAR_EVENT_BUS = AvatarEventBus()
 _STATE_CACHE_LOCK = threading.Lock()
 _STATE_CACHE: dict[str, object] = {"at": 0.0, "state": None}
 _ENTERTAINMENT_USAGE_LOCK = threading.Lock()
+_PROVIDER_ROUTE_REFRESH_LOCK = threading.Lock()
+_PROVIDER_ROUTE_REFRESH_AT = 0.0
 
 # Public display contract constants are generated from schemas/*.json.
 from display_state.contract import (
@@ -694,6 +696,72 @@ def cached_build_state() -> dict:
         _STATE_CACHE["at"] = now
         _STATE_CACHE["state"] = json.loads(json.dumps(state))
     return state
+
+
+def family_safe_state(source_state: dict) -> dict:
+    """Return a fixed family-safe projection with only coarse system telemetry."""
+    source = source_state if isinstance(source_state, dict) else {}
+    raw_live = source.get("live")
+    source_live = raw_live if isinstance(raw_live, dict) else {}
+    raw_system = source_live.get("system")
+    source_system = raw_system if isinstance(raw_system, dict) else {}
+    safe_system: dict[str, float] = {}
+    for key in ("cpu", "memory", "temp_c", "cpu_temp_c"):
+        value = source_system.get(key)
+        if value is None or isinstance(value, bool):
+            continue
+        try:
+            number = float(value)
+        except (TypeError, ValueError):
+            continue
+        if math.isfinite(number):
+            safe_system[key] = number
+
+    quiet = DISPLAY_PRESETS["quiet_watch"]
+    state = {
+        "schema_version": "0.4.0",
+        "generated_at": source.get("generated_at") or datetime.now(timezone.utc).isoformat(),
+        "valid_for_seconds": 10,
+        "mood": quiet["mood"],
+        "skin": quiet["skin"],
+        "state_preset": "quiet_watch",
+        "state_label": "FAMILY MODE",
+        "motion": json.loads(json.dumps(quiet["motion"])),
+        "playfulness": 0.58,
+        "energy": 0.2,
+        "focus": 0.28,
+        "curiosity": 0.5,
+        "impatience": 0.0,
+        "caption": {"text": "Family mode.", "tone": "calm", "priority": "ambient", "max_width_chars": 42},
+        "snippet": None,
+        "duration": {"transition_ms": 350},
+        "safety": {"boundary": "local_trusted_display", "redaction_level": "public_status", "contains_credentials": False},
+        "live": {"family_mode": True, "system": safe_system},
+    }
+    optic_state = optic_state_packet_for(state, {})
+    state["optic_state_packet"] = optic_state
+    state["puppet_state_packet"] = optic_state
+    return state
+
+
+def request_provider_route_rail_refresh() -> dict:
+    """Queue the deployed read-only quota refresh service with a short cooldown."""
+    global _PROVIDER_ROUTE_REFRESH_AT
+    now = time.monotonic()
+    with _PROVIDER_ROUTE_REFRESH_LOCK:
+        if now - _PROVIDER_ROUTE_REFRESH_AT < 15.0:
+            return {"ok": True, "status": "cooldown"}
+        result = subprocess.run(
+            ["systemctl", "--user", "start", "--no-block", "hermes-route-rail-refresh.service"],
+            text=True,
+            capture_output=True,
+            timeout=3,
+            check=False,
+        )
+        if result.returncode != 0:
+            raise RuntimeError("route rail refresh service unavailable")
+        _PROVIDER_ROUTE_REFRESH_AT = now
+    return {"ok": True, "status": "queued"}
 
 
 def clear_state_cache() -> None:
@@ -1278,11 +1346,40 @@ class Handler(SimpleHTTPRequestHandler):
         json_response(self, 403, {"error": "loopback_only", "message": message})
         return False
 
+    def same_origin_only(self, message: str = "operator-only endpoint requires a same-origin request") -> bool:
+        host = (self.headers.get("Host") or "").strip().lower()
+        origin = (self.headers.get("Origin") or "").strip()
+        try:
+            parsed_origin = urlparse(origin)
+        except ValueError:
+            parsed_origin = None
+        if (
+            parsed_origin is not None
+            and parsed_origin.scheme == "http"
+            and parsed_origin.netloc.lower() == host
+            and parsed_origin.path in {"", "/"}
+            and not parsed_origin.params
+            and not parsed_origin.query
+            and not parsed_origin.fragment
+        ):
+            return True
+        json_response(self, 403, {"error": "same_origin_only", "message": message})
+        return False
+
+    @staticmethod
+    def static_source_path_allowed(path: str) -> bool:
+        decoded_path = unquote(path)
+        return (
+            (decoded_path == "/src" or decoded_path.startswith("/src/"))
+            and ".." not in Path(decoded_path).parts
+        )
+
     def do_GET(self):
         parsed = urlparse(self.path)
         if parsed.path == "/api/hermes-state":
             params = parse_qs(parsed.query)
             fixture = params.get("fixture", [None])[0]
+            audience = params.get("audience", [None])[0]
             try:
                 state = build_state_from_fixture_name(fixture) if fixture else cached_build_state()
             except FixtureLookupError:
@@ -1294,9 +1391,10 @@ class Handler(SimpleHTTPRequestHandler):
             except Exception as exc:
                 safe_reason = scrub(exc.__class__.__name__)
                 print(f"Display state API degraded: {safe_reason}", flush=True)
-                json_response(self, 503, degraded_state(safe_reason))
+                state = degraded_state(safe_reason)
+                json_response(self, 503, family_safe_state(state) if audience == "family" else state)
                 return
-            json_response(self, 200, state)
+            json_response(self, 200, family_safe_state(state) if audience == "family" else state)
             return
         if parsed.path == "/api/augury-feed":
             if not self.loopback_only("Augury feed is operator-only and accepts localhost requests only"):
@@ -1328,6 +1426,10 @@ class Handler(SimpleHTTPRequestHandler):
             return
         if parsed.path == "/avatar-events/stream":
             if not self.loopback_only():
+                return
+            audience = parse_qs(parsed.query).get("audience", [""])[0]
+            if audience != "operator":
+                self.send_error(404)
                 return
             self.handle_avatar_event_stream()
             return
@@ -1361,10 +1463,33 @@ class Handler(SimpleHTTPRequestHandler):
             self.end_headers()
             self.wfile.write(body)
             return
+        if not self.static_source_path_allowed(parsed.path):
+            self.send_error(404)
+            return
         return super().do_GET()
+
+    def do_HEAD(self):
+        parsed = urlparse(self.path)
+        if not self.static_source_path_allowed(parsed.path):
+            self.send_error(404)
+            return
+        return super().do_HEAD()
 
     def do_POST(self):
         parsed = urlparse(self.path)
+        if parsed.path == "/api/provider-route-rail/refresh":
+            if not self.loopback_only("Route headroom refresh accepts localhost requests only"):
+                return
+            if not self.same_origin_only("Route headroom refresh requires a same-origin browser request"):
+                return
+            try:
+                result = request_provider_route_rail_refresh()
+            except Exception as exc:
+                print(f"Route headroom refresh failed: {exc.__class__.__name__}", flush=True)
+                json_response(self, 503, {"ok": False, "status": "unavailable"})
+                return
+            json_response(self, 202, result)
+            return
         if parsed.path == "/api/watch-animation-log":
             if not self.loopback_only():
                 return

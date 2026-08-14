@@ -50,6 +50,10 @@
     saccadeSettleMs: 145,
     saccadeOvershoot: 0.04,
   });
+  const CONCEPT_B_CATCHLIGHTS = Object.freeze([
+    Object.freeze({ x: 540, y: 536, px: 0.18, py: 0.14 }),
+    Object.freeze({ x: 566, y: 562, px: 0.11, py: 0.10 }),
+  ]);
   const CONCEPT_B_VITALS = Object.freeze({
     // Involuntary "alive" signals layered under the intentional gaze/posture system.
     // Hippus: continuous low-amplitude pupillary unrest. Parked (0) in the same stopped
@@ -1177,7 +1181,11 @@
     if (deterministicPreview) return;
 
     const fixture = params.get('fixture');
-    const stateUrl = fixture ? `/api/hermes-state?fixture=${encodeURIComponent(fixture)}` : '/api/hermes-state';
+    const stateParams = new URLSearchParams();
+    if (fixture) stateParams.set('fixture', fixture);
+    if (familyAudience) stateParams.set('audience', 'family');
+    const stateQuery = stateParams.toString();
+    const stateUrl = `/api/hermes-state${stateQuery ? `?${stateQuery}` : ''}`;
 
     let lastMood = currentPacket.mood;
     const poll = async () => {
@@ -1292,7 +1300,7 @@
     const params = new URLSearchParams(window.location.search);
     const kiosk = ['1', 'true', 'yes'].includes((params.get('kiosk') || '').toLowerCase());
     const deterministicPreview = params.get('mode') && !['1', 'true', 'yes'].includes((params.get('live') || '').toLowerCase());
-    if (!kiosk || deterministicPreview || !window.EventSource) return;
+    if (!kiosk || deterministicPreview || familyAudience || !window.EventSource) return;
 
     const allowedEvents = new Set([
       'assistant.started', 'assistant.tool_started', 'assistant.tool_finished', 'assistant.waiting_on_user',
@@ -1373,7 +1381,7 @@
       return event;
     };
 
-    const source = new EventSource('/avatar-events/stream');
+    const source = new EventSource('/avatar-events/stream?audience=operator');
     source.onopen = () => {
       avatarEventStatus.connected = true;
       avatarEventStatus.lastError = '';
@@ -1797,8 +1805,8 @@
                       </g>
                       <g class="cb-eye-pupil-group">
                         <circle class="cb-eye-pupil" cx="550" cy="550" r="44" />
-                        <circle class="cb-eye-dot cb-eye-dot-a" cx="532" cy="526" r="9" />
-                        <circle class="cb-eye-dot cb-eye-dot-b" cx="576" cy="572" r="4.5" />
+                        <circle class="cb-eye-dot cb-eye-dot-a" cx="540" cy="536" r="9" />
+                        <circle class="cb-eye-dot cb-eye-dot-b" cx="566" cy="562" r="4.5" />
                       </g>
                     </g>
                   </g>
@@ -2185,6 +2193,7 @@
       <div class="cb-route-rows"></div>
       <div class="cb-route-anchor" aria-hidden="true"></div>
       <div class="cb-route-standby quiet">STANDBY</div>
+      <button class="cb-route-refresh" type="button" aria-label="Refresh model availability and quota headroom" data-refresh-state="idle">↻</button>
     `;
     const rows = root.querySelector('.cb-route-rows');
     for (let i = 0; i < 5; i += 1) {
@@ -2200,6 +2209,27 @@
       `;
       rows.appendChild(row);
     }
+    const refresh = root.querySelector('.cb-route-refresh');
+    refresh?.addEventListener('click', async (event) => {
+      event.preventDefault();
+      event.stopPropagation();
+      if (refresh.disabled) return;
+      refresh.disabled = true;
+      setConceptBDataset(refresh, 'refreshState', 'pending');
+      try {
+        const response = await fetch('/api/provider-route-rail/refresh', { method: 'POST', cache: 'no-store' });
+        const payload = await response.json().catch(() => ({}));
+        if (!response.ok || payload.ok !== true) throw new Error('route refresh unavailable');
+        setConceptBDataset(refresh, 'refreshState', payload.status === 'cooldown' ? 'cooldown' : 'queued');
+      } catch (_error) {
+        setConceptBDataset(refresh, 'refreshState', 'unavailable');
+      } finally {
+        window.setTimeout(() => {
+          refresh.disabled = false;
+          setConceptBDataset(refresh, 'refreshState', 'idle');
+        }, 2200);
+      }
+    });
     return root;
   }
 
@@ -3199,7 +3229,8 @@
         state.mode = safeDisplayText(next.mode || state.mode, 32).replace(/[^a-z0-9_-]+/gi, '_') || 'idle_watch';
         state.special = safeDisplayText(next.special || state.special, 32).replace(/[^a-z0-9_-]+/gi, '_') || 'none';
         const profile = focusProfile(state.mode);
-        if (explicitX || explicitY) {
+        const fixationHeld = performance.now() < (state.forcedUntil || 0);
+        if ((explicitX || explicitY) && !fixationHeld) {
           const x = finiteClamp(next.x, -34, 34, state.targetX);
           const y = finiteClamp(next.y, -30, 30, state.targetY);
           const moved = Math.hypot(x - state.targetX, y - state.targetY);
@@ -3208,7 +3239,7 @@
           state.targetX = x;
           state.targetY = y;
           state.fixation = { kind: 'packet', x, y, nextAt: performance.now() + 900 };
-        } else if (!state.fixation?.nextAt || performance.now() > state.fixation.nextAt) {
+        } else if (!fixationHeld && (!state.fixation?.nextAt || performance.now() > state.fixation.nextAt)) {
           const f = chooseFixation(state.mode);
           setFixation(f.kind, f.dwellMs, { blink: state.mode !== prevMode });
         }
@@ -3387,7 +3418,7 @@
         state.x += state.vx * dt;
         state.y += state.vy * dt;
       }
-      renderConceptBEyeMotion({ root, hud, gazeGroup, iris, pupil, pupilGroup, catchlights, glow, glowGradient, scanSweep, core, orbitSpin, lidTop, lidBottom, field, axisNodes, debugOverlay, bgA: bgParallax.a, bgB: bgParallax.b, glassSheen, glassCrescent, irisLattice, activityPanel }, state);
+      renderConceptBEyeMotion({ root, hud, gazeGroup, iris, pupil, pupilGroup, catchlights, glow, glowGradient, scanSweep, core, orbitSpin, eyeRing, lidTop, lidBottom, field, axisNodes, debugOverlay, bgA: bgParallax.a, bgB: bgParallax.b, glassSheen, glassCrescent, irisLattice, activityPanel }, state);
       state.raf = window.requestAnimationFrame(step);
     };
     // Kick the anime.js cadence loops once; setTarget re-arms them when a packet changes period.
@@ -3422,10 +3453,18 @@
     const blink = Number.isFinite(state.blink) ? Math.max(0, Math.min(1, state.blink)) : 0;
     state.frame = (state.frame + 1) % 120;
     state.eyeRenderCount = (state.eyeRenderCount || 0) + 1;
-    if (parts.hud) {
+    if (parts.eyeRing) {
       const edge = Math.min(1, Math.hypot(x, y) / CONCEPT_B_BIO_MOTION.gazeMaxHypot);
-      setConceptBStyleProperty(parts.hud, '--cb-edge-rim-opacity', (CONCEPT_B_BIO_MOTION.edgeRimBase + CONCEPT_B_BIO_MOTION.edgeRimGain * edge).toFixed(3));
-      setConceptBStyleProperty(parts.hud, '--cb-edge-rim-blur', `${(8 + edge * 10).toFixed(1)}px`);
+      const edgeOpacity = CONCEPT_B_BIO_MOTION.edgeRimBase + CONCEPT_B_BIO_MOTION.edgeRimGain * edge;
+      const quantizedOpacity = Math.round(edgeOpacity * 64) / 64;
+      const edgeBlur = 8 + edge * 10;
+      const quantizedBlur = Math.round(edgeBlur * 4) / 4;
+      // These variables are consumed only by the eye ring. Keeping them on that leaf avoids
+      // invalidating inherited custom properties across the full HUD on every gaze frame.
+      // Fine quantization suppresses filter reraster churn from sub-pixel ocular tremor while
+      // preserving the continuous gaze geometry and the full visible rim range.
+      setConceptBStyleProperty(parts.eyeRing, '--cb-edge-rim-opacity', quantizedOpacity.toFixed(4));
+      setConceptBStyleProperty(parts.eyeRing, '--cb-edge-rim-blur', `${quantizedBlur.toFixed(2)}px`);
     }
     if (parts.gazeGroup) setConceptBTransform(parts.gazeGroup, `translate(${x.toFixed(2)} ${y.toFixed(2)})`);
     // Breath (anime.js loop) scales the whole eye core; iris dilation (anime.js tween) nests inside.
@@ -3456,14 +3495,9 @@
     if (parts.pupil) setConceptBAttribute(parts.pupil, 'r', '44');
     // Reflections belong to the fixed room light, not to a free-running particle loop. They
     // counter-parallax a fraction of the iris motion while remaining safely inside the pupil.
-    const catchlightProfiles = [
-      { x: 540, y: 536, px: 0.18, py: 0.14 },
-      { x: 566, y: 562, px: 0.11, py: 0.10 },
-    ];
     parts.catchlights?.forEach((dot, index) => {
-      const profile = catchlightProfiles[index] || catchlightProfiles[1];
-      setConceptBAttribute(dot, 'cx', (profile.x - x * profile.px).toFixed(2));
-      setConceptBAttribute(dot, 'cy', (profile.y - y * profile.py).toFixed(2));
+      const profile = CONCEPT_B_CATCHLIGHTS[index] || CONCEPT_B_CATCHLIGHTS[1];
+      setConceptBTransform(dot, `translate(${(-x * profile.px).toFixed(2)} ${(-y * profile.py).toFixed(2)})`);
     });
     if (parts.glassSheen) setConceptBTransform(parts.glassSheen, `translate(${(-x * 0.18).toFixed(2)} ${(-y * 0.14).toFixed(2)})`);
     if (parts.glassCrescent) setConceptBTransform(parts.glassCrescent, `translate(${(-x * 0.10).toFixed(2)} ${(-y * 0.08).toFixed(2)})`);
@@ -3718,8 +3752,8 @@
     const topH = fullTravel * 0.82 * topAmount;
     const bottomH = fullTravel * 0.18 * bottomAmount;
     const curveShift = Math.max(-18, Math.min(18, (Number(gazeX) || 0) * 0.55));
-    if (top) top.setAttribute('d', topH < 1 ? '' : `M 374 ${topY} H 726 V ${(topY + topH).toFixed(1)} C ${(650 + curveShift).toFixed(1)} ${(topY + topH + 18).toFixed(1)} ${(450 + curveShift).toFixed(1)} ${(topY + topH + 18).toFixed(1)} 374 ${(topY + topH).toFixed(1)} Z`);
-    if (bottom) bottom.setAttribute('d', bottomH < 1 ? '' : `M 374 ${bottomY} H 726 V ${(bottomY - bottomH).toFixed(1)} C ${(650 + curveShift * 0.45).toFixed(1)} ${(bottomY - bottomH - 14).toFixed(1)} ${(450 + curveShift * 0.45).toFixed(1)} ${(bottomY - bottomH - 14).toFixed(1)} 374 ${(bottomY - bottomH).toFixed(1)} Z`);
+    setConceptBAttribute(top, 'd', topH < 1 ? '' : `M 374 ${topY} H 726 V ${(topY + topH).toFixed(1)} C ${(650 + curveShift).toFixed(1)} ${(topY + topH + 18).toFixed(1)} ${(450 + curveShift).toFixed(1)} ${(topY + topH + 18).toFixed(1)} 374 ${(topY + topH).toFixed(1)} Z`);
+    setConceptBAttribute(bottom, 'd', bottomH < 1 ? '' : `M 374 ${bottomY} H 726 V ${(bottomY - bottomH).toFixed(1)} C ${(650 + curveShift * 0.45).toFixed(1)} ${(bottomY - bottomH - 14).toFixed(1)} ${(450 + curveShift * 0.45).toFixed(1)} ${(bottomY - bottomH - 14).toFixed(1)} 374 ${(bottomY - bottomH).toFixed(1)} Z`);
   }
 
   function clamp01(value) {
