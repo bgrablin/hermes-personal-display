@@ -1408,7 +1408,7 @@ test.describe('Hermes kiosk smoke and visual regression anchors', () => {
     await expect(page.locator('html')).toHaveAttribute('data-hermes-display-build-id', EXPECTED_BUILD_ID);
   });
 
-  test('living field has ambient mote motion and mode-specific instrumentation', async ({ page }, testInfo) => {
+  test('living field has ambient mote motion', async ({ page }, testInfo) => {
     test.skip(testInfo.project.name !== 'minix-sf10t-landscape', 'MINIX-only landscape project');
     await page.goto(runtimeUrl('idle_watch', testInfo));
     const moteBefore = await page.locator('.cb-field-mote').first().evaluate((node) => [node.getAttribute('cx'), node.getAttribute('cy'), window.getComputedStyle(node).opacity].join(','));
@@ -1418,7 +1418,10 @@ test.describe('Hermes kiosk smoke and visual regression anchors', () => {
     ).not.toBe(moteBefore);
     const moteAfter = await page.locator('.cb-field-mote').first().evaluate((node) => [node.getAttribute('cx'), node.getAttribute('cy'), window.getComputedStyle(node).opacity].join(','));
     expect(moteAfter).not.toBe(moteBefore);
+  });
 
+  test('reasoning mode exposes focused field instrumentation', async ({ page }, testInfo) => {
+    test.skip(testInfo.project.name !== 'minix-sf10t-landscape', 'MINIX-only landscape project');
     await page.goto(runtimeUrl('reasoning', testInfo));
     const reasoning = await page.locator('.cb-radial-stage').evaluate((node) => ({
       mode: node.dataset.fieldMode,
@@ -1427,11 +1430,17 @@ test.describe('Hermes kiosk smoke and visual regression anchors', () => {
     }));
     expect(reasoning.mode).toBe('reasoning');
     expect(reasoning.focus).toBeGreaterThan(0.7);
+  });
 
+  test('tool mode exposes precision field instrumentation', async ({ page }, testInfo) => {
+    test.skip(testInfo.project.name !== 'minix-sf10t-landscape', 'MINIX-only landscape project');
     await page.goto(runtimeUrl('tool_shell', testInfo));
     await expect(page.locator('.cb-field-tool-precision')).toBeVisible();
     expect(Number(await page.locator('.cb-field-tool-precision').evaluate((node) => window.getComputedStyle(node).opacity))).toBeGreaterThan(0.3);
+  });
 
+  test('blocked mode exposes bracket field instrumentation', async ({ page }, testInfo) => {
+    test.skip(testInfo.project.name !== 'minix-sf10t-landscape', 'MINIX-only landscape project');
     await page.goto(runtimeUrl('blocked', testInfo));
     expect(Number(await page.locator('.cb-field-blocked-brackets').evaluate((node) => window.getComputedStyle(node).opacity))).toBeGreaterThan(0.3);
   });

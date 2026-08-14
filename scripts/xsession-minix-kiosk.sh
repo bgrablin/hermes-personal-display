@@ -66,7 +66,7 @@ detect_output() {
 }
 
 configure_outputs() {
-  local xr output
+  local xr output touch_inputs
   xr="$(xrandr --query 2>&1 || true)"
   log "xrandr before: $(printf '%s' "$xr" | tr '\n' ' ' | sed 's/  */ /g')"
 
@@ -98,6 +98,17 @@ configure_outputs() {
   xrandr --query 2>&1 | tee -a "$LOG_FILE" || true
 
   if command -v xinput >/dev/null 2>&1; then
+    # X can become queryable before the USB touch controller is registered.
+    # Wait briefly so the persistent mapping is not skipped during boot.
+    touch_inputs=""
+    for _ in $(seq 1 40); do
+      touch_inputs="$(xinput list --name-only 2>/dev/null | grep -Ei 'touch|SiS HID' || true)"
+      [[ -n "$touch_inputs" ]] && break
+      sleep 0.25
+    done
+    if [[ -z "$touch_inputs" ]]; then
+      log "touch input not detected after 10 seconds; leaving input mapping unchanged"
+    fi
     while IFS= read -r device_name; do
       [ -n "$device_name" ] || continue
       log "mapping touch input to ${DISPLAY_OUTPUT:-default output}: $device_name"
@@ -139,7 +150,7 @@ configure_outputs() {
           ;;
       esac
       xinput --list-props "$device_name" >>"$LOG_FILE" 2>&1 || true
-    done < <(xinput list --name-only 2>/dev/null | grep -Ei 'touch|SiS HID' || true)
+    done <<<"$touch_inputs"
   fi
 }
 

@@ -227,6 +227,14 @@ if (appSource.includes('♆')) {
 requireAll(xsessionSource, [
   'URL="${PERSONAL_DISPLAY_URL:-$($SCRIPT_DIR/hermes-display url)}"',
 ], 'Physical X session must derive its default launch URL from hermes-display url.');
+requireAll(xsessionSource, [
+  'for _ in $(seq 1 40); do',
+  "grep -Ei 'touch|SiS HID'",
+  'touch input not detected after 10 seconds',
+  'xinput --map-to-output "$device_name" "$DISPLAY_OUTPUT"',
+  'Coordinate Transformation Matrix',
+  'done <<<"$touch_inputs"',
+], 'Physical X session must wait for the USB touch controller and persist the inverted DP-2 coordinate mapping.');
 requireAll(displayCliSource, [
   'canonical_url_status()',
   'orientation=landscape',
