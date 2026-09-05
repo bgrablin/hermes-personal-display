@@ -1735,6 +1735,11 @@
     hud.innerHTML = `
       <svg class="cb-radial-svg" viewBox="0 0 1100 1100" aria-hidden="true">
         <defs>
+          <radialGradient id="cb-lens-depth" cx="42%" cy="35%" r="66%">
+            <stop offset="0%" stop-color="#12343b" />
+            <stop offset="55%" stop-color="#071317" />
+            <stop offset="100%" stop-color="#020507" />
+          </radialGradient>
           <radialGradient id="cb-core-glow" cx="50%" cy="50%" r="50%" gradientUnits="userSpaceOnUse">
             <stop offset="0%" stop-color="var(--cb-accent)" stop-opacity="0.26" />
             <stop offset="48%" stop-color="var(--cb-accent)" stop-opacity="0.09" />
@@ -1884,6 +1889,9 @@
     installConceptBIrisLattice(hud);
     installConceptBFieldInstrumentation(hud);
     ensureConceptBEyeMotion(hud);
+    const activityTrace = !familyAudience ? window.HermesActivityTrace.createTrace() : null;
+    const renderActivityTrace = activityTrace ? window.HermesActivityTrace.mount(hud) : null;
+    const tracePreview = Boolean(requestedMode) && !['1', 'true', 'yes'].includes((params.get('live') || '').toLowerCase());
     const trends = { cpu: [], temp: [] };
     const feelState = { tokenBuffer: 0, rms: 0, forcedLoad: null, network: 'online', lastEventAt: 0 };
 
@@ -1963,6 +1971,15 @@
     const updateStatusAges = () => {
       const live = currentPacket.live || {};
       const freshnessTier = liveStatus.failures >= 8 ? 'lost' : liveStatus.failures ? 'stale' : live.freshness?.tier || 'fresh';
+      const mode = window.HermesBehaviorMachine?.modeFromPacket?.(currentPacket, 'idle_watch');
+      activityTrace?.observe(mode, {
+        freshness: freshnessTier,
+        connected: Boolean(liveStatus.lastGoodAt),
+        preview: tracePreview,
+        privateMode: overlayUrl.privacy === 'sensitive' || Boolean(currentPacket.safety?.contains_credentials)
+          || Boolean(currentPacket.snippet?.sensitivity && currentPacket.snippet.sensitivity !== 'display_safe'),
+      });
+      if (activityTrace) renderActivityTrace(activityTrace.snapshot());
       const feedAge = liveStatus.lastGoodAt ? formatAge(Date.now() - liveStatus.lastGoodAt) : '--';
       const sys = live.system || {};
       const cpuPct = measurementValue(sys, 'cpu');
@@ -3267,7 +3284,24 @@
         if (breathMs !== state.breathMs) { state.breathMs = breathMs; armBreath(); }
         const scanning = state.mode === 'searching' || state.special === 'scan_sweep';
         if (scanning !== state.scanning) { state.scanning = scanning; armScan(); }
-        if (state.mode !== prevMode) { contextualBlink(`mode-${state.mode}`); armFieldRings(); armIrisLattice(); fireModeTransition(prevMode, state.mode); }
+        if (state.mode !== prevMode) {
+          // A polled state change must release an indefinite waiting gaze too.
+          // Repeated telemetry in the same phase must not restart the gesture.
+          state.forcedUntil = 0;
+          state.anims.regard?.pause?.();
+          state.anims.socialLift?.pause?.();
+          state.regard = 0;
+          state.socialLift = 0;
+          const presence = window.HermesActivityTrace.presenceForMode(state.mode);
+          if (presence.kind === 'working') rig.workAway(presence.target, presence.holdMs);
+          else if (presence.kind === 'ambient') {
+            setSocialPresence('ambient');
+            const fixation = chooseFixation(state.mode);
+            setFixation(fixation.kind, fixation.dwellMs);
+          } else rig.acknowledgeViewer(presence.kind, presence.holdMs);
+          contextualBlink(`mode-${state.mode}`);
+          armFieldRings(); armIrisLattice(); fireModeTransition(prevMode, state.mode);
+        }
       },
       touchPulse(detail = {}) {
         const now = performance.now();

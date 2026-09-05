@@ -29,6 +29,7 @@ const STATIC_RUNTIME_FILES = [
   'src/mascot/entertainment.js',
   'src/mascot/watch-sequences.js',
   'src/mascot/sequences.json',
+  'src/mascot/activity-trace.js',
   'src/mascot/app.js',
 ];
 

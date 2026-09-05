@@ -18,6 +18,7 @@ function copyClassicRuntimeAssets() {
     ['src/mascot/entertainment.js', 'dist/src/mascot/entertainment.js'],
     ['src/mascot/watch-sequences.js', 'dist/src/mascot/watch-sequences.js'],
     ['src/mascot/sequences.json', 'dist/src/mascot/sequences.json'],
+    ['src/mascot/activity-trace.js', 'dist/src/mascot/activity-trace.js'],
     ['src/mascot/app.js', 'dist/src/mascot/app.js'],
     ['src/state.js', 'dist/src/state.js'],
   ];

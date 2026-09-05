@@ -842,7 +842,11 @@ if (!appSource.includes('id="cb-eye-lens-clip"') || !appSource.includes('clip-pa
 if (!cssSource.includes('.cb-eye-calibration {\n  display: none;') || !cssSource.includes('.cb-orbit-faint {\n  display: none;')) {
   fail('Concept B faint inner calibration/faint orbit rings must stay hidden; Brian flagged them as graphic artifacts.');
 }
-if (!cssSource.includes('body.kiosk-mode.kiosk-landscape.claude-concept-b .cb-eye-lens') || !cssSource.includes('fill: rgb(3, 7, 9);')) {
+const lensDepth = appSource.match(/<radialGradient id="cb-lens-depth"[^>]*>([\s\S]*?)<\/radialGradient>/)?.[1] || '';
+const opaqueLensStops = [...lensDepth.matchAll(/<stop offset="[\d.]+%" stop-color="#[\da-f]{6}"\s*\/>/gi)];
+if (!cssSource.includes('body.kiosk-mode.kiosk-landscape.claude-concept-b .cb-eye-lens') ||
+    !cssSource.includes('fill: url(#cb-lens-depth);') || opaqueLensStops.length !== 3 ||
+    lensDepth.replace(/<stop offset="[\d.]+%" stop-color="#[\da-f]{6}"\s*\/>/gi, '').trim()) {
   fail('Concept B lens must be opaque so field axes/rings cannot bleed through as seams or faint arcs.');
 }
 if (!cssSource.includes('.cb-eye-lid {\n  display: block;') || !cssSource.includes('fill: rgba(3, 7, 10, 0.84);')) {

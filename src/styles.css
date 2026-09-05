@@ -2870,7 +2870,7 @@ body.kiosk-mode.kiosk-landscape.claude-concept-b .cb-eye-calibration {
 }
 
 body.kiosk-mode.kiosk-landscape.claude-concept-b .cb-eye-lens {
-  fill: rgb(3, 7, 9);
+  fill: url(#cb-lens-depth);
   stroke: color-mix(in srgb, var(--cb-accent) 8%, transparent);
   stroke-width: 0.7;
   filter: drop-shadow(0 0 30px color-mix(in srgb, var(--cb-accent) 12%, transparent));
@@ -2956,7 +2956,7 @@ body.kiosk-mode.kiosk-landscape.claude-concept-b .cb-iris-lattice {
 }
 
 body.kiosk-mode.kiosk-landscape.claude-concept-b .cb-iris-filament {
-  stroke: color-mix(in srgb, var(--cb-accent) 30%, transparent);
+  stroke: color-mix(in srgb, var(--cb-accent) 46%, transparent);
   stroke-width: 0.8;
   stroke-linecap: round;
   transition: stroke 600ms ease;
@@ -3638,4 +3638,91 @@ body.kiosk-mode.kiosk-landscape.claude-concept-b:is(
   [data-optic-mode="degraded_offline"]
 ) .cb-field-instrumentation {
   opacity: 1;
+}
+
+/* A short trace of observed phases, not a completion estimate or a transcript. */
+body.kiosk-mode.kiosk-landscape.claude-concept-b .cb-activity-trace {
+  position: absolute;
+  left: 50%;
+  bottom: 102px;
+  transform: translateX(-50%);
+  width: min(720px, 86vw);
+  z-index: 7;
+  color: var(--cb-fg-1);
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+}
+body.kiosk-mode.kiosk-landscape.claude-concept-b .cb-activity-trace[hidden] { display: none; }
+.cb-trace-heading {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 18px;
+  color: var(--cb-fg-1);
+  font-size: 14px;
+  letter-spacing: .13em;
+  font-variant-numeric: tabular-nums;
+}
+.cb-activity-trace ol {
+  display: flex;
+  justify-content: center;
+  gap: 0;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+.cb-activity-trace li {
+  position: relative;
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 9px;
+  font-size: 15px;
+  text-align: center;
+  color: var(--cb-fg-1);
+}
+.cb-activity-trace li + li::before {
+  content: '';
+  position: absolute;
+  right: calc(50% + 19px);
+  top: 15px;
+  width: calc(100% - 38px);
+  height: 1px;
+  background: color-mix(in srgb, var(--cb-accent) 28%, transparent);
+}
+.cb-trace-glyph {
+  display: grid;
+  place-items: center;
+  width: 30px;
+  height: 30px;
+  border: 1px solid color-mix(in srgb, var(--cb-accent) 28%, transparent);
+  border-radius: 50%;
+  background: #080f11;
+  font-size: 18px;
+}
+.cb-activity-trace [aria-current="step"] { color: var(--cb-fg-0); }
+.cb-activity-trace [aria-current="step"] .cb-trace-glyph {
+  color: var(--cb-accent);
+  border-color: var(--cb-accent);
+  box-shadow: 0 0 18px color-mix(in srgb, var(--cb-accent) 20%, transparent);
+  animation: cb-trace-arrive 450ms ease-out both;
+}
+.cb-activity-trace[data-status="stale"] .cb-trace-heading { color: #dcbb7c; }
+.cb-activity-trace[data-status="stale"] ol { opacity: .6; }
+@keyframes cb-trace-arrive {
+  from { transform: scale(.82); opacity: .45; }
+  to { transform: scale(1); opacity: 1; }
+}
+/* A human input request stays legible while the eye makes direct contact. */
+body.kiosk-mode.kiosk-landscape.claude-concept-b[data-optic-mode="waiting_user"] .cb-activity {
+  opacity: 1;
+}
+@media (prefers-reduced-motion: reduce) {
+  .cb-activity-trace [aria-current="step"] .cb-trace-glyph { animation: none; }
+}
+body[data-reduced-motion="true"] .cb-activity-trace .cb-trace-glyph { animation: none; }
+@media (max-width: 700px) {
+  .cb-trace-heading { font-size: 10px; letter-spacing: .04em; }
+  .cb-activity-trace li { font-size: 10px; }
 }
