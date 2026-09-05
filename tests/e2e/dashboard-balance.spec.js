@@ -19,7 +19,7 @@ test.beforeEach(async ({ page }, info) => {
   await page.route('**/avatar-events/stream**', route => route.fulfill({ contentType: 'text/event-stream', body: '' }));
 });
 
-test('Augury prioritizes fresh work, groups repeats, and shows private excerpts by default', async ({ page }) => {
+test('Augury prioritizes fresh work, groups repeats, and shows private excerpts when explicitly enabled', async ({ page }) => {
   let packet = observation();
   let feedFailed = false;
   let feedAge = 12;
@@ -29,7 +29,7 @@ test('Augury prioritizes fresh work, groups repeats, and shows private excerpts 
     schema_version: '0.1.0', current_work: { summary: 'An older feed summary.', active: true, age_seconds: 12 },
     items: [{ ...item, age_seconds: feedAge++ }, { ...item, age_seconds: feedAge + 4 }, { kind: 'log', title: 'log', age_seconds: 18 }],
   } }));
-  await page.goto(url);
+  await page.goto(url + '&auguryText=1');
   const rail = page.getByRole('complementary', { name: 'Augury activity' });
   await expect(rail).toContainText('Reviewing the display behavior.');
   await expect(rail).not.toContainText('An older feed summary.');
