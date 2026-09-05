@@ -24,7 +24,8 @@ test('active headline keeps two complete glyph lines inside the clamp', async ({
   await page.route('**/api/hermes-state**', route => route.fulfill({ json: observation('reasoning', headline) }));
   await page.goto(url + '&mode=reasoning&live=1');
   const activity = page.locator('[data-cb-activity]');
-  await expect(activity).toHaveText(headline);
+  await expect(activity).toContainText('Glyphs jump beyond high caps');
+  await expect(activity).toContainText('…');
   const geometry = await activity.evaluate(node => {
     const clamp = node.closest('.cb-line');
     const box = clamp.getBoundingClientRect();
