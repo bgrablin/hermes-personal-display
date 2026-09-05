@@ -1729,7 +1729,7 @@ body.kiosk-mode.kiosk-landscape.claude-concept-b[data-cb-mode="planning"] .cb-st
 body.kiosk-mode.kiosk-landscape.claude-concept-b[data-cb-mode="active-turn"] .cb-line,
 body.kiosk-mode.kiosk-landscape.claude-concept-b[data-cb-mode="working"] .cb-line,
 body.kiosk-mode.kiosk-landscape.claude-concept-b[data-cb-mode="planning"] .cb-line {
-  font: 640 46px/1.06 system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  font: 640 46px/1.18 system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
   letter-spacing: -0.02em;
   text-shadow: 0 1px 0 rgba(0,0,0,0.28), 0 0 28px rgba(0,0,0,0.42);
 }
@@ -1803,7 +1803,7 @@ body.kiosk-mode.kiosk-landscape.claude-concept-b .cb-state span {
 body.kiosk-mode.kiosk-landscape.claude-concept-b .cb-line {
   max-width: 980px;
   color: var(--cb-fg-0);
-  font: 560 38px/1.08 system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  font: 560 38px/1.18 system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
   display: -webkit-box;
   -webkit-line-clamp: 2;
   -webkit-box-orient: vertical;

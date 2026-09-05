@@ -336,6 +336,9 @@ if (!cssSource.includes('[data-cb-arc][data-severity="hot"] .cb-arc-value')) {
 if (!cssSource.includes('[data-cb-arc][data-inspect]:focus { outline: none; }')) {
   fail('Interactive SVG metrics must use an in-theme focus marker, not a rectangular browser outline.');
 }
+if (!cssSource.includes('font: 640 46px/1.18') || !cssSource.includes('font: 560 38px/1.18')) {
+  fail('Activity headlines must reserve cap and descender space inside the two-line clamp.');
+}
 if (appSource.includes('LOAD WATCH') || appSource.includes('LOAD HIGH') || appSource.includes('CPU HEADROOM')) {
   fail('CPU usage must not drive ugly top-alert text or CPU-headroom warning copy.');
 }
@@ -524,7 +527,7 @@ requireAll(appSource, [
   "const creditsUsedSummary = knownCreditsUsed ? `${formatRouteCredits(creditsUsed)}` : ''",
   "p.credits_used ?? ''",
 ], 'Route rail must render five honest provider rows, including XAI, distinguish unmetered READY routes from measured percentages, and show confirmed Copilot credits when no limit exists.');
-requireAll(cssSource, ['right: 64px', 'width: 430px', 'width: 104px', 'transform: scaleX(var(--route-headroom))', 'transition: transform 600ms ease, opacity 450ms ease', 'grid-template-columns: minmax(118px, auto) 80px', 'min-width: 76px', 'body.kiosk-mode.kiosk-landscape.claude-concept-b[data-cb-mode="active-turn"] .cb-activity', '[data-cb-mode="active-turn"] .cb-activity', 'background: transparent', 'box-shadow: none', 'font: 640 46px/1.06'], 'Route values must use a fixed aligned column clear of the route whisker, animate the whisker via transform instead of width, and active turns must promote body-scoped activity text without a box that blocks the optic.');
+requireAll(cssSource, ['right: 64px', 'width: 430px', 'width: 104px', 'transform: scaleX(var(--route-headroom))', 'transition: transform 600ms ease, opacity 450ms ease', 'grid-template-columns: minmax(118px, auto) 80px', 'min-width: 76px', 'body.kiosk-mode.kiosk-landscape.claude-concept-b[data-cb-mode="active-turn"] .cb-activity', '[data-cb-mode="active-turn"] .cb-activity', 'background: transparent', 'box-shadow: none', 'font: 640 46px/1.18'], 'Route values must use a fixed aligned column clear of the route whisker, animate the whisker via transform instead of width, and active turns must promote body-scoped activity text without a box that blocks the optic.');
 if (!cssSource.includes('body.kiosk-mode.kiosk-landscape.claude-concept-b[data-cb-mode="active-turn"] .cb-activity')) {
   fail('Active-turn activity panel CSS must target body[data-cb-mode] so the promoted activity card actually applies.');
 }
