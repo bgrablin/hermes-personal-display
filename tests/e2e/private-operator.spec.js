@@ -12,7 +12,7 @@ test('private Augury expands inert text and holds the selected observation acros
       { kind: 'tool', title: 'tool read_file', text, age_seconds: 12, session_id: 'test-session' },
     ] } });
   });
-  await page.goto(url);
+  await page.goto(url + '&auguryText=1');
   const row = page.getByRole('button', { name: 'Inspect read_file', exact: true });
   await expect(row).toContainText('/home/brian/src/state.js');
   await row.click();
@@ -38,7 +38,7 @@ test('private Augury expands inert text and holds the selected observation acros
   await expect(panel).toBeHidden();
 });
 
-test('compact mode never exposes body text through inspection and family never fetches it', async ({ page }, info) => {
+test('default compact mode never exposes body text through inspection and family never fetches it', async ({ page }, info) => {
   test.skip(info.project.name !== 'minix-sf10t-landscape', 'Physical display interaction');
   let polls = 0;
   await page.route('**/api/augury-feed**', route => {
@@ -47,7 +47,7 @@ test('compact mode never exposes body text through inspection and family never f
       { kind: 'tool', title: 'tool read_file', text: 'PRIVATE BODY', safeText: true },
     ] } });
   });
-  await page.goto(url + '&auguryText=0');
+  await page.goto(url);
   const row = page.getByRole('button', { name: 'Inspect read_file', exact: true });
   await row.press('Enter');
   await expect(page.getByRole('dialog')).not.toContainText('PRIVATE BODY');

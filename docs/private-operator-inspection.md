@@ -6,16 +6,17 @@ not install a Hermes plugin or issue agent commands.
 
 ## Operator content
 
-The canonical `?kiosk=1&orientation=landscape&augury=1` URL now shows the existing
-Augury feed's redacted excerpts by default. Ordinary paths, task/request text,
-commands, structured results and diagnostic vocabulary are useful context here.
-Only credential-shaped values are masked in this feed. The server redacts before
-truncating; the browser applies the same categories and uses textContent.
-Excerpts remain bounded to 320 characters. They are observations from the log,
-not a claim to expose hidden reasoning or every tool's complete output.
+The canonical `?kiosk=1&orientation=landscape&augury=1` URL stays compact and
+display-safe: it shows bounded titles and structural freshness metadata, not raw
+log bodies, prompts, or tool output. Explicit private diagnostic mode adds
+`auguryText=1`; only that presentation renders credential-redacted excerpts.
+The server redacts before truncating; the browser applies the same categories
+and uses textContent. Excerpts remain bounded to 320 characters. They are
+observations from the log, not a claim to expose hidden reasoning or every
+tool's complete output.
 
-Use `auguryText=0` for compact titles without log bodies, or omit `augury=1` to
-hide the rail. Compact mode is a presentation preference, not an authorization
+Use `auguryText=1` only for explicit private diagnostics, or omit `augury=1` to
+hide the rail. The default compact presentation is not an authorization
 boundary: the private feed is still fetched. Family mode mounts no operator
 rail or inspector and makes no Augury requests. Existing loopback Host/Origin
 checks remain. Broad ambient lifecycle packets and family-generated captions
@@ -71,7 +72,8 @@ process. After merge, deploy through the existing host checkout and documented
 run `hermes-display verify`; verify real touch, orientation, readability and live
 feed behavior separately. No host deployment is performed by this PR.
 
-For a quick presentation rollback, add `auguryText=0`. For code rollback, return
+For a quick presentation rollback from private diagnostics, remove
+`auguryText=1`. For code rollback, return
 the deployment checkout to its recorded previous commit, rebuild through the
 normal build-ID process, restart and verify. Keep machine-specific configuration
 outside Git.

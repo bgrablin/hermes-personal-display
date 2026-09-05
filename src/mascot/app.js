@@ -1478,15 +1478,15 @@
       return;
     }
     if (!['1', 'true', 'yes', 'preview'].includes(raw)) return;
-    const includeBodyText = !['0', 'false', 'no'].includes((params.get('auguryText') || '').toLowerCase());
+    const includeBodyText = ['1', 'true', 'yes'].includes((params.get('auguryText') || '').toLowerCase());
     const proofEnabled = ['1', 'true', 'yes', 'preview'].includes(raw) && ['1', 'true', 'yes'].includes((params.get('debug') || params.get('qa') || '').toLowerCase());
 
     const MAX_STRANDS = 5;
     const POLL_MS = 5200;
     const POLL_BACKOFF_MS = 22000;
     const MAX_TEXT_CHARS = 320;
-    // Operator Augury is private by default. auguryText=0 keeps compact titles;
-    // family mode exits above and never mounts or fetches this feed.
+    // Augury stays compact by default. auguryText=1 explicitly enters the
+    // private diagnostic presentation; family mode never mounts or fetches it.
     const SAFE_TEXT_CHARS = 150;
     const auguryClean = (value, max = MAX_TEXT_CHARS) => window.HermesSanitize.operatorText(value, max);
 

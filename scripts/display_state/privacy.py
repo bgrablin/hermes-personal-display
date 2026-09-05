@@ -12,13 +12,19 @@ AUGURY_REDACTION_POLICY = "credentials_only_private_operator"
 # Private operator excerpts retain paths, commands and structured results. Mask
 # credentials before whitespace normalization/truncation so a key cannot leak
 # through a clipped match. The stricter ambient event contract stays separate.
+AUGURY_CREDENTIAL_NAME = (
+    r"(?:[A-Za-z0-9]+[_-])*(?:access[_-]?token|refresh[_-]?token|token|"
+    r"api[_-]?key|access[_-]?key|secret[_-]?key|client[_-]?secret|password|passwd|secret)"
+)
+
 AUGURY_HARD_REDACT_PATTERNS: list[re.Pattern[str]] = [
     re.compile(r"-----BEGIN [A-Z ]*PRIVATE KEY-----.*?(?:-----END [A-Z ]*PRIVATE KEY-----|$)", re.S),
     re.compile(r"(?i)\b(?:authorization|proxy-authorization|cookie|set-cookie)[\"']?\s*[:=]\s*(?:\"[^\"]*\"|'[^']*'|[^\r\n]+)"),
-    re.compile(r"(?i)\b(?:access[_-]?token|refresh[_-]?token|token|api[_-]?key|access[_-]?key|secret[_-]?key|client[_-]?secret|password|passwd|secret)[\"']?\s*[:=]\s*(?:\"[^\"]*\"|'[^']*'|[^\s\"'&,;}\]]+)"),
+    re.compile(rf"(?i)\b{AUGURY_CREDENTIAL_NAME}[\"']?\s*[:=]\s*(?:\"[^\"]*\"|'[^']*'|[^\s\"'&,;}}\]]+)"),
+    re.compile(rf"(?i)(?:^|\s)--{AUGURY_CREDENTIAL_NAME}(?:=|\s+)(?:\"[^\"]*\"|'[^']*'|\S+)"),
     re.compile(r"(?i)(?:[?&])(?:token|key|auth|signature|sig|x-amz-signature|x-goog-signature)=[^\s&#\"']+"),
     re.compile(r"(?i)\bbearer\s+[A-Za-z0-9._~\-+/=]{16,}"),
-    re.compile(r"\b(?:sk-[A-Za-z0-9_-]{8,}|gh[pousr]_[A-Za-z0-9_]{8,}|github_pat_[A-Za-z0-9_]{8,})(?:\.\.\.[A-Za-z0-9_-]+)?"),
+    re.compile(r"\b(?:sk-[A-Za-z0-9_-]{8,}|gh[pousr]_[A-Za-z0-9_]{8,}|github_pat_[A-Za-z0-9_]{8,}|xox[baprs]-[A-Za-z0-9_-]{8,}|npm_[A-Za-z0-9_-]{8,}|glpat-[A-Za-z0-9_-]{8,})(?:\.\.\.[A-Za-z0-9_-]+)?", re.I),
     re.compile(r"\b(?:sk-|gh[pousr]_)[A-Za-z0-9_-]{2,}\.\.\.[A-Za-z0-9_-]{2,}\b"),
     re.compile(r"\b[A-Za-z0-9_-]{20,}\.[A-Za-z0-9_-]{20,}\.[A-Za-z0-9_-]{20,}\b"),
 ]

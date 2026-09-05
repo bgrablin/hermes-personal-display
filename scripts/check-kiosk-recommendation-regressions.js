@@ -342,6 +342,9 @@ if (!appSource.includes('FEED LOST') || !appSource.includes('GATEWAY WATCH')) {
 if (!appSource.includes("includeBodyText\n              ? auguryClean(raw?.text") && appSource.includes("text: auguryClean(raw?.text || '', MAX_TEXT_CHARS)")) {
   fail('Augury must not show raw body text by default; require auguryText=1 for raw excerpts.');
 }
+if (!appSource.includes("const includeBodyText = ['1', 'true', 'yes'].includes((params.get('auguryText') || '').toLowerCase());")) {
+  fail('Augury body text must require the explicit auguryText=1 private-diagnostic opt-in.');
+}
 if (!appSource.includes("if (familyAudience) return 'hidden';")) {
   fail('Family/theater mode must force Augury presence hidden.');
 }

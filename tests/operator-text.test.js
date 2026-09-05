@@ -14,6 +14,11 @@ describe('private operator text', () => {
   });
   it.each([
     'api_key="private-value"', '{"password":"private-value"}',
+    'OPENAI_API_KEY=private-value', 'ANTHROPIC_API_KEY=private-value',
+    'AWS_SECRET_ACCESS_KEY=private-value', 'GITHUB_TOKEN=private-value',
+    '{"openai_api_key":"private-value"}', '--token private-value',
+    'xoxb-private-value-12345678', 'npm_privatevalue12345678',
+    'glpat-privatevalue12345678',
     'Authorization: Bearer private-value', 'Cookie: session=private-value; other=value',
     'https://example.test/?sig=private-value&mode=view',
     'https://example.test/?X-Amz-Signature=private-value',

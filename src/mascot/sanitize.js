@@ -20,10 +20,11 @@
     const patterns = [
       /-----BEGIN [A-Z ]*PRIVATE KEY-----[\s\S]*?(?:-----END [A-Z ]*PRIVATE KEY-----|$)/g,
       /\b(?:authorization|proxy-authorization|cookie|set-cookie)["']?\s*[:=]\s*(?:"[^"]*"|'[^']*'|[^\r\n]+)/gi,
-      /\b(?:access[_-]?token|refresh[_-]?token|token|api[_-]?key|access[_-]?key|secret[_-]?key|client[_-]?secret|password|passwd|secret)["']?\s*[:=]\s*(?:"[^"]*"|'[^']*'|[^\s"'&,;}\]]+)/gi,
+      /\b(?:[A-Za-z0-9]+[_-])*(?:access[_-]?token|refresh[_-]?token|token|api[_-]?key|access[_-]?key|secret[_-]?key|client[_-]?secret|password|passwd|secret)["']?\s*[:=]\s*(?:"[^"]*"|'[^']*'|[^\s"'&,;}\]]+)/gi,
+      /(?:^|\s)--(?:[A-Za-z0-9]+[_-])*(?:access[_-]?token|refresh[_-]?token|token|api[_-]?key|access[_-]?key|secret[_-]?key|client[_-]?secret|password|passwd|secret)(?:=|\s+)(?:"[^"]*"|'[^']*'|\S+)/gi,
       /[?&](?:token|key|auth|signature|sig|x-amz-signature|x-goog-signature)=[^\s&#"']+/gi,
       /\bbearer\s+[A-Za-z0-9._~+/=\-]{16,}/gi,
-      /\b(?:sk-[A-Za-z0-9_-]{8,}|gh[pousr]_[A-Za-z0-9_]{8,}|github_pat_[A-Za-z0-9_]{8,})(?:\.\.\.[A-Za-z0-9_-]+)?/g,
+      /\b(?:sk-[A-Za-z0-9_-]{8,}|gh[pousr]_[A-Za-z0-9_]{8,}|github_pat_[A-Za-z0-9_]{8,}|xox[baprs]-[A-Za-z0-9_-]{8,}|npm_[A-Za-z0-9_-]{8,}|glpat-[A-Za-z0-9_-]{8,})(?:\.\.\.[A-Za-z0-9_-]+)?/gi,
       /\b(?:sk-|gh[pousr]_)[A-Za-z0-9_-]{2,}\.\.\.[A-Za-z0-9_-]{2,}\b/g,
       /\b[A-Za-z0-9_-]{20,}\.[A-Za-z0-9_-]{20,}\.[A-Za-z0-9_-]{20,}\b/g,
     ];

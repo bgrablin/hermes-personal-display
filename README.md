@@ -86,10 +86,10 @@ Core paths:
 
 ## Private home operator view
 
-Operator Augury now shows credential-redacted log excerpts by default with
-`augury=1`. Tap a row to hold and read its full bounded excerpt. Paths, task text,
-commands and ordinary structured results are permitted in this private view.
-`auguryText=0` restores compact titles. Family mode remains separate.
+Operator Augury stays compact and display-safe by default with `augury=1`.
+Rows remain touch-inspectable using their compact text. Explicit private diagnostic
+mode (`auguryText=1`) permits credential-redacted, bounded excerpts. Family mode
+remains separate and never fetches or mounts the operator feed.
 See [private operator inspection](docs/private-operator-inspection.md) for the
 content policy, controls, validation and rollback.
 
