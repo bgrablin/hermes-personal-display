@@ -38,6 +38,35 @@ function runScripts(files, windowExtras = {}) {
 }
 
 describe('adopted stack contracts', () => {
+  for (const runtime of ['xstate', 'fallback']) {
+    it(`applies lifecycle snapshots from every prior mode (${runtime})`, () => {
+      const window = runScripts(['src/mascot/behavior-machine.js'], runtime === 'xstate' ? { XState } : {});
+      const behavior = window.HermesBehaviorMachine;
+      const cases = [
+        ['assistant.started', undefined, 'notice'],
+        ['assistant.tool_started', 'shell', 'tool_shell'],
+        ['assistant.tool_started', 'searching', 'searching'],
+        ['assistant.tool_started', 'reading', 'reading'],
+        ['assistant.tool_started', 'patching', 'writing'],
+        ['assistant.tool_started', 'planning', 'reasoning'],
+        ['assistant.tool_started', 'unknown', 'tool_shell'],
+        ['assistant.tool_finished', undefined, 'reasoning'],
+        ['assistant.waiting_on_user', undefined, 'waiting_user'],
+        ['assistant.final_started', undefined, 'writing'],
+        ['assistant.final_complete', undefined, 'complete'],
+      ];
+      for (const initial of behavior.MODES) {
+        for (const [event, visual_kind, expected] of cases) {
+          const service = behavior.createBehaviorService({ behavior: initial, health: 'degraded', quiet: 'night', privacy_display: 'sensitive' });
+          service.sendAll(behavior.behaviorEventsForAvatarEvent({ event, display: { visual_kind } }));
+          expect(service.mode, `${initial} + ${event}/${visual_kind}`).toBe(expected);
+          expect(service.overlays).toEqual({ health: 'degraded', quiet: 'night', privacy: 'sensitive' });
+          service.stop?.();
+        }
+      }
+    });
+  }
+
   function assertAdaptiveMotionBoundaries(samples, systemForValue) {
     const window = runScripts(['src/state.js']);
     const base = { breath: 0.4, wing_flap: 0.2 };
@@ -317,9 +346,9 @@ describe('adopted stack contracts', () => {
     const window = runScripts(['src/mascot/behavior-machine.js']);
     const behavior = window.HermesBehaviorMachine;
 
-    expect(behavior.behaviorEventsForAvatarEvent({ event: 'assistant.started' })).toEqual(['ASSISTANT_NOTICE']);
-    expect(behavior.behaviorEventsForAvatarEvent({ event: 'assistant.tool_started' })).toEqual(['TOOL_STARTED']);
-    expect(behavior.behaviorEventsForAvatarEvent({ event: 'assistant.waiting_on_user' })).toEqual(['WAITING_USER']);
+    expect(behavior.behaviorEventsForAvatarEvent({ event: 'assistant.started' })).toEqual(['SET_NOTICE']);
+    expect(behavior.behaviorEventsForAvatarEvent({ event: 'assistant.tool_started' })).toEqual(['SET_TOOL_SHELL']);
+    expect(behavior.behaviorEventsForAvatarEvent({ event: 'assistant.waiting_on_user' })).toEqual(['SET_WAITING_USER']);
     expect(behavior.behaviorEventsForAvatarEvent({ event: 'feed.lost' })).toEqual(['DEGRADED', 'HEALTH_CRITICAL']);
     expect(behavior.behaviorEventsForAvatarEvent({ event: 'feed.recovered' })).toEqual(['RECOVERED', 'HEALTH_RECOVERED']);
     expect(behavior.behaviorEventsForAvatarEvent({ event: 'system.display_recovered' })).toEqual(['RECOVERED', 'HEALTH_RECOVERED']);
