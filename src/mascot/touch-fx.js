@@ -33,7 +33,8 @@
     const params = new URLSearchParams(window.location.search);
     const kiosk = truthy(params.get('kiosk'));
     if (!kiosk) return null;
-    const touchMode = (params.get('touch') || 'fun').toLowerCase();
+    const family = document.body.dataset.audience === 'family';
+    const touchMode = (params.get('touch') || (family ? 'fun' : 'inspect')).toLowerCase();
     const allowMouseTouchTest = truthy(params.get('touchtest'));
     const debugFlag = truthy(params.get('debug'));
     const debugTouch = debugFlag && allowMouseTouchTest;
@@ -44,6 +45,8 @@
       window.HermesTouchFxController = legacy;
       return legacy;
     }
+
+    if (!family && touchMode !== 'fun') return window.HermesOperatorTouch.install(options);
 
     const renderer = options.renderer || {};
     const getPacket = typeof options.getPacket === 'function' ? options.getPacket : () => ({});

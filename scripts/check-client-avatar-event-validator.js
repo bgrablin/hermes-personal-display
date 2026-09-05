@@ -291,7 +291,7 @@ function invalidCases(base) {
 function loadApp() {
   FakeEventSource.instances = [];
   const context = makeContext();
-  const tracePath = path.join(ROOT, 'src/mascot/activity-trace.js');
+  const tracePath = path.join(ROOT, 'src/mascot/presence.js');
   vm.runInContext(fs.readFileSync(tracePath, 'utf8'), context, { filename: tracePath });
   const source = fs.readFileSync(APP_JS, 'utf8');
   vm.runInContext(source, context, { filename: APP_JS });

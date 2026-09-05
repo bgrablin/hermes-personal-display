@@ -210,6 +210,23 @@ Physical panel:
 
 `hermes-display verify` checks the live Chromium command line for the full operator URL shape, including the generated build cache key (`v=<build>`). `audience=family` or `family=1` suppresses private/operator overlays such as Augury.
 
+Operator touch now defaults to quiet contact and inspection: drag to guide the eye;
+tap CPU, memory, temperature, a provider, or a bottom status reading for current details.
+Details close with the close button, Escape, another touch outside, or after 15 seconds.
+Enter/Space opens a focused reading. Touch does not change Hermes's reported activity.
+Family mode keeps playful effects. `touch=fun` explicitly enables those effects in
+operator mode; `touch=off` disables touch interaction.
+
+For a recorded visual rehearsal of the actual runtime with synthetic observations:
+
+```bash
+npx playwright install chromium ffmpeg
+npm run review:presence
+```
+
+The recording and still frames are written beneath `test-results/presence/`.
+See [the visual and touch design](docs/luminous-presence.md).
+
 The Python display server is also available for local state API work:
 
 ```bash

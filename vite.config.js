@@ -14,11 +14,12 @@ function copyClassicRuntimeAssets() {
     ['src/mascot/states.js', 'dist/src/mascot/states.js'],
     ['src/mascot/motion-adapter.js', 'dist/src/mascot/motion-adapter.js'],
     ['src/mascot/audio.js', 'dist/src/mascot/audio.js'],
+    ['src/mascot/operator-touch.js', 'dist/src/mascot/operator-touch.js'],
     ['src/mascot/touch-fx.js', 'dist/src/mascot/touch-fx.js'],
     ['src/mascot/entertainment.js', 'dist/src/mascot/entertainment.js'],
     ['src/mascot/watch-sequences.js', 'dist/src/mascot/watch-sequences.js'],
     ['src/mascot/sequences.json', 'dist/src/mascot/sequences.json'],
-    ['src/mascot/activity-trace.js', 'dist/src/mascot/activity-trace.js'],
+    ['src/mascot/presence.js', 'dist/src/mascot/presence.js'],
     ['src/mascot/app.js', 'dist/src/mascot/app.js'],
     ['src/state.js', 'dist/src/state.js'],
   ];

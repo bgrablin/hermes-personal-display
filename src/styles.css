@@ -1611,7 +1611,7 @@ body.kiosk-mode.kiosk-landscape.claude-concept-b .cb-orbit-main {
   stroke: color-mix(in srgb, var(--cb-accent) 28%, transparent);
   stroke-dasharray: 180 34 28 42;
   opacity: 0.34;
-  animation: cb-orbit-drift 22s linear infinite;
+  animation: none;
   transition: stroke 600ms ease, opacity 600ms ease;
 }
 
@@ -1677,7 +1677,7 @@ body.kiosk-mode.kiosk-landscape.claude-concept-b [data-cb-arc].unknown .cb-arc-v
 body.kiosk-mode.kiosk-landscape.claude-concept-b .cb-activity {
   position: absolute;
   left: 50%;
-  bottom: 226px;
+  bottom: 70px;
   transform: translateX(-50%);
   z-index: 6;
   display: flex;
@@ -1701,7 +1701,7 @@ body.kiosk-mode.kiosk-landscape.claude-concept-b[data-cb-mode="planning"] .cb-ac
   z-index: 8;
   width: min(860px, 58vw);
   max-width: min(900px, 60vw);
-  bottom: 196px;
+  bottom: 60px;
   padding: 0 18px;
   border: 0;
   border-radius: 0;
@@ -2950,39 +2950,38 @@ body.kiosk-mode.kiosk-landscape.claude-concept-b .cb-iris-lattice {
      transform models is what made the orbit ring drift off center. Light level follows
      the mode focus var, plus the short anime.js --cb-lattice-flare pulse on state
      changes (no opacity transition so the flare is not low-passed into mush). */
-  opacity: calc(0.46 + var(--cb-field-focus, 0.24) * 0.42 + var(--cb-lattice-flare, 0) * 0.34);
+  opacity: calc(0.9 + var(--cb-lattice-flare, 0) * 0.1);
   will-change: transform, opacity;
   pointer-events: none;
 }
 
 body.kiosk-mode.kiosk-landscape.claude-concept-b .cb-iris-filament {
-  stroke: color-mix(in srgb, var(--cb-accent) 46%, transparent);
-  stroke-width: 0.8;
+  fill: none;
+  stroke: url(#cb-iris-spectrum);
   stroke-linecap: round;
   transition: stroke 600ms ease;
 }
 
 body.kiosk-mode.kiosk-landscape.claude-concept-b .cb-iris-filament-bright {
-  stroke: color-mix(in srgb, var(--cb-accent) 52%, rgba(240, 248, 246, 0.4));
-  stroke-width: 1.15;
-  filter: drop-shadow(0 0 6px color-mix(in srgb, var(--cb-accent) 28%, transparent));
+  stroke: url(#cb-iris-spectrum);
+  filter: none;
 }
 
 body.kiosk-mode.kiosk-landscape.claude-concept-b .cb-iris-collar,
 body.kiosk-mode.kiosk-landscape.claude-concept-b .cb-iris-limbal {
   fill: none;
-  stroke: color-mix(in srgb, var(--cb-accent) 24%, transparent);
+  stroke: #bfa472;
   transition: stroke 600ms ease;
 }
 
 body.kiosk-mode.kiosk-landscape.claude-concept-b .cb-iris-collar {
-  stroke-width: 1;
-  opacity: 0.5;
+  stroke-width: 0.75;
+  opacity: 0.8;
 }
 
 body.kiosk-mode.kiosk-landscape.claude-concept-b .cb-iris-limbal {
-  stroke-width: 0.7;
-  opacity: 0.36;
+  stroke-width: 1.4;
+  opacity: 0.2;
 }
 
 body.kiosk-mode.kiosk-landscape.claude-concept-b .cb-eye-pupil {
@@ -3641,88 +3640,134 @@ body.kiosk-mode.kiosk-landscape.claude-concept-b:is(
 }
 
 /* A short trace of observed phases, not a completion estimate or a transcript. */
-body.kiosk-mode.kiosk-landscape.claude-concept-b .cb-activity-trace {
+
+/* Luminous presence: one material body, with information at the periphery. */
+body.kiosk-mode.kiosk-landscape.claude-concept-b .cb-presence-surface {
+  pointer-events: none;
+  fill: none;
+  stroke: url(#cb-surface-light);
+  stroke-width: .8;
+}
+.cb-presence-fold { vector-effect: non-scaling-stroke; }
+.cb-iris-crypt { fill: none; stroke: #06141d; opacity: .7; }
+body.kiosk-mode.kiosk-landscape.claude-concept-b .cb-eye-glass-sheen {
+  fill: url(#cb-glass-light);
+  opacity: .6;
+  filter: none;
+}
+body.kiosk-mode.kiosk-landscape.claude-concept-b .cb-eye-glass-crescent {
+  stroke: #a2d6cf;
+  opacity: .3;
+  stroke-width: .9;
+}
+body.kiosk-mode.kiosk-landscape.claude-concept-b .cb-eye-ring {
+  stroke-width: .65;
+  filter: none;
+  opacity: calc(.3 + var(--cb-edge-rim-opacity, .12));
+}
+body.kiosk-mode.kiosk-landscape.claude-concept-b .cb-eye-aura {
+  opacity: .22;
+  fill: #4aa398;
+  filter: blur(23px);
+}
+body.kiosk-mode.kiosk-landscape.claude-concept-b .cb-eye-pupil {
+  fill: #01050a;
+  stroke: #638880;
+  stroke-width: .6;
+  filter: none;
+}
+body.kiosk-mode.kiosk-landscape.claude-concept-b .cb-eye-lid {
+  fill: #040a0e;
+  stroke: #284447;
+  stroke-width: .45;
+}
+body.kiosk-mode.kiosk-landscape.claude-concept-b .cb-aperture-shell,
+body.kiosk-mode.kiosk-landscape.claude-concept-b .cb-status-rings,
+body.kiosk-mode.kiosk-landscape.claude-concept-b .cb-axis,
+body.kiosk-mode.kiosk-landscape.claude-concept-b .cb-cardinal,
+body.kiosk-mode.kiosk-landscape.claude-concept-b .cb-field-compass,
+body.kiosk-mode.kiosk-landscape.claude-concept-b .cb-field-focus-rings,
+body.kiosk-mode.kiosk-landscape.claude-concept-b .cb-field-trace {
+  display: none;
+}
+body.kiosk-mode.kiosk-landscape.claude-concept-b .cb-eye-grid,
+body.kiosk-mode.kiosk-landscape.claude-concept-b .cb-eye-scan {
+  /* The observed mode remains available to integrations. Texture and gaze now
+     express focus; a grid or radar is no longer projected across the cornea. */
+  visibility: hidden;
+}
+body.kiosk-mode.kiosk-landscape.claude-concept-b .cb-bg-parallax-a {
+  background: radial-gradient(ellipse at 50% 46%, #17383b60, transparent 38rem);
+}
+body.kiosk-mode.kiosk-landscape.claude-concept-b::before { opacity: .08; }
+body.kiosk-mode.kiosk-landscape.claude-concept-b .cb-state { font-size: 16px; letter-spacing: .2em; }
+body.kiosk-mode.kiosk-landscape.claude-concept-b .cb-line { font-size: 36px; font-weight: 450; }
+body.kiosk-mode.kiosk-landscape.claude-concept-b .cb-source { font-size: 13px; letter-spacing: .16em; }
+.cb-preview-proof {
   position: absolute;
   left: 50%;
-  bottom: 102px;
+  top: 10%;
   transform: translateX(-50%);
-  width: min(720px, 86vw);
-  z-index: 7;
-  color: var(--cb-fg-1);
-  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  color: #829f9e;
+  font: 11px ui-monospace, monospace;
+  letter-spacing: .22em;
 }
-body.kiosk-mode.kiosk-landscape.claude-concept-b .cb-activity-trace[hidden] { display: none; }
-.cb-trace-heading {
-  display: flex;
-  justify-content: space-between;
-  gap: 16px;
-  margin-bottom: 18px;
-  color: var(--cb-fg-1);
-  font-size: 14px;
-  letter-spacing: .13em;
-  font-variant-numeric: tabular-nums;
-}
-.cb-activity-trace ol {
-  display: flex;
-  justify-content: center;
-  gap: 0;
-  list-style: none;
-  margin: 0;
-  padding: 0;
-}
-.cb-activity-trace li {
-  position: relative;
-  flex: 1;
-  min-width: 0;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 9px;
-  font-size: 15px;
-  text-align: center;
-  color: var(--cb-fg-1);
-}
-.cb-activity-trace li + li::before {
-  content: '';
-  position: absolute;
-  right: calc(50% + 19px);
-  top: 15px;
-  width: calc(100% - 38px);
-  height: 1px;
-  background: color-mix(in srgb, var(--cb-accent) 28%, transparent);
-}
-.cb-trace-glyph {
-  display: grid;
-  place-items: center;
-  width: 30px;
-  height: 30px;
-  border: 1px solid color-mix(in srgb, var(--cb-accent) 28%, transparent);
+body.kiosk-mode.kiosk-landscape.claude-concept-b[data-optic-mode="waiting_user"] .cb-activity { opacity: 1; }
+body.kiosk-mode.kiosk-landscape.claude-concept-b .cb-radial-stage[data-quiet="night"] .cb-presence-surface,
+body.kiosk-mode.kiosk-landscape.claude-concept-b .cb-radial-stage[data-optic-mode="degraded_offline"] .cb-presence-surface { opacity: .3; }
+
+/* Operator touch: a quiet contact cue and useful, temporary inspection. */
+.cb-contact {
+  position: fixed;
+  left: -13px;
+  top: -13px;
+  width: 26px;
+  height: 26px;
+  z-index: 45;
+  pointer-events: none;
+  border: 1px solid #c0e4db99;
   border-radius: 50%;
-  background: #080f11;
-  font-size: 18px;
+  box-shadow: 0 0 20px #7ac5c02b;
 }
-.cb-activity-trace [aria-current="step"] { color: var(--cb-fg-0); }
-.cb-activity-trace [aria-current="step"] .cb-trace-glyph {
-  color: var(--cb-accent);
-  border-color: var(--cb-accent);
-  box-shadow: 0 0 18px color-mix(in srgb, var(--cb-accent) 20%, transparent);
-  animation: cb-trace-arrive 450ms ease-out both;
+.cb-contact[hidden], .cb-inspector[hidden] { display: none; }
+body.kiosk-mode.kiosk-landscape.claude-concept-b [data-inspect] {
+  pointer-events: auto;
+  cursor: pointer;
 }
-.cb-activity-trace[data-status="stale"] .cb-trace-heading { color: #dcbb7c; }
-.cb-activity-trace[data-status="stale"] ol { opacity: .6; }
-@keyframes cb-trace-arrive {
-  from { transform: scale(.82); opacity: .45; }
-  to { transform: scale(1); opacity: 1; }
+[data-inspect]:focus-visible { outline: 2px solid #a5e3d7; outline-offset: 6px; }
+.cb-metric-hit { fill: transparent; stroke: transparent; pointer-events: all; }
+.cb-inspector {
+  position: fixed;
+  z-index: 70;
+  bottom: 15%;
+  left: 50%;
+  transform: translateX(-50%);
+  width: min(600px, calc(100vw - 40px));
+  padding: 26px 30px;
+  color: #dfeeea;
+  border: 1px solid #83b9b04a;
+  border-radius: 18px;
+  background: linear-gradient(125deg, #112326, #071215 70%);
+  box-shadow: 0 24px 100px #000a, inset 0 1px #bde2d51c;
 }
-/* A human input request stays legible while the eye makes direct contact. */
-body.kiosk-mode.kiosk-landscape.claude-concept-b[data-optic-mode="waiting_user"] .cb-activity {
-  opacity: 1;
+.cb-inspector > div { display: flex; align-items: center; justify-content: space-between; gap: 16px; }
+.cb-inspector > div > span { font: 13px ui-monospace, monospace; text-transform: uppercase; letter-spacing: .18em; color: #91bdb5; }
+.cb-inspector button { width: 48px; height: 48px; padding: 0; border: 1px solid #7caaa333; border-radius: 50%; color: #d7e9e3; font-size: 25px; background: #152d2d; cursor: pointer; }
+.cb-inspector > strong { display: block; margin: 10px 0 16px; font: 500 34px/1.25 system-ui, sans-serif; overflow-wrap: anywhere; }
+.cb-inspector p { font: 17px/1.5 system-ui, sans-serif; color: #a8c1bb; margin: 0 0 22px; }
+.cb-inspector small { font: 11px ui-monospace, monospace; letter-spacing: .1em; color: #88a49d; }
+body[data-inspecting="true"] .cb-inspector { animation: cb-inspect-arrive 200ms ease-out; }
+@keyframes cb-inspect-arrive { from { opacity: 0; margin-bottom: -7px; } to { opacity: 1; margin-bottom: 0; } }
+@media (prefers-reduced-motion: reduce) { body[data-inspecting="true"] .cb-inspector { animation: none; } }
+.cb-touch-hint {
+  position: fixed;
+  bottom: 4%;
+  left: 50%;
+  transform: translateX(-50%);
+  color: #829c96;
+  font: 12px/1.4 ui-monospace, monospace;
+  letter-spacing: .04em;
+  white-space: nowrap;
+  pointer-events: none;
 }
-@media (prefers-reduced-motion: reduce) {
-  .cb-activity-trace [aria-current="step"] .cb-trace-glyph { animation: none; }
-}
-body[data-reduced-motion="true"] .cb-activity-trace .cb-trace-glyph { animation: none; }
-@media (max-width: 700px) {
-  .cb-trace-heading { font-size: 10px; letter-spacing: .04em; }
-  .cb-activity-trace li { font-size: 10px; }
-}
+@media (max-width: 700px) { .cb-touch-hint { display: none; } }

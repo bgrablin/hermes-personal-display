@@ -695,7 +695,7 @@
     const mode = currentMode();
     const packet = state.getPacket?.() || {};
     const overlays = window.__HERMES_DISPLAY_BEHAVIOR?.overlays || {};
-    if (!window.HermesActivityTrace?.allowsIdlePerformance({
+    if (!window.HermesPresence?.allowsIdlePerformance({
       mode,
       freshness: packet.live?.freshness?.tier || 'unknown',
       health: overlays.health,
@@ -716,7 +716,7 @@
       const now = Date.now();
       if (now - state.lastTouchAt > 20000 && now - state.lastIdleAttractAt > 55000 && safeForIdleAttract()) {
         state.lastIdleAttractAt = now;
-        const sequence = window.HermesActivityTrace.chooseIdleSequence(state.lastIdleSequence);
+        const sequence = window.HermesPresence.chooseIdleSequence(state.lastIdleSequence);
         if (playSequence(sequence, { trigger: 'idle:attract', zone: 'center', intensity: 0.35 })) state.lastIdleSequence = sequence;
       }
       scheduleIdleAttract();

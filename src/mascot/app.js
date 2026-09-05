@@ -1740,6 +1740,37 @@
             <stop offset="55%" stop-color="#071317" />
             <stop offset="100%" stop-color="#020507" />
           </radialGradient>
+          <radialGradient id="cb-iris-body">
+            <stop offset="24%" stop-color="#050b12" />
+            <stop offset="32%" stop-color="#726248" />
+            <stop offset="44%" stop-color="#267b80" />
+            <stop offset="67%" stop-color="#14414e" />
+            <stop offset="89%" stop-color="#0b2636" />
+            <stop offset="100%" stop-color="#030912" />
+          </radialGradient>
+          <radialGradient id="cb-iris-spectrum">
+            <stop offset="23%" stop-color="#b18351" />
+            <stop offset="35%" stop-color="#edc587" />
+            <stop offset="52%" stop-color="#a5efde" />
+            <stop offset="77%" stop-color="#449cad" />
+            <stop offset="100%" stop-color="#355f89" />
+          </radialGradient>
+          <radialGradient id="cb-iris-vignette">
+            <stop offset="64%" stop-color="#020710" stop-opacity="0" />
+            <stop offset="100%" stop-color="#020710" stop-opacity=".85" />
+          </radialGradient>
+          <linearGradient id="cb-surface-light" x1="0" y1="0" x2="1" y2="1">
+            <stop offset="0%" stop-color="#6171a8" />
+            <stop offset="26%" stop-color="#a5f3ed" />
+            <stop offset="52%" stop-color="#428c9d" />
+            <stop offset="76%" stop-color="#c2a674" />
+            <stop offset="100%" stop-color="#46658c" />
+          </linearGradient>
+          <linearGradient id="cb-glass-light" x1="0" y1="0" x2=".9" y2="1">
+            <stop offset="0%" stop-color="#ddf8ee" stop-opacity=".7" />
+            <stop offset="45%" stop-color="#9ddedc" stop-opacity=".07" />
+            <stop offset="100%" stop-color="#79aac0" stop-opacity="0" />
+          </linearGradient>
           <radialGradient id="cb-core-glow" cx="50%" cy="50%" r="50%" gradientUnits="userSpaceOnUse">
             <stop offset="0%" stop-color="var(--cb-accent)" stop-opacity="0.26" />
             <stop offset="48%" stop-color="var(--cb-accent)" stop-opacity="0.09" />
@@ -1787,9 +1818,11 @@
             </g>
             <g class="cb-field-notice-pulse"><circle class="cb-field-pulse" cx="550" cy="550" r="244" /></g>
           </g>
+          <g class="cb-presence-enclosure" transform="translate(550 550) scale(1.65) translate(-550 -550)">
           <g class="cb-eye-core" aria-hidden="true">
             <g class="cb-eye-socket">
               <circle class="cb-eye-aura" cx="550" cy="550" r="230" />
+              <g class="cb-presence-surface"></g>
               <circle class="cb-eye-calibration" cx="550" cy="550" r="226" />
               <g class="cb-aperture-shell">
                 <path class="cb-winglet cb-winglet-left" d="M 350 550 C 386 530 410 518 438 514" />
@@ -1810,14 +1843,14 @@
                       </g>
                       <g class="cb-eye-pupil-group">
                         <circle class="cb-eye-pupil" cx="550" cy="550" r="44" />
-                        <circle class="cb-eye-dot cb-eye-dot-a" cx="540" cy="536" r="9" />
-                        <circle class="cb-eye-dot cb-eye-dot-b" cx="566" cy="562" r="4.5" />
+                        <circle class="cb-eye-dot cb-eye-dot-a" cx="540" cy="536" r="6" />
+                        <circle class="cb-eye-dot cb-eye-dot-b" cx="566" cy="562" r="2.5" />
                       </g>
                     </g>
                   </g>
                 </g><!-- cb-eye-gaze:end -->
-                <path class="cb-eye-glass-sheen" d="M 446 496 C 496 430 614 420 670 486 C 615 462 516 468 462 528" />
-                <path class="cb-eye-glass-crescent" d="M 454 618 C 516 674 620 660 676 596" />
+                <path class="cb-eye-glass-sheen" d="M 410 506 C 426 422 530 376 614 401 C 534 395 461 442 434 516 C 422 553 424 575 431 597 C 407 570 402 540 410 506 Z" />
+                <path class="cb-eye-glass-crescent" d="M 582 713 C 651 699 703 647 718 582" />
                 <g class="cb-eye-lid-group" clip-path="url(#cb-eye-lens-clip)">
                   <path class="cb-eye-lid cb-eye-lid-top" />
                   <path class="cb-eye-lid cb-eye-lid-bottom" />
@@ -1825,6 +1858,7 @@
               </g><!-- cb-eye-window:end -->
             </g><!-- cb-eye-socket:end -->
           </g>
+          </g><!-- cb-presence-enclosure:end -->
         </g>
         <g data-cb-arc="cpu"><path class="cb-arc-track"/><path class="cb-arc-fill"/><circle class="cb-arc-dot" r="4"/><text class="cb-arc-label"></text><text class="cb-arc-value"></text></g>
         <g data-cb-arc="mem"><path class="cb-arc-track"/><path class="cb-arc-fill"/><circle class="cb-arc-dot" r="4"/><text class="cb-arc-label"></text><text class="cb-arc-value"></text></g>
@@ -1889,9 +1923,12 @@
     installConceptBIrisLattice(hud);
     installConceptBFieldInstrumentation(hud);
     ensureConceptBEyeMotion(hud);
-    const activityTrace = !familyAudience ? window.HermesActivityTrace.createTrace() : null;
-    const renderActivityTrace = activityTrace ? window.HermesActivityTrace.mount(hud) : null;
-    const tracePreview = Boolean(requestedMode) && !['1', 'true', 'yes'].includes((params.get('live') || '').toLowerCase());
+    if (params.get('preview') === '1' || (requestedMode && !['1', 'true', 'yes'].includes((params.get('live') || '').toLowerCase()))) {
+      const proof = document.createElement('span');
+      proof.className = 'cb-preview-proof';
+      proof.textContent = 'PREVIEW';
+      hud.appendChild(proof);
+    }
     const trends = { cpu: [], temp: [] };
     const feelState = { tokenBuffer: 0, rms: 0, forcedLoad: null, network: 'online', lastEventAt: 0 };
 
@@ -1971,15 +2008,6 @@
     const updateStatusAges = () => {
       const live = currentPacket.live || {};
       const freshnessTier = liveStatus.failures >= 8 ? 'lost' : liveStatus.failures ? 'stale' : live.freshness?.tier || 'fresh';
-      const mode = window.HermesBehaviorMachine?.modeFromPacket?.(currentPacket, 'idle_watch');
-      activityTrace?.observe(mode, {
-        freshness: freshnessTier,
-        connected: Boolean(liveStatus.lastGoodAt),
-        preview: tracePreview,
-        privateMode: overlayUrl.privacy === 'sensitive' || Boolean(currentPacket.safety?.contains_credentials)
-          || Boolean(currentPacket.snippet?.sensitivity && currentPacket.snippet.sensitivity !== 'display_safe'),
-      });
-      if (activityTrace) renderActivityTrace(activityTrace.snapshot());
       const feedAge = liveStatus.lastGoodAt ? formatAge(Date.now() - liveStatus.lastGoodAt) : '--';
       const sys = live.system || {};
       const cpuPct = measurementValue(sys, 'cpu');
@@ -2578,38 +2606,7 @@
   function installConceptBIrisLattice(hud) {
     const lattice = hud.querySelector('.cb-iris-lattice');
     if (!lattice || lattice.childNodes.length) return;
-    // Procedural machined-iris texture between the pupil (max scaled r is ~60) and the
-    // lens clip (r=176). Geometry comes from a seeded LCG so every boot renders the
-    // identical lattice and screenshot review artifacts stay diffable.
-    const ns = 'http://www.w3.org/2000/svg';
-    let seed = 28411;
-    const rand = () => ((seed = (seed * 48271) % 2147483647) / 2147483647);
-    const ringAt = (className, r) => {
-      const ring = document.createElementNS(ns, 'circle');
-      ring.classList.add(className);
-      ring.setAttribute('cx', '550');
-      ring.setAttribute('cy', '550');
-      ring.setAttribute('r', String(r));
-      lattice.appendChild(ring);
-    };
-    ringAt('cb-iris-collar', 64);
-    ringAt('cb-iris-limbal', 168);
-    const FILAMENTS = 56;
-    for (let i = 0; i < FILAMENTS; i += 1) {
-      const spoke = i % 7 === 0;
-      const angle = (Math.PI * 2 * i) / FILAMENTS + (rand() - 0.5) * 0.05;
-      const r0 = 67 + rand() * 9;
-      const r1 = spoke ? 154 + rand() * 12 : 122 + rand() * 30;
-      const line = document.createElementNS(ns, 'line');
-      line.classList.add('cb-iris-filament');
-      if (spoke) line.classList.add('cb-iris-filament-bright');
-      line.setAttribute('x1', (550 + Math.cos(angle) * r0).toFixed(2));
-      line.setAttribute('y1', (550 + Math.sin(angle) * r0).toFixed(2));
-      line.setAttribute('x2', (550 + Math.cos(angle) * r1).toFixed(2));
-      line.setAttribute('y2', (550 + Math.sin(angle) * r1).toFixed(2));
-      line.style.opacity = (spoke ? 0.52 + rand() * 0.18 : 0.16 + rand() * 0.22).toFixed(3);
-      lattice.appendChild(line);
-    }
+    window.HermesPresence.buildIris(lattice);
   }
 
   function installConceptBFieldInstrumentation(hud) {
@@ -2668,6 +2665,7 @@
     const glassCrescent = hud.querySelector('.cb-eye-glass-crescent');
     const irisLattice = hud.querySelector('.cb-iris-lattice');
     const activityPanel = document.querySelector('.cb-activity');
+    const material = window.HermesPresence.installSurface(hud.querySelector('.cb-presence-surface'));
     // anime.js drives every optic cadence/transition/transient; the RAF flush below stays the
     // single writer of composed transforms so the two engines never fight over an attribute.
     const motion = window.HermesMotionAdapter?.createMotionAdapter?.({ prefersReducedMotion }) || null;
@@ -2899,9 +2897,8 @@
         targets: state, scanAngle: [0, 360], duration: 2600, easing: 'linear', loop: true
       });
     }
-    // Iris lattice cadence: signed period per mode (ms per revolution). Negative runs the
-    // lattice counter-clockwise for inward-focused thinking modes; 0 parks it so blocked,
-    // critical, and offline read as machinery actually stopped, distinct from idle creep.
+    // Material torsion is bounded to 1.4 degrees. No spinning iris or clockwork lens.
+    // Signed cadence selects the initial lean; 0 settles the texture during a feed gap.
     const IRIS_LATTICE_PERIOD_MS = {
       idle_watch: 210000,
       listening: 150000,
@@ -2928,8 +2925,8 @@
       if (prefersReducedMotion || !motion?.hasAnime || !state.irisMs) return;
       const from = state.irisAngle % 360;
       state.anims.irisLattice = motion.animateValue({
-        targets: state, irisAngle: [from, from + (state.irisMs < 0 ? -360 : 360)],
-        duration: Math.abs(state.irisMs), easing: 'linear', loop: true
+        targets: state, irisAngle: [Math.max(-1.4, Math.min(1.4, from)), state.irisMs < 0 ? -1.4 : 1.4],
+        duration: Math.max(7000, Math.abs(state.irisMs) / 12), easing: 'inOutSine', direction: 'alternate', loop: true
       });
     }
     function fieldRingRate(mode, idx) {
@@ -3292,7 +3289,7 @@
           state.anims.socialLift?.pause?.();
           state.regard = 0;
           state.socialLift = 0;
-          const presence = window.HermesActivityTrace.presenceForMode(state.mode);
+          const presence = window.HermesPresence.presenceForMode(state.mode);
           if (presence.kind === 'working') rig.workAway(presence.target, presence.holdMs);
           else if (presence.kind === 'ambient') {
             setSocialPresence('ambient');
@@ -3318,8 +3315,8 @@
           : (Number.isFinite(Number(detail.y)) ? Number(detail.y) - (Number(detail.cy) || fallbackCy) : 0);
         // Finger-follow belongs to the existing RAF gaze spring. Do not start anime.js
         // tweens on every pointer move; just move the live target and let the spring chase it.
-        const halfW = Math.max(1, window.innerWidth / 2);
-        const halfH = Math.max(1, window.innerHeight / 2);
+        const halfW = Math.max(1, Number(detail.gazeRadius) || window.innerWidth / 2);
+        const halfH = Math.max(1, Number(detail.gazeRadius) || window.innerHeight / 2);
         const x = finiteClamp((dx / halfW) * 34, -34, 34, state.targetX);
         const y = finiteClamp((dy / halfH) * 30, -30, 30, state.targetY);
         state.saccade.active = false;
@@ -3330,7 +3327,10 @@
         state.lastGazeKind = 'user_touch';
         state.lastTouchTarget = { x, y, intensity, pointerCount };
         setSocialPresence('touch', pointerCount > 1 ? 700 : 1000);
-        animateViewerRegard(pointerCount > 1 ? 700 : 900);
+        if (now - (state.lastTouchRegardAt || 0) > 900) {
+          state.lastTouchRegardAt = now;
+          animateViewerRegard(pointerCount > 1 ? 700 : 900);
+        }
         const shouldPulse = !prefersReducedMotion && intensity >= 0.75 && (now - (state.lastTouchPulseAt || 0) >= 250);
         if (shouldPulse) {
           state.lastTouchPulseAt = now;
@@ -3338,6 +3338,17 @@
           transients.touch();
         }
         return { x, y, intensity, pointerCount };
+      },
+      resumeObservation() {
+        state.forcedUntil = 0;
+        const presence = window.HermesPresence.presenceForMode(state.mode);
+        if (presence.kind === 'waiting') rig.acknowledgeViewer('waiting', 0);
+        else if (presence.kind === 'working') rig.workAway(presence.target, 1200);
+        else {
+          setSocialPresence('ambient');
+          const fixation = chooseFixation(state.mode);
+          setFixation(fixation.kind, fixation.dwellMs);
+        }
       },
       touchResonance(detail = {}) {
         const now = performance.now();
@@ -3453,6 +3464,7 @@
         state.y += state.vy * dt;
       }
       renderConceptBEyeMotion({ root, hud, gazeGroup, iris, pupil, pupilGroup, catchlights, glow, glowGradient, scanSweep, core, orbitSpin, eyeRing, lidTop, lidBottom, field, axisNodes, debugOverlay, bgA: bgParallax.a, bgB: bgParallax.b, glassSheen, glassCrescent, irisLattice, activityPanel }, state);
+      material.render({ now, mode: state.mode, x: state.x, y: state.y, reduced: prefersReducedMotion, hidden: document.hidden, quiet: hud.dataset.quiet || 'active' });
       state.raf = window.requestAnimationFrame(step);
     };
     // Kick the anime.js cadence loops once; setTarget re-arms them when a packet changes period.
@@ -3780,14 +3792,17 @@
     const amount = Math.max(0, Math.min(1, lid));
     const topY = 374;
     const bottomY = 726;
-    const fullTravel = bottomY - topY;
     const topAmount = Math.max(0, Math.min(1, amount + (Number(upperBias) || 0)));
     const bottomAmount = Math.max(0, Math.min(1, amount + (Number(lowerBias) || 0)));
-    const topH = fullTravel * 0.82 * topAmount;
-    const bottomH = fullTravel * 0.18 * bottomAmount;
     const curveShift = Math.max(-18, Math.min(18, (Number(gazeX) || 0) * 0.55));
-    setConceptBAttribute(top, 'd', topH < 1 ? '' : `M 374 ${topY} H 726 V ${(topY + topH).toFixed(1)} C ${(650 + curveShift).toFixed(1)} ${(topY + topH + 18).toFixed(1)} ${(450 + curveShift).toFixed(1)} ${(topY + topH + 18).toFixed(1)} 374 ${(topY + topH).toFixed(1)} Z`);
-    setConceptBAttribute(bottom, 'd', bottomH < 1 ? '' : `M 374 ${bottomY} H 726 V ${(bottomY - bottomH).toFixed(1)} C ${(650 + curveShift * 0.45).toFixed(1)} ${(bottomY - bottomH - 14).toFixed(1)} ${(450 + curveShift * 0.45).toFixed(1)} ${(bottomY - bottomH - 14).toFixed(1)} 374 ${(bottomY - bottomH).toFixed(1)} Z`);
+    // The lids meet at y=660, with most travel in the upper lid. Curved corners
+    // taper around the cornea instead of looking like a rectangular roller blind.
+    const topEdge = 550 + 110 * topAmount;
+    const topCurve = 314 + 346 * topAmount;
+    const bottomEdge = 550 + 110 * bottomAmount;
+    const bottomCurve = 792 - 132 * bottomAmount;
+    setConceptBAttribute(top, 'd', `M 374 ${topY} H 726 V ${topEdge.toFixed(1)} C ${(650 + curveShift).toFixed(1)} ${topCurve.toFixed(1)} ${(450 + curveShift).toFixed(1)} ${topCurve.toFixed(1)} 374 ${topEdge.toFixed(1)} Z`);
+    setConceptBAttribute(bottom, 'd', `M 374 ${bottomY} H 726 V ${bottomEdge.toFixed(1)} C ${(650 + curveShift * .45).toFixed(1)} ${bottomCurve.toFixed(1)} ${(450 + curveShift * .45).toFixed(1)} ${bottomCurve.toFixed(1)} 374 ${bottomEdge.toFixed(1)} Z`);
   }
 
   function clamp01(value) {

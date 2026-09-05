@@ -8,6 +8,7 @@ import { computeBuildId, currentGeneratedBuildId } from './generate-build-id.js'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const projectRoot = path.resolve(__dirname, '..');
+const presenceSource = fs.readFileSync(path.join(projectRoot, 'src', 'mascot', 'presence.js'), 'utf8');
 const appSource = fs.readFileSync(path.join(projectRoot, 'src', 'mascot', 'app.js'), 'utf8');
 const cssSource = fs.readFileSync(path.join(projectRoot, 'src', 'styles.css'), 'utf8');
 const stateSource = fs.readFileSync(path.join(projectRoot, 'src', 'state.js'), 'utf8');
@@ -371,9 +372,7 @@ if (!appSource.includes("state === 'blocked_user_task') return { label: 'WAITING
 if (!cssSource.includes('white-space: normal') || !cssSource.includes('-webkit-line-clamp: 2')) {
   fail('Current-work panel must support controlled two-line wrapping instead of nowrap clipping.');
 }
-if (touchFxSource.includes('touchIntensity') || touchFxSource.includes("touch=operator")) {
-  fail('This task explicitly excludes reducing default touch effects; touch-fx intensity settings should not be added here.');
-}
+requireAll(touchFxSource, ["family ? 'fun' : 'inspect'", 'HermesOperatorTouch.install'], 'Operator touch must default to inspection while family play stays available.');
 if (!appSource.includes('ensureConceptBEyeMotion') || !appSource.includes('renderConceptBEyeMotion') || !appSource.includes('conceptBEyeMicroMotion')) {
   fail('Concept B eye gaze must use the RAF motion rig for fluid saccades, not one-second snapped updates.');
 }
@@ -387,7 +386,7 @@ if (!appSource.includes("setConceptBTransform(parts.pupilGroup, `translate(550 5
 // over a stable iris/pupil, not as a symmetric shutter, iris zoom, or lower-right dart.
 // It is still driven by an anime.js cadence loop (state.blink), while the RAF flush keeps
 // gaze/iris/pupil transforms posture-only and lets the asymmetrical lids occlude the eye.
-if (!appSource.includes('function armBlink()') || !appSource.includes('blink: 1, duration:') || appSource.includes('blinkHoldX') || appSource.includes('blinkZoom') || !appSource.includes('const lidFrac = Math.max(Math.max(0, state.lid - lidWiden - socialLift), blink);') || !appSource.includes('const effPupil = Math.max(0.60, Math.min(1.35, state.pupil + (Number(state.pupilFlash) || 0) + (Number(state.hippus) || 0) + (Number(state.regard) || 0)))') || !appSource.includes('const topH = fullTravel * 0.82 * topAmount;') || !appSource.includes('const bottomH = fullTravel * 0.18 * bottomAmount;') || !appSource.includes('renderConceptBLids(parts.lidTop, parts.lidBottom, lidFrac, Math.max(0, state.upperBias + lidFollow - socialLift), state.lowerBias + lidFollow * 0.45, x)')) {
+if (!appSource.includes('function armBlink()') || !appSource.includes('blink: 1, duration:') || appSource.includes('blinkHoldX') || appSource.includes('blinkZoom') || !appSource.includes('const lidFrac = Math.max(Math.max(0, state.lid - lidWiden - socialLift), blink);') || !appSource.includes('const effPupil = Math.max(0.60, Math.min(1.35, state.pupil + (Number(state.pupilFlash) || 0) + (Number(state.hippus) || 0) + (Number(state.regard) || 0)))') || !appSource.includes('const topCurve = 314 + 346 * topAmount;') || !appSource.includes('const bottomCurve = 792 - 132 * bottomAmount;') || !appSource.includes('renderConceptBLids(parts.lidTop, parts.lidBottom, lidFrac, Math.max(0, state.upperBias + lidFollow - socialLift), state.lowerBias + lidFollow * 0.45, x)')) {
   fail('Concept B must blink via an anime.js cadence loop: upper-lid-dominant closure over stable iris/pupil on blink.interval_ms.');
 }
 // anime.js must actually drive the optic cadence + expressive transients, not just be loaded.
@@ -460,7 +459,9 @@ requireAll(cssSource, ['.cb-bg-parallax-a', '.cb-bg-parallax-b', 'radial-gradien
 if (cssSource.includes('radial-gradient(circle at 50% 43%') || cssSource.includes('radial-gradient(circle at 50% 61%')) {
   fail('Concept B parallax overlay gradients must compensate for the bleed inset; 43%/61% are viewport positions, not overlay-element positions.');
 }
-requireAll(cssSource, ['.cb-orbit-spin', 'cb-orbit-drift 22s linear infinite'], 'Outer orbit ring dash drift remains CSS; its rotation is now an anime.js loop applied via the SVG transform attribute.');
+requireAll(cssSource, ['.cb-presence-surface', '.cb-iris-crypt', '.cb-preview-proof'], 'Presence must render its material surface and label simulations.');
+if (cssSource.includes('cb-orbit-drift 22s linear infinite')) fail('Retired constant-speed orbit drift must not return.');
+if (appSource.includes('cb-activity-trace')) fail('Presence must not imply an ordered pipeline.');
 if (cssSource.includes('animation: cb-orbit-spin var(--cb-ring-period)') || cssSource.includes('.cb-eye-core {\n  transform-origin')) {
   fail('Orbit-spin rotation and eye-core breath are anime.js-driven; their CSS animation/transform-box must be removed so the JS writer does not fight (this caused ring drift before).');
 }
@@ -881,6 +882,8 @@ if (!serverSource.includes('def __init__(self, *args, **kwargs):') || !serverSou
   fail('Preview server must pass directory=str(ROOT); service cwd alone caused 404s for static src assets.');
 }
 
+requireAll(presenceSource, ['cb-iris-filament', 'cb-iris-crypt', 'surfacePaths', 'installSurface'], 'Presence material geometry must be installed.');
+
 // Iris lattice: procedural state-aware material inside the lens. The anime.js irisAngle
 // scalar is the only rotation source and the RAF flush is its only transform writer; CSS
 // must not animate or re-origin the lattice (the orbit-ring drift lesson). Blocked,
@@ -892,7 +895,7 @@ requireAll(appSource, [
   'IRIS_LATTICE_PERIOD_MS',
   'irisLatticePeriodMs',
   'setConceptBTransform(parts.irisLattice',
-  'cb-iris-filament',
+  'window.HermesPresence.buildIris',
   'flareLattice',
 ], 'Concept B lens must render the procedural iris lattice driven by the single-writer motion rig.');
 if (!/blocked:\s*0,\s*\n\s*critical:\s*0,\s*\n\s*degraded_offline:\s*0/.test(appSource)) {
