@@ -127,12 +127,14 @@
   const REGION_NAMES = ['behavior', 'health', 'quiet', 'privacy_display'];
 
   const AVATAR_EVENT_TO_MACHINE_EVENTS = {
-    'assistant.started': ['ASSISTANT_NOTICE'],
-    'assistant.tool_started': ['TOOL_STARTED'],
-    'assistant.tool_finished': ['TOOL_FINISHED'],
-    'assistant.waiting_on_user': ['WAITING_USER'],
-    'assistant.final_started': ['WRITE_STARTED'],
-    'assistant.final_complete': ['RESOLVE'],
+    // Lifecycle observations may arrive after a reconnect or a missed phase. They
+    // describe the current activity, not a command whose preceding step is required.
+    'assistant.started': ['SET_NOTICE'],
+    'assistant.tool_started': ['SET_TOOL_SHELL'],
+    'assistant.tool_finished': ['SET_REASONING'],
+    'assistant.waiting_on_user': ['SET_WAITING_USER'],
+    'assistant.final_started': ['SET_WRITING'],
+    'assistant.final_complete': ['SET_COMPLETE'],
     'feed.stale': ['HEALTH_DEGRADED'],
     'feed.lost': ['DEGRADED', 'HEALTH_CRITICAL'],
     'feed.recovered': ['RECOVERED', 'HEALTH_RECOVERED'],
@@ -140,6 +142,15 @@
   };
 
   function behaviorEventsForAvatarEvent(event) {
+    if (event?.event === 'assistant.tool_started') {
+      const mode = ({
+        reading: 'reading', searching: 'searching',
+        writing: 'writing', patching: 'writing',
+        planning: 'reasoning', reasoning: 'reasoning',
+        recalling: 'reasoning', compressing: 'reasoning',
+      })[event.display?.visual_kind] || 'tool_shell';
+      return [setModeEventForMode(mode)];
+    }
     const events = AVATAR_EVENT_TO_MACHINE_EVENTS[event?.event];
     return Array.isArray(events) ? events.slice() : [];
   }
