@@ -36,10 +36,15 @@ test('metric inspection is keyboard accessible and preserves observed values', a
   await page.keyboard.press('Escape');
   await expect(panel).toBeHidden();
   await expect(metric).toBeFocused();
+  expect(await metric.evaluate(node => getComputedStyle(node).outlineStyle)).toBe('none');
+  expect(await metric.locator('.cb-arc-value').evaluate(node => getComputedStyle(node).filter)).not.toBe('none');
   await metric.locator('.cb-metric-hit').click();
   await expect(panel).toBeVisible();
   await page.getByRole('button', { name: 'Close detail' }).click();
   await expect(panel).toBeHidden();
+  await expect(metric).toBeFocused();
+  expect(await metric.evaluate(node => getComputedStyle(node).outlineStyle)).toBe('none');
+  expect(await metric.locator('.cb-arc-value').evaluate(node => getComputedStyle(node).filter)).not.toBe('none');
 });
 
 test('cancelled touch clears feedback and restores waiting attention', async ({ page }, info) => {

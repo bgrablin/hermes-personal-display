@@ -333,6 +333,9 @@ if (!appSource.includes('conceptBAuguryPresence(live, mode, freshnessTier, gatew
 if (!cssSource.includes('[data-cb-arc][data-severity="hot"] .cb-arc-value')) {
   fail('Hot metric arc values must get high-contrast canonical treatment, not only taste=1 treatment.');
 }
+if (!cssSource.includes('[data-cb-arc][data-inspect]:focus { outline: none; }')) {
+  fail('Interactive SVG metrics must use an in-theme focus marker, not a rectangular browser outline.');
+}
 if (appSource.includes('LOAD WATCH') || appSource.includes('LOAD HIGH') || appSource.includes('CPU HEADROOM')) {
   fail('CPU usage must not drive ugly top-alert text or CPU-headroom warning copy.');
 }

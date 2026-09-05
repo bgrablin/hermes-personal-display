@@ -3616,6 +3616,11 @@ body.kiosk-mode.kiosk-landscape.claude-concept-b [data-inspect] {
   cursor: pointer;
 }
 [data-inspect]:focus-visible { outline: 2px solid #a5e3d7; outline-offset: 6px; }
+body.kiosk-mode.kiosk-landscape.claude-concept-b [data-cb-arc][data-inspect]:focus { outline: none; }
+body.kiosk-mode.kiosk-landscape.claude-concept-b [data-cb-arc][data-inspect]:focus .cb-arc-fill,
+body.kiosk-mode.kiosk-landscape.claude-concept-b [data-cb-arc][data-inspect]:focus .cb-arc-value {
+  filter: drop-shadow(0 0 7px color-mix(in srgb, var(--cb-accent) 78%, white));
+}
 .cb-metric-hit { fill: transparent; stroke: transparent; pointer-events: all; }
 .cb-inspector {
   position: fixed;
