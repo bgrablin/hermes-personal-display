@@ -55,3 +55,28 @@ jobs:
           npm run check:kiosk
           npm run check:augury-feed
           ./scripts/verify-project.sh
+
+  browser:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+      - name: Set up Node.js
+        uses: actions/setup-node@v7
+        with:
+          node-version: '22'
+          cache: npm
+      - name: Install dependencies and matching Chromium
+        run: |
+          npm ci
+          npx playwright install --with-deps chromium
+      - name: Exercise both kiosk viewports
+        run: npm run test:e2e -- --workers=1
+      - name: Preserve browser failure evidence
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: browser-test-results
+          path: test-results/
+          retention-days: 7

@@ -163,6 +163,17 @@ Install dependencies:
 npm ci
 ```
 
+Browser tests use Playwright's matching Chromium on every platform:
+
+```bash
+npx playwright install --with-deps chromium
+npm run test:e2e -- --workers=1
+```
+
+To verify against a physical kiosk's installed Chromium instead, set
+`HERMES_TEST_CHROMIUM=/snap/bin/chromium`. CI exercises both configured viewports
+and retains failure screenshots and traces for seven days.
+
 Run the Vite dev server:
 
 ```bash
