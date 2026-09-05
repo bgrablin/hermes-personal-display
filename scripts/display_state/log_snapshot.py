@@ -8,7 +8,7 @@ import time
 from datetime import datetime, timezone
 from pathlib import Path
 
-from display_state.privacy import AUGURY_REDACTION_POLICY, augury_clean, clean_log_msg
+from display_state.privacy import AUGURY_REDACTION_POLICY, augury_clean, augury_redact, clean_log_msg
 
 _LOG_DIR = Path.home() / ".hermes" / "logs"
 
@@ -78,8 +78,8 @@ CURRENT_WORK_SECONDS = 4 * 60
 CURRENT_WORK_MAX_AGE_SECONDS = CURRENT_WORK_SECONDS
 
 # Augury ambient log feed. This is an operator-only private overlay, so it
-# intentionally allows useful operational context (including normal file paths)
-# while narrowly redacting credential/token and raw log-payload-shaped snippets.
+# intentionally allows useful operational context (including normal file paths and selected results)
+# while narrowly redacting credential values.
 # All browser-facing display-safety constraints
 # (current_work, captions, kanban) remain unchanged.
 AUGURY_SCHEMA_VERSION = "0.1.0"
@@ -289,7 +289,8 @@ def build_augury_items(text: str, limit: int, minutes: int) -> list[dict]:
     cutoff_seconds = minutes * 60
     items: list[dict] = []
     seen: set[tuple[str, str]] = set()
-    for line in reversed(text.splitlines()):
+    # Redact complete blocks before splitting, including timestamped key lines.
+    for line in reversed(augury_redact(text).splitlines()):
         if len(items) >= limit:
             break
         if not line:
@@ -450,8 +451,8 @@ def recent_agent_work(path: Path, minutes: float = CURRENT_WORK_SECONDS / 60) ->
     return {
         "active": False,
         "state": "recent_activity" if age_label else "quiet_watch",
-        "summary": f"Last activity completed {age_label} ago." if age_label else "Quiet watch. No active turn is running.",
-        "detail": "Recent work is complete; local systems remain under watch." if age_label else "Local display is monitoring without an active turn.",
+        "summary": f"Last request observed {age_label} ago." if age_label else "No recent activity observation.",
+        "detail": "Current work is unknown until a fresh observation arrives.",
         "source": session_label((newest_conversation or {}).get("session_id"), (newest_conversation or {}).get("platform")),
         "session_id": (newest_conversation or {}).get("session_id"),
         "session_label": session_label((newest_conversation or {}).get("session_id"), (newest_conversation or {}).get("platform")),

@@ -19,7 +19,7 @@ test.beforeEach(async ({ page }, info) => {
   await page.route('**/avatar-events/stream**', route => route.fulfill({ contentType: 'text/event-stream', body: '' }));
 });
 
-test('Augury prioritizes fresh work, groups repeats, and preserves the raw-text boundary', async ({ page }) => {
+test('Augury prioritizes fresh work, groups repeats, and shows private excerpts by default', async ({ page }) => {
   let packet = observation();
   let feedFailed = false;
   let feedAge = 12;
@@ -33,7 +33,7 @@ test('Augury prioritizes fresh work, groups repeats, and preserves the raw-text 
   const rail = page.getByRole('complementary', { name: 'Augury activity' });
   await expect(rail).toContainText('Reviewing the display behavior.');
   await expect(rail).not.toContainText('An older feed summary.');
-  await expect(rail).not.toContainText('PRIVATE RAW TOOL BODY');
+  await expect(rail).toContainText('PRIVATE RAW TOOL BODY');
   await expect(rail.locator('[data-populated="true"][data-kind="tool"]')).toHaveCount(1);
   await expect(rail).toContainText('×2');
   await page.waitForTimeout(800);
