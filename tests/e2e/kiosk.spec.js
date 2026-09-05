@@ -487,7 +487,7 @@ test.describe('Hermes kiosk smoke and visual regression anchors', () => {
     });
   });
 
-  test('Augury stays readable during alerts and raw text requires auguryText=1', async ({ page }, testInfo) => {
+  test('Augury stays readable during alerts and explicit compact mode hides raw text', async ({ page }, testInfo) => {
     test.skip(testInfo.project.name !== 'minix-sf10t-landscape', 'MINIX-only Concept B Augury mode');
     const feed = {
       schema_version: '0.1.0',
@@ -495,7 +495,7 @@ test.describe('Hermes kiosk smoke and visual regression anchors', () => {
       items: [{ kind: 'prompt', title: 'USER PROMPT TITLE', text: 'RAW PROMPT BODY /tmp/secret should not show by default', age_seconds: 12, session_id: '20260101_010101_61cd7e', safeText: true }],
     };
     await page.route('**/api/augury-feed**', async (route) => route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(feed) }));
-    await page.goto(`${runtimeUrl('idle_watch', testInfo)}&augury=1&debug=1`);
+    await page.goto(`${runtimeUrl('idle_watch', testInfo)}&augury=1&auguryText=0&debug=1`);
     await expect(page.locator('.augury-ambient')).toBeVisible();
     await expect(page.locator('.augury-proof')).toHaveText('PRIVATE AUGURY');
     // Display-safe current_work rows render their text without auguryText=1.

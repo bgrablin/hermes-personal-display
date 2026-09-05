@@ -22,7 +22,8 @@
   const presetOrder = ['idle_watchful', 'thinking_focused', 'healthy_smug', 'blocked_annoyed', 'night_sleepy'];
   const skinOrder = ['retro-robot-core', 'retro-terminal-focus', 'retro-night-watch', 'retro-amber-watch', 'retro-hermes-accent'];
   const liveStatus = { lastGoodAt: null, failures: 0, lastError: '', staleSince: null };
-  const avatarEventStatus = { connected: false, accepted: 0, dropped: 0, lastError: '', lastEventAt: null, recent: [] };
+  const avatarEventStatus = { connected: false, accepted: 0, dropped: 0, lastError: '', lastEventAt: null, recent: [], duplicates: 0 };
+  const seenAvatarEvents = new Map();
   const DISPLAY_BUILD_ID = String(window.__HERMES_DISPLAY_BUILD_ID || 'dev-unversioned');
   const STATUS_TICK_MIN_GAP_MS = 4000;
   const ROUTE_HEADROOM_LOW_THRESHOLD = 0.15;
@@ -1406,6 +1407,20 @@
   }
 
   function applyAvatarEvent(event) {
+    // The bus replays recent events on reconnect. Deduplicate before state and
+    // animation side effects; IDs are scoped by producer, never by arrival time.
+    const now = Date.now();
+    for (const [key, expiry] of seenAvatarEvents) if (expiry <= now) seenAvatarEvents.delete(key);
+    const identity = event.id && JSON.stringify([event.source || '', event.id]);
+    if (identity && seenAvatarEvents.has(identity)) {
+      avatarEventStatus.duplicates += 1;
+      return;
+    }
+    if (identity) {
+      const expiry = Date.parse(event.occurred_at) + Number(event.ttl_ms);
+      seenAvatarEvents.set(identity, Number.isFinite(expiry) ? expiry : now + 120000);
+      if (seenAvatarEvents.size > 4096) seenAvatarEvents.delete(seenAvatarEvents.keys().next().value);
+    }
     const display = event.display || {};
     avatarEventStatus.accepted += 1;
     avatarEventStatus.lastEventAt = Date.now();
@@ -1447,6 +1462,7 @@
       connected: avatarEventStatus.connected,
       accepted: avatarEventStatus.accepted,
       dropped: avatarEventStatus.dropped,
+      duplicates: avatarEventStatus.duplicates,
       lastError: avatarEventStatus.lastError,
       lastEventAgeMs: avatarEventStatus.lastEventAt ? Date.now() - avatarEventStatus.lastEventAt : null,
       recent: avatarEventStatus.recent.map((event) => ({ ...event }))
@@ -1462,42 +1478,17 @@
       return;
     }
     if (!['1', 'true', 'yes', 'preview'].includes(raw)) return;
-    const includeBodyText = ['1', 'true', 'yes'].includes((params.get('auguryText') || '').toLowerCase());
+    const includeBodyText = !['0', 'false', 'no'].includes((params.get('auguryText') || '').toLowerCase());
     const proofEnabled = ['1', 'true', 'yes', 'preview'].includes(raw) && ['1', 'true', 'yes'].includes((params.get('debug') || params.get('qa') || '').toLowerCase());
 
     const MAX_STRANDS = 5;
     const POLL_MS = 5200;
     const POLL_BACKOFF_MS = 22000;
-    const MAX_TEXT_CHARS = 220;
-    // Display-safe rows (current_work card, captions, snippets) already pass the
-    // server's display-safety pipeline and are shown center-screen elsewhere, so
-    // they may render their text without auguryText=1. Raw agent.log excerpts
-    // never get this flag.
+    const MAX_TEXT_CHARS = 320;
+    // Operator Augury is private by default. auguryText=0 keeps compact titles;
+    // family mode exits above and never mounts or fetches this feed.
     const SAFE_TEXT_CHARS = 150;
-    // Augury runs on a private home-LAN appliance, so this client-side filter
-    // only enforces the *hard* credential redaction (API keys, bearer tokens,
-    // private keys, JWTs). Display safety for paths/prompts is already enforced
-    // server-side in build_augury_feed; we don't want to double-redact normal
-    // text or we lose the visual richness the overlay is for.
-    const credentialLike = new RegExp(
-      '(-----BEGIN [A-Z ]*PRIVATE KEY-----|' +
-      '\\b(?:bearer|token|api[_-]?key|password|passwd|secret|cookie)\\b\\s*[:=]\\s*[\'"]?[^\\s\'"]{8,}|' +
-      '\\bbearer\\s+[A-Za-z0-9._~+/=\\-]{16,}\\b|' +
-      '\\bauthorization\\s*[:=]\\s*[^\\s\'"]{12,}|' +
-      '\\b[A-Za-z0-9_-]{20,}\\.[A-Za-z0-9_-]{20,}\\.[A-Za-z0-9_-]{20,}\\b|' +
-      '\\bgh[pousr]_[A-Za-z0-9_]{20,}\\b|' +
-      '\\bsk-[A-Za-z0-9_-]{20,}\\b|' +
-      '\\b[A-Za-z0-9+/]{60,}={0,2}\\b)',
-      'gi'
-    );
-
-    const auguryClean = (value, max = MAX_TEXT_CHARS) => {
-      let s = String(value ?? '').replace(/[\r\n\t]/g, ' ').replace(/\s+/g, ' ').trim();
-      if (!s) return '';
-      s = s.replace(credentialLike, '[redacted]');
-      const limit = Math.max(16, Number(max) || MAX_TEXT_CHARS);
-      return s.length > limit ? `${s.slice(0, limit - 1).trimEnd()}…` : s;
-    };
+    const auguryClean = (value, max = MAX_TEXT_CHARS) => window.HermesSanitize.operatorText(value, max);
 
     // Structural trace metadata (age, session tail) is not raw log text; it keeps
     // the stream legible as a living agent trace even when body text is gated.
@@ -1535,6 +1526,20 @@
       document.body.appendChild(proof);
     }
 
+    const observations = new WeakMap();
+    function inspectObservation(event) {
+      if (event.type === 'keydown' && !['Enter', ' '].includes(event.key)) return;
+      const strand = event.target.closest?.('.augury-strand');
+      const item = strand && observations.get(strand);
+      if (!item) return;
+      event.preventDefault();
+      window.dispatchEvent(new CustomEvent('hermes-inspect-observation', { detail: {
+        node: strand, label: item.title || item.kind, text: item.text || item.title,
+        meta: item.meta, kind: item.kind,
+      } }));
+    }
+    list.addEventListener('click', inspectObservation);
+    list.addEventListener('keydown', inspectObservation);
     const strands = [];
     for (let i = 0; i < MAX_STRANDS; i += 1) {
       const strand = document.createElement('div');
@@ -1554,6 +1559,8 @@
       textEl.className = 'augury-text';
       strand.append(headEl, textEl);
       strand.dataset.populated = 'false';
+      strand.setAttribute('role', 'button');
+      strand.tabIndex = -1;
       list.appendChild(strand);
       strands.push({ strand, kindEl, titleEl, metaEl, textEl, key: '', position: -1, animation: null });
     }
@@ -1562,7 +1569,7 @@
 
     // trustSafe only applies to rows this client constructed (packet fallback,
     // feed current_work card); feed log items have safeText stripped before they
-    // reach here so a malformed payload cannot self-elevate past the text gate.
+    // reach here so compact mode cannot be overridden by a feed row.
     const sanitizeItems = (items, trustSafe = false) => {
       if (!Array.isArray(items)) return [];
       const sanitized = items
@@ -1605,8 +1612,21 @@
         meta: [item.meta, item.repeats > 1 ? `×${item.repeats}` : ''].filter(Boolean).join(' · ') }));
     };
 
+    let observationPinned = false;
+    let pendingRows = null;
+    window.addEventListener('hermes-observation-pin', event => {
+      observationPinned = event.detail === true;
+      root.dataset.pinned = String(observationPinned);
+      heading.textContent = observationPinned ? 'AUGURY · HELD' : 'AUGURY · ACTIVITY';
+      if (!observationPinned && pendingRows) {
+        const pending = pendingRows;
+        pendingRows = null;
+        renderRows(...pending);
+      }
+    });
     let lastAugurySignature = '';
     const renderRows = (items, source, trustSafe = false) => {
+      if (observationPinned) { pendingRows = [items, source, trustSafe]; return; }
       const safe = sanitizeItems(items, trustSafe).slice(0, MAX_STRANDS);
       const signature = safe.slice(0, 3).map((item) => `${item.kind}:${item.title}:${item.text}`).join('|');
       if (signature && lastAugurySignature && signature !== lastAugurySignature) {
@@ -1632,6 +1652,9 @@
       strands.forEach(row => {
         if (!keys.has(row.key)) {
           row.animation?.cancel();
+          observations.delete(row.strand);
+          row.strand.tabIndex = -1;
+          row.strand.removeAttribute('aria-label');
           row.key = '';
           row.position = -1;
           setConceptBDataset(row.strand, 'populated', 'false');
@@ -1647,6 +1670,9 @@
         const row = existing.get(item.key) || available.shift();
         const changed = row.key !== item.key;
         const moved = row.position !== idx;
+        observations.set(row.strand, item);
+        row.strand.tabIndex = 0;
+        row.strand.setAttribute('aria-label', `Inspect ${item.title || item.kind}`);
         row.key = item.key;
         row.position = idx;
         list.appendChild(row.strand);
@@ -1704,7 +1730,7 @@
       if (!rows.length && latestPacket?.caption?.text) {
         rows.push({ kind: 'log', title: 'OBSERVED STATE', text: latestPacket.caption.text, safeText: true });
       }
-      // Raw feed rows cannot self-elevate past the existing auguryText gate.
+      // Feed rows cannot override an explicit auguryText=0 preference.
       rows.push(...feedItems.map(item => ({ ...item, safeText: false })));
       if (!rows.length) rows.push({ kind: 'log', title: 'AWAITING ACTIVITY',
         text: 'No current observation is available.', safeText: true });

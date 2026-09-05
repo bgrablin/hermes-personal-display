@@ -5,7 +5,7 @@ Exercises augury helpers directly with a synthetic agent.log so the test is
 hermetic (no dependency on the live ~/.hermes/logs directory). Verifies:
 
   * prompt / tool / thinking / log item extraction
-  * narrow Augury redaction (credentials and log payloads)
+  * narrow Augury credential redaction
   * response bounds (limit, minutes, item char cap, schema metadata)
   * normal prompt/log text survives so the overlay is visually useful
 """
@@ -74,7 +74,7 @@ def write_synthetic_log(path: Path) -> None:
         # Normal paths are useful operator context and should survive Augury.
         f'{ts(1)} INFO [20260523_120000_aaaa] agent.tool_executor: '
         f'tool read_file completed /home/brian/.hermes/projects/personal-display/src/state.js',
-        # Structured payloads must not survive.
+        # Ordinary structured results are useful private operator context.
         f'{ts(4)} INFO [20260523_120000_aaaa] agent.tool_executor: '
         f'tool terminal completed payload={{"role":"user","content":"hi"}}',
         # Old line outside the minutes window — must NOT appear when minutes=2.
@@ -94,7 +94,7 @@ def run_extraction_checks(log: Path) -> None:
 
     policy = feed.get("policy") or {}
     expect(policy.get("purpose") == "ambient_log_visualization", "policy.purpose set")
-    expect(policy.get("redaction") == "credentials_log_payloads_preserve_paths", "policy.redaction set")
+    expect(policy.get("redaction") == "credentials_only_private_operator", "policy.redaction set")
     expect(policy.get("limit") == 20, "policy.limit echoes request")
     expect(policy.get("minutes") == 30, "policy.minutes echoes request")
     expect(policy.get("max_item_chars") == srv.AUGURY_MAX_ITEM_CHARS, "policy.max_item_chars matches constant")
@@ -122,8 +122,8 @@ def run_redaction_checks(log: Path) -> None:
     expect("abcdef0123456789abcdef" not in blob, "raw bearer secret not present")
     expect(('ghp_' + 'aa...iiii') not in blob, "raw GitHub PAT not present")
     expect("[redacted]" in blob, "[redacted] placeholder appears at least once")
-    expect("payload" not in blob.lower(), "raw payload field not present")
-    expect("role" not in blob and "content" not in blob, "structured payload fields not present")
+    expect("payload" in blob.lower(), "private operator payload context preserved")
+    expect("role" in blob and "content" in blob, "ordinary structured results preserved")
 
     # Normal text must survive so the overlay is visually useful.
     expect("OAuth middleware" in blob, "normal prompt text preserved")
@@ -138,9 +138,9 @@ def run_redaction_checks(log: Path) -> None:
     # Private key block redaction.
     expect("[redacted]" in srv.augury_clean("-----BEGIN " + "RSA PRIVATE KEY-----"), "private key block redacted")
 
-    # Long base64 redaction (60+ chars).
+    # Long strings alone are not evidence of a credential.
     base64_blob = "A" * 72
-    expect("[redacted]" in srv.augury_clean(f"data={base64_blob}"), "long base64-like blob redacted")
+    expect(base64_blob in srv.augury_clean(f"data={base64_blob}"), "long ordinary identifiers are not assumed credentials")
 
 
 def run_bounds_checks(log: Path) -> None:

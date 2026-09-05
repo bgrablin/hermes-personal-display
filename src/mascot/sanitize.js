@@ -13,6 +13,25 @@
       .trim();
   }
 
+  // Text-only private operator rendering. Content words and paths are useful;
+  // only credential values are masked. Never use this to authorize commands.
+  function operatorText(value, maxLength = 320) {
+    let text = String(value ?? '');
+    const patterns = [
+      /-----BEGIN [A-Z ]*PRIVATE KEY-----[\s\S]*?(?:-----END [A-Z ]*PRIVATE KEY-----|$)/g,
+      /\b(?:authorization|proxy-authorization|cookie|set-cookie)["']?\s*[:=]\s*(?:"[^"]*"|'[^']*'|[^\r\n]+)/gi,
+      /\b(?:access[_-]?token|refresh[_-]?token|token|api[_-]?key|access[_-]?key|secret[_-]?key|client[_-]?secret|password|passwd|secret)["']?\s*[:=]\s*(?:"[^"]*"|'[^']*'|[^\s"'&,;}\]]+)/gi,
+      /[?&](?:token|key|auth|signature|sig|x-amz-signature|x-goog-signature)=[^\s&#"']+/gi,
+      /\bbearer\s+[A-Za-z0-9._~+/=\-]{16,}/gi,
+      /\b(?:sk-[A-Za-z0-9_-]{8,}|gh[pousr]_[A-Za-z0-9_]{8,}|github_pat_[A-Za-z0-9_]{8,})(?:\.\.\.[A-Za-z0-9_-]+)?/g,
+      /\b(?:sk-|gh[pousr]_)[A-Za-z0-9_-]{2,}\.\.\.[A-Za-z0-9_-]{2,}\b/g,
+      /\b[A-Za-z0-9_-]{20,}\.[A-Za-z0-9_-]{20,}\.[A-Za-z0-9_-]{20,}\b/g,
+    ];
+    for (const pattern of patterns) text = text.replace(pattern, '[redacted]');
+    text = text.replace(/\s+/g, ' ').trim();
+    return text.length > maxLength ? `${text.slice(0, maxLength - 1).trimEnd()}…` : text;
+  }
+
   function captionText(value, fallback = '', maxLength = 96) {
     const text = stripHtml(value || fallback);
     if (!text || SECRET_PATTERN.test(text)) return fallback || '';
@@ -32,6 +51,7 @@
   }
 
   window.HermesSanitize = {
+    operatorText,
     captionText,
     captionHtml,
     stripHtml,
