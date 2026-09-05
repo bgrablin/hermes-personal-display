@@ -8,6 +8,7 @@ import { computeBuildId, currentGeneratedBuildId } from './generate-build-id.js'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const projectRoot = path.resolve(__dirname, '..');
+const presenceSource = fs.readFileSync(path.join(projectRoot, 'src', 'mascot', 'presence.js'), 'utf8');
 const appSource = fs.readFileSync(path.join(projectRoot, 'src', 'mascot', 'app.js'), 'utf8');
 const cssSource = fs.readFileSync(path.join(projectRoot, 'src', 'styles.css'), 'utf8');
 const stateSource = fs.readFileSync(path.join(projectRoot, 'src', 'state.js'), 'utf8');
@@ -344,8 +345,8 @@ if (!appSource.includes("includeBodyText\n              ? auguryClean(raw?.text"
 if (!appSource.includes("if (familyAudience) return 'hidden';")) {
   fail('Family/theater mode must force Augury presence hidden.');
 }
-if (!appSource.includes("['blocked_user_task', 'critical_local_issue'].includes(state)")) {
-  fail('Blocked and critical states must hide Augury so operational status wins.');
+if (!appSource.includes("['blocked_user_task', 'critical_local_issue'].includes(state)) return 'subdued'")) {
+  fail('Blocked and critical states must keep Augury readable but subordinate to the alert.');
 }
 if (!appSource.includes("['active-turn', 'active_turn', 'reasoning', 'planning', 'tool_shell', 'writing', 'searching']")) {
   fail('Active work/search/reasoning states must subdue Augury rather than leaving it dominant.');
@@ -353,17 +354,17 @@ if (!appSource.includes("['active-turn', 'active_turn', 'reasoning', 'planning',
 requireAll(cssSource, [
   '.augury-head',
   '.augury-meta',
-  'augury-veil-drift',
-  'augury-band-rise',
-], 'Augury left stream must keep trace head/meta rows and the ambient background veil.');
+  '.augury-heading',
+  '.augury-feed-status',
+], 'Augury activity rail must keep readable headings, observation metadata, and feed freshness.');
 if (!appSource.includes('raw?.safeText === true')) {
   fail('Augury safe-text rows must be explicitly client-flagged; raw feed text stays gated behind auguryText=1.');
 }
 if (!appSource.includes('safeText: false')) {
   fail('Feed log items must have safeText stripped so a malformed payload cannot bypass the auguryText gate.');
 }
-if (!cssSource.includes('html[data-hermes-reduced-motion="true"] body.augury-preview .augury-ambient::before')) {
-  fail('Augury background veil must be disabled under Hermes reduced-motion.');
+if (!appSource.includes('!prefersReducedMotion && !document.hidden') || cssSource.includes('animation: augury-vertical-flow')) {
+  fail('Augury must animate only new observations, respect reduced motion, and never continuously fade readable text.');
 }
 if (!appSource.includes("state === 'blocked_user_task') return { label: 'WAITING FOR BRIAN'")) {
   fail('Blocked current work must elevate a WAITING FOR BRIAN top alert.');
@@ -371,9 +372,7 @@ if (!appSource.includes("state === 'blocked_user_task') return { label: 'WAITING
 if (!cssSource.includes('white-space: normal') || !cssSource.includes('-webkit-line-clamp: 2')) {
   fail('Current-work panel must support controlled two-line wrapping instead of nowrap clipping.');
 }
-if (touchFxSource.includes('touchIntensity') || touchFxSource.includes("touch=operator")) {
-  fail('This task explicitly excludes reducing default touch effects; touch-fx intensity settings should not be added here.');
-}
+requireAll(touchFxSource, ["family ? 'fun' : 'inspect'", 'HermesOperatorTouch.install'], 'Operator touch must default to inspection while family play stays available.');
 if (!appSource.includes('ensureConceptBEyeMotion') || !appSource.includes('renderConceptBEyeMotion') || !appSource.includes('conceptBEyeMicroMotion')) {
   fail('Concept B eye gaze must use the RAF motion rig for fluid saccades, not one-second snapped updates.');
 }
@@ -387,7 +386,7 @@ if (!appSource.includes("setConceptBTransform(parts.pupilGroup, `translate(550 5
 // over a stable iris/pupil, not as a symmetric shutter, iris zoom, or lower-right dart.
 // It is still driven by an anime.js cadence loop (state.blink), while the RAF flush keeps
 // gaze/iris/pupil transforms posture-only and lets the asymmetrical lids occlude the eye.
-if (!appSource.includes('function armBlink()') || !appSource.includes('blink: 1, duration:') || appSource.includes('blinkHoldX') || appSource.includes('blinkZoom') || !appSource.includes('const lidFrac = Math.max(Math.max(0, state.lid - lidWiden - socialLift), blink);') || !appSource.includes('const effPupil = Math.max(0.60, Math.min(1.35, state.pupil + (Number(state.pupilFlash) || 0) + (Number(state.hippus) || 0) + (Number(state.regard) || 0)))') || !appSource.includes('const topH = fullTravel * 0.82 * topAmount;') || !appSource.includes('const bottomH = fullTravel * 0.18 * bottomAmount;') || !appSource.includes('renderConceptBLids(parts.lidTop, parts.lidBottom, lidFrac, Math.max(0, state.upperBias + lidFollow - socialLift), state.lowerBias + lidFollow * 0.45, x)')) {
+if (!appSource.includes('function armBlink()') || !appSource.includes('blink: 1, duration:') || appSource.includes('blinkHoldX') || appSource.includes('blinkZoom') || !appSource.includes('const lidFrac = Math.max(Math.max(0, state.lid - lidWiden - socialLift), blink);') || !appSource.includes('const effPupil = Math.max(0.60, Math.min(1.35, state.pupil + (Number(state.pupilFlash) || 0) + (Number(state.hippus) || 0) + (Number(state.regard) || 0)))') || !appSource.includes('const topCurve = 314 + 346 * topAmount;') || !appSource.includes('const bottomCurve = 792 - 132 * bottomAmount;') || !appSource.includes('renderConceptBLids(parts.lidTop, parts.lidBottom, lidFrac, Math.max(0, state.upperBias + lidFollow - socialLift), state.lowerBias + lidFollow * 0.45, x)')) {
   fail('Concept B must blink via an anime.js cadence loop: upper-lid-dominant closure over stable iris/pupil on blink.interval_ms.');
 }
 // anime.js must actually drive the optic cadence + expressive transients, not just be loaded.
@@ -460,7 +459,9 @@ requireAll(cssSource, ['.cb-bg-parallax-a', '.cb-bg-parallax-b', 'radial-gradien
 if (cssSource.includes('radial-gradient(circle at 50% 43%') || cssSource.includes('radial-gradient(circle at 50% 61%')) {
   fail('Concept B parallax overlay gradients must compensate for the bleed inset; 43%/61% are viewport positions, not overlay-element positions.');
 }
-requireAll(cssSource, ['.cb-orbit-spin', 'cb-orbit-drift 22s linear infinite'], 'Outer orbit ring dash drift remains CSS; its rotation is now an anime.js loop applied via the SVG transform attribute.');
+requireAll(cssSource, ['.cb-presence-surface', '.cb-iris-crypt', '.cb-preview-proof'], 'Presence must render its material surface and label simulations.');
+if (cssSource.includes('cb-orbit-drift 22s linear infinite')) fail('Retired constant-speed orbit drift must not return.');
+if (appSource.includes('cb-activity-trace')) fail('Presence must not imply an ordered pipeline.');
 if (cssSource.includes('animation: cb-orbit-spin var(--cb-ring-period)') || cssSource.includes('.cb-eye-core {\n  transform-origin')) {
   fail('Orbit-spin rotation and eye-core breath are anime.js-driven; their CSS animation/transform-box must be removed so the JS writer does not fight (this caused ring drift before).');
 }
@@ -485,10 +486,10 @@ requireAll(appSource, ['CURRENT TURN', 'conceptBQueuedTaskCount', 'queued calmly
 if (appSource.includes('Hermes is watching.') || appSource.includes('available tasks')) {
   fail('Local-watch copy must not read like a caution/warning banner; use calm queued/watch language.');
 }
-requireAll(appSource, ["amber: 'rgb(101, 243, 255)'", "hot_amber: 'rgb(137, 213, 230)'", "if (severity === 'active') return '#65f3ff'"], 'Normal active work must render with calm cyan/blue accents, not amber/red warning colors.');
+requireAll(presenceSource, ['themeForObservation', "thinking: 'rgb(160, 176, 255)'", "working: 'rgb(92, 216, 192)'"], 'Activity tint must remain distinct from waiting and error colors.');
 requireAll(appSource, ["if (temp >= 90) return 'metric-hot temp-hot';", "if (temp >= 82) return 'metric-warn temp-warn';", "if (mode === 'cpu') return number >= 95 ? 'metric-hot' : number >= 85 ? 'metric-warn' : 'metric-ok';"], 'Normal NUC kiosk operating temperatures/CPU should not look like caution; reserve warn/hot classes for real thermal/load thresholds.');
 
-requireAll(cssSource, ['.augury-ambient', '.augury-strand', 'width: min(50vw, 960px)', 'z-index: 1', 'clamp(13px, 0.98vw, 18px)', 'linear-gradient(to right, #000 0%, #000 62%, rgba(0, 0, 0, 0.62) 82%, transparent 100%)', '--augury-optic-protect-mask', 'ellipse 24vw 39vh at 50.5vw 49.2vh'], 'Augury overlay must span about half the display, stay behind the optic, remain desk-readable, fade toward center/right, and protect the central optic with a focused radial attenuation mask.');
+requireAll(cssSource, ['.augury-ambient', '.augury-strand', '.augury-list', 'left: 64px', 'top: 162px', 'width: 430px'], 'Augury must occupy a readable left rail aligned with the provider rail, clear of the optic.');
 if (/\.augury-ambient[\s\S]{0,700}mix-blend-mode:\s*screen/.test(cssSource)) {
   fail('Augury must not use mix-blend-mode: screen against the bright optic glow.');
 }
@@ -497,11 +498,11 @@ if (serverSource.includes('override ignored:')) {
 }
 requireAll(serverSource, ['def gateway_ok_recently', 'line_is_recent(line, minutes)', 'gateway_ok_recently(recent_gateway)'], 'Gateway status must be recency-bounded, not raw token presence over a stale log tail.');
 requireAll(serverSource + logSnapshotSource, ['def augury_log_tail', 'text = augury_log_tail(line)', 'safe_text = augury_clean(text, AUGURY_MAX_ITEM_CHARS)'], 'Augury items must clean timestamp/session/module prefixes before display.');
-requireAll(appSource, ["title: 'CURRENT'", "title: 'STATUS'", "title: 'STATE'", "title: 'SIGNAL'"], 'Augury packet fallback labels must be operator-facing, not internal work/detail/caption/snippet keys.');
+requireAll(appSource, ["current ? 'NOW'", "title: 'DETAIL'", "title: 'OBSERVED STATE'", "title: 'AWAITING ACTIVITY'"], 'Augury packet fallback labels must be operator-facing, not internal work/detail/caption/snippet keys.');
 if (/title:\s*'(?:work|detail|caption|snippet)'/.test(appSource)) {
   fail('Augury fallback must not surface raw internal packet labels.');
 }
-requireAll(appSource, ['const MAX_STRANDS = 11', 'safe[idx] || null', "setConceptBDataset(row.strand, 'echo', 'false')"], 'Augury should keep enough strand slots but only populate real items; never duplicate echoes to fake density.');
+requireAll(appSource, ['const MAX_STRANDS = 5', 'const visible = safe;', 'const unique = new Map();', "setConceptBDataset(row.strand, 'echo', 'false')"], 'Augury must bound and deduplicate real observations; never duplicate echoes to fake density.');
 if (/safe\[idx\s*%\s*safe\.length\]/.test(appSource)) {
   fail('Augury must not duplicate real rows with modulo indexing to fill empty strands.');
 }
@@ -823,11 +824,8 @@ requireAll(cssSource, [
 if (!appSource.includes('setConceptBAttribute(') || !appSource.includes('setConceptBStyleProperty(')) {
   fail('Concept B RAF loop must use change-aware DOM writers to avoid redundant SVG/style invalidation.');
 }
-if (!appSource.includes('field.__lastTickBucket') || !appSource.includes('field.__lastMoteBucket')) {
-  fail('Concept B field instrumentation must bucket tiny per-frame changes so it preserves motion without rewriting every SVG node every RAF.');
-}
-if (/__lastMoteBucket[\s\S]{0,400}Math\.round\(seconds\s*\*\s*60\)/.test(appSource)) {
-  fail('Concept B mote bucket must throttle below per-frame; seconds * 60 changes every RAF and defeats the bucket.');
+if (!appSource.includes('field.__lastTickBucket') || !appSource.includes('field.cadence.moteMs')) {
+  fail('Concept B field must retain change-aware tick updates and respect the selected orbital render budget.');
 }
 requireAll(cssSource, ['.cb-eye-gaze,', '.cb-eye-pupil-group {', 'will-change: transform;'], 'Hot Concept B gaze and pupil transform targets must retain compositor promotion hints.');
 requireAll(xsessionSource, ['--disable-backgrounding-occluded-windows', 'configure_audio', 'PERSONAL_DISPLAY_AUDIO_VOLUME', 'PERSONAL_DISPLAY_AUDIO_SINK'], 'Physical kiosk launcher must prevent Chromium from treating the kiosk as occluded/backgrounded and must use env-configured SF10T/HDMI audio.');
@@ -842,7 +840,11 @@ if (!appSource.includes('id="cb-eye-lens-clip"') || !appSource.includes('clip-pa
 if (!cssSource.includes('.cb-eye-calibration {\n  display: none;') || !cssSource.includes('.cb-orbit-faint {\n  display: none;')) {
   fail('Concept B faint inner calibration/faint orbit rings must stay hidden; Brian flagged them as graphic artifacts.');
 }
-if (!cssSource.includes('body.kiosk-mode.kiosk-landscape.claude-concept-b .cb-eye-lens') || !cssSource.includes('fill: rgb(3, 7, 9);')) {
+const lensDepth = appSource.match(/<radialGradient id="cb-lens-depth"[^>]*>([\s\S]*?)<\/radialGradient>/)?.[1] || '';
+const opaqueLensStops = [...lensDepth.matchAll(/<stop offset="[\d.]+%" stop-color="#[\da-f]{6}"\s*\/>/gi)];
+if (!cssSource.includes('body.kiosk-mode.kiosk-landscape.claude-concept-b .cb-eye-lens') ||
+    !cssSource.includes('fill: url(#cb-lens-depth);') || opaqueLensStops.length !== 3 ||
+    lensDepth.replace(/<stop offset="[\d.]+%" stop-color="#[\da-f]{6}"\s*\/>/gi, '').trim()) {
   fail('Concept B lens must be opaque so field axes/rings cannot bleed through as seams or faint arcs.');
 }
 if (!cssSource.includes('.cb-eye-lid {\n  display: block;') || !cssSource.includes('fill: rgba(3, 7, 10, 0.84);')) {
@@ -877,6 +879,8 @@ if (!serverSource.includes('def __init__(self, *args, **kwargs):') || !serverSou
   fail('Preview server must pass directory=str(ROOT); service cwd alone caused 404s for static src assets.');
 }
 
+requireAll(presenceSource, ['cb-iris-filament', 'cb-iris-crypt', 'surfacePaths', 'installSurface'], 'Presence material geometry must be installed.');
+
 // Iris lattice: procedural state-aware material inside the lens. The anime.js irisAngle
 // scalar is the only rotation source and the RAF flush is its only transform writer; CSS
 // must not animate or re-origin the lattice (the orbit-ring drift lesson). Blocked,
@@ -888,7 +892,7 @@ requireAll(appSource, [
   'IRIS_LATTICE_PERIOD_MS',
   'irisLatticePeriodMs',
   'setConceptBTransform(parts.irisLattice',
-  'cb-iris-filament',
+  'window.HermesPresence.buildIris',
   'flareLattice',
 ], 'Concept B lens must render the procedural iris lattice driven by the single-writer motion rig.');
 if (!/blocked:\s*0,\s*\n\s*critical:\s*0,\s*\n\s*degraded_offline:\s*0/.test(appSource)) {

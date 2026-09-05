@@ -101,24 +101,28 @@ describe('adopted stack contracts', () => {
 
   it('holds adaptive motion policy just below and at temperature boundaries', () => {
     assertAdaptiveMotionBoundaries([
-      { value: 71.99, thermal: 'cool', reducedMotion: false },
-      { value: 72, thermal: 'warm', reducedMotion: false },
-      { value: 79.99, thermal: 'warm', reducedMotion: false },
-      { value: 80, thermal: 'hot', reducedMotion: true },
-      { value: 87.99, thermal: 'hot', reducedMotion: true },
-      { value: 88, thermal: 'critical', reducedMotion: true },
+      { value: 85.99, thermal: 'cool', reducedMotion: false },
+      { value: 86, thermal: 'warm', reducedMotion: false },
+      { value: 91.99, thermal: 'warm', reducedMotion: false },
+      { value: 92, thermal: 'hot', reducedMotion: true },
+      { value: 95.99, thermal: 'hot', reducedMotion: true },
+      { value: 96, thermal: 'critical', reducedMotion: true },
     ], (value) => ({ cpu_temp_c: value }));
   });
 
-  it('holds adaptive motion policy just below and at normalized CPU-load boundaries', () => {
+  it('does not mistake a busy multicore host for a thermal emergency', () => {
     assertAdaptiveMotionBoundaries([
-      { value: 0.619, thermal: 'cool', reducedMotion: false },
-      { value: 0.62, thermal: 'warm', reducedMotion: false },
-      { value: 0.779, thermal: 'warm', reducedMotion: false },
-      { value: 0.78, thermal: 'hot', reducedMotion: true },
-      { value: 0.919, thermal: 'hot', reducedMotion: true },
-      { value: 0.92, thermal: 'critical', reducedMotion: true },
-    ], (value) => ({ cpu: value }));
+      { value: .949, thermal: 'cool', reducedMotion: false },
+      { value: .95, thermal: 'warm', reducedMotion: false },
+      { value: 1, thermal: 'warm', reducedMotion: false },
+    ], (value) => ({ cpu: value, load_average_1m: 12, temp_c: 65 }));
+  });
+
+  it('retains the old thermal policy only in the conservative profile', () => {
+    const window = runScripts(['src/state.js'], { location: { search: '?performance=conservative' } });
+    const motion = window.HermesDisplayState.deriveAdaptiveMotion({ live: { system: { temp_c: 80 } } });
+    expect(motion.thermal).toBe('hot');
+    expect(motion.reduced_motion).toBe(true);
   });
 
   it('exposes HermesModePresets with consistent mode-to-preset and preset-to-mode mappings', () => {

@@ -1383,6 +1383,14 @@ body.kiosk-mode.kiosk-landscape[data-display-preset="night_watch"] .display-fram
 
 
 /* Claude Design Concept B living instrument implementation */
+@property --cb-accent {
+  syntax: '<color>';
+  inherits: true;
+  initial-value: rgb(101, 243, 255);
+}
+:root { transition: --cb-accent 1100ms ease; }
+@media (prefers-reduced-motion: reduce) { :root { transition: none; } }
+
 :root {
   --cb-accent: rgb(101, 243, 255);
   --cb-bg: #030406;
@@ -1611,7 +1619,7 @@ body.kiosk-mode.kiosk-landscape.claude-concept-b .cb-orbit-main {
   stroke: color-mix(in srgb, var(--cb-accent) 28%, transparent);
   stroke-dasharray: 180 34 28 42;
   opacity: 0.34;
-  animation: cb-orbit-drift 22s linear infinite;
+  animation: none;
   transition: stroke 600ms ease, opacity 600ms ease;
 }
 
@@ -1677,7 +1685,7 @@ body.kiosk-mode.kiosk-landscape.claude-concept-b [data-cb-arc].unknown .cb-arc-v
 body.kiosk-mode.kiosk-landscape.claude-concept-b .cb-activity {
   position: absolute;
   left: 50%;
-  bottom: 226px;
+  bottom: 70px;
   transform: translateX(-50%);
   z-index: 6;
   display: flex;
@@ -1701,7 +1709,7 @@ body.kiosk-mode.kiosk-landscape.claude-concept-b[data-cb-mode="planning"] .cb-ac
   z-index: 8;
   width: min(860px, 58vw);
   max-width: min(900px, 60vw);
-  bottom: 196px;
+  bottom: 60px;
   padding: 0 18px;
   border: 0;
   border-radius: 0;
@@ -1955,13 +1963,13 @@ body.kiosk-mode.kiosk-landscape.claude-concept-b .cb-cell em {
 body.kiosk-mode.kiosk-landscape.claude-concept-b .cb-top-alert {
   position: fixed;
   left: 50%;
-  top: 132px;
+  top: 36px;
   z-index: 9;
   transform: translateX(-50%);
   display: flex;
   align-items: baseline;
   gap: 14px;
-  max-width: min(860px, 72vw);
+  max-width: min(820px, 44vw);
   padding: 10px 20px 11px;
   border-radius: 999px;
   border: 2px solid color-mix(in srgb, var(--cb-ochre) 70%, transparent);
@@ -1985,6 +1993,9 @@ body.kiosk-mode.kiosk-landscape.claude-concept-b .cb-top-alert em {
   font-style: normal;
   letter-spacing: 0.12em;
   white-space: nowrap;
+  max-width: 340px;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 body.kiosk-mode.kiosk-landscape.claude-concept-b .cb-top-alert[data-severity="critical"] {
@@ -2722,7 +2733,7 @@ body.kiosk-mode.kiosk-landscape.claude-concept-b .cb-field-instrumentation {
      Do NOT add transform-box/transform-origin here: mixing the CSS and SVG transform
      models makes the rotated rings resolve about the wrong point and drift off-screen. */
   pointer-events: none;
-  opacity: calc(0.42 + var(--cb-field-intensity, 0.3) * 0.56);
+  opacity: calc(0.64 + var(--cb-field-intensity, 0.3) * 0.36);
   transition: opacity 600ms ease;
 }
 
@@ -2762,9 +2773,9 @@ body.kiosk-mode.kiosk-landscape.claude-concept-b .cb-field-tick.major {
 }
 
 body.kiosk-mode.kiosk-landscape.claude-concept-b .cb-field-mote {
-  fill: color-mix(in srgb, var(--cb-accent) 70%, rgba(255, 244, 207, 0.7));
-  opacity: var(--cb-field-mote-opacity, 0.42);
-  filter: drop-shadow(0 0 10px color-mix(in srgb, var(--cb-accent) 55%, transparent));
+  fill: #a3e8ff;
+  opacity: var(--cb-field-mote-opacity, 0.72);
+  filter: drop-shadow(0 0 8px #5dbdff) drop-shadow(0 0 16px #379fff80);
   transition: fill 600ms ease, opacity 400ms ease;
 }
 
@@ -2870,7 +2881,7 @@ body.kiosk-mode.kiosk-landscape.claude-concept-b .cb-eye-calibration {
 }
 
 body.kiosk-mode.kiosk-landscape.claude-concept-b .cb-eye-lens {
-  fill: rgb(3, 7, 9);
+  fill: url(#cb-lens-depth);
   stroke: color-mix(in srgb, var(--cb-accent) 8%, transparent);
   stroke-width: 0.7;
   filter: drop-shadow(0 0 30px color-mix(in srgb, var(--cb-accent) 12%, transparent));
@@ -2950,39 +2961,38 @@ body.kiosk-mode.kiosk-landscape.claude-concept-b .cb-iris-lattice {
      transform models is what made the orbit ring drift off center. Light level follows
      the mode focus var, plus the short anime.js --cb-lattice-flare pulse on state
      changes (no opacity transition so the flare is not low-passed into mush). */
-  opacity: calc(0.46 + var(--cb-field-focus, 0.24) * 0.42 + var(--cb-lattice-flare, 0) * 0.34);
+  opacity: calc(0.9 + var(--cb-lattice-flare, 0) * 0.1);
   will-change: transform, opacity;
   pointer-events: none;
 }
 
 body.kiosk-mode.kiosk-landscape.claude-concept-b .cb-iris-filament {
-  stroke: color-mix(in srgb, var(--cb-accent) 30%, transparent);
-  stroke-width: 0.8;
+  fill: none;
+  stroke: url(#cb-iris-spectrum);
   stroke-linecap: round;
   transition: stroke 600ms ease;
 }
 
 body.kiosk-mode.kiosk-landscape.claude-concept-b .cb-iris-filament-bright {
-  stroke: color-mix(in srgb, var(--cb-accent) 52%, rgba(240, 248, 246, 0.4));
-  stroke-width: 1.15;
-  filter: drop-shadow(0 0 6px color-mix(in srgb, var(--cb-accent) 28%, transparent));
+  stroke: url(#cb-iris-spectrum);
+  filter: none;
 }
 
 body.kiosk-mode.kiosk-landscape.claude-concept-b .cb-iris-collar,
 body.kiosk-mode.kiosk-landscape.claude-concept-b .cb-iris-limbal {
   fill: none;
-  stroke: color-mix(in srgb, var(--cb-accent) 24%, transparent);
+  stroke: #bfa472;
   transition: stroke 600ms ease;
 }
 
 body.kiosk-mode.kiosk-landscape.claude-concept-b .cb-iris-collar {
-  stroke-width: 1;
-  opacity: 0.5;
+  stroke-width: 0.75;
+  opacity: 0.8;
 }
 
 body.kiosk-mode.kiosk-landscape.claude-concept-b .cb-iris-limbal {
-  stroke-width: 0.7;
-  opacity: 0.36;
+  stroke-width: 1.4;
+  opacity: 0.2;
 }
 
 body.kiosk-mode.kiosk-landscape.claude-concept-b .cb-eye-pupil {
@@ -3150,275 +3160,135 @@ body.kiosk-mode.kiosk-landscape.claude-concept-b .cb-radial-stage.optic-debug-en
   }
 }
 
-/* Augury ambient log overlay — opt-in via ?augury=1|true|yes|preview.
-   Renders a small, bounded set of redacted prompt/tool/log strands behind the
-   existing UI. CSS-only animation; no RAF loop. Default hidden. */
-.augury-ambient {
-  display: none;
-}
-
+/* Augury is a readable operator rail. Observations move only when they change. */
+.augury-ambient { display: none; }
 body.augury-preview .augury-ambient {
-  display: flex;
-  opacity: 0.86;
-  transition: opacity 700ms ease, filter 700ms ease;
+  display: block;
   position: fixed;
-  left: 0;
-  top: 0;
-  bottom: 0;
-  width: min(50vw, 960px);
-  z-index: 1;
+  left: 64px;
+  top: 162px;
+  width: 430px;
+  height: 730px;
+  z-index: 6;
   pointer-events: none;
-  flex-direction: column;
-  justify-content: flex-start;
-  gap: clamp(4px, 0.72vh, 10px);
-  align-items: flex-start;
-  padding: 6.6vh 0 7.5vh 2vw;
-  overflow: hidden;
-  font-family: ui-monospace, "JetBrains Mono", Menlo, Consolas, monospace;
-  font-size: clamp(13px, 0.98vw, 18px);
-  letter-spacing: 0.04em;
-  color: rgba(101, 243, 255, 0.72);
-  text-shadow: 0 0 8px rgba(101, 243, 255, 0.08);
-  contain: strict;
-  /* Brian prefers Augury as a left-origin vertical stream that can extend
-     behind the optic. Keep it below the central graphics and fade it out before
-     it competes with the right-side HUD. */
-  --augury-optic-protect-mask: radial-gradient(ellipse 24vw 39vh at 50.5vw 49.2vh,
-    transparent 0%,
-    transparent 44%,
-    rgba(0, 0, 0, 0.10) 58%,
-    rgba(0, 0, 0, 0.48) 76%,
-    #000 100%);
-  -webkit-mask-image:
-    linear-gradient(to right, #000 0%, #000 62%, rgba(0, 0, 0, 0.62) 82%, transparent 100%),
-    linear-gradient(to bottom, transparent 0 6vh, #000 14vh 86vh, transparent 100%),
-    var(--augury-optic-protect-mask);
-  mask-image:
-    linear-gradient(to right, #000 0%, #000 62%, rgba(0, 0, 0, 0.62) 82%, transparent 100%),
-    linear-gradient(to bottom, transparent 0 6vh, #000 14vh 86vh, transparent 100%),
-    var(--augury-optic-protect-mask);
-  -webkit-mask-composite: source-in, source-in;
-  mask-composite: intersect;
+  color: #c4d7d4;
+  opacity: .92;
+  transition: opacity 700ms ease;
+  contain: layout paint;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
 }
-
-/* Background atmosphere behind the strands: a faint scanline veil that drifts
-   vertically plus a slow rising light band. Both are transform/opacity only and
-   inherit the container's masks, so they never reach the optic or right HUD. */
+body.augury-preview .augury-heading {
+  position: absolute;
+  left: 92px;
+  top: 0;
+  margin: 0;
+  color: color-mix(in srgb, var(--cb-accent) 62%, var(--cb-fg-0));
+  font: 520 21px/1 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  letter-spacing: .14em;
+  white-space: nowrap;
+}
 body.augury-preview .augury-ambient::before {
   content: '';
   position: absolute;
-  inset: -8vh 0;
-  pointer-events: none;
-  background:
-    repeating-linear-gradient(to bottom,
-      rgba(101, 243, 255, 0.045) 0 1px,
-      transparent 1px 7px),
-    linear-gradient(to right,
-      rgba(101, 243, 255, 0.065) 0%,
-      rgba(101, 243, 255, 0.022) 38%,
-      transparent 72%);
-  opacity: 0.5;
-  animation: augury-veil-drift 36s ease-in-out infinite alternate;
-  will-change: transform, opacity;
+  left: 52px;
+  top: 44px;
+  width: 2px;
+  height: 626px;
+  background: linear-gradient(180deg, transparent, color-mix(in srgb, var(--cb-accent) 46%, transparent) 9%, #a8c3bc38 84%, transparent);
 }
-
-body.augury-preview .augury-ambient::after {
-  content: '';
+body.augury-preview .augury-list {
   position: absolute;
-  left: 0;
-  top: -30vh;
-  width: 100%;
-  height: 46vh;
-  pointer-events: none;
-  background: linear-gradient(to bottom,
-    transparent 0%,
-    rgba(101, 243, 255, 0.055) 38%,
-    rgba(154, 134, 255, 0.045) 62%,
-    transparent 100%);
-  opacity: 0;
-  animation: augury-band-rise 23s linear infinite;
-  will-change: transform, opacity;
-}
-
-body.augury-preview .augury-strand {
+  left: 92px;
+  right: 40px;
+  top: 64px;
+  bottom: 62px;
   display: flex;
   flex-direction: column;
-  align-items: flex-start;
-  gap: 3px;
-  width: min(49vw, 940px);
-  max-width: min(49vw, 940px);
-  padding: 4px 14px 5px 12px;
-  white-space: nowrap;
+  gap: 25px;
   overflow: hidden;
-  border-left: 2px solid rgba(101, 243, 255, 0.28);
-  background: linear-gradient(90deg,
-    rgba(101, 243, 255, 0.058) 0%,
-    rgba(101, 243, 255, 0.034) 42%,
-    rgba(101, 243, 255, 0.012) 78%,
-    rgba(101, 243, 255, 0) 100%);
-  /* Stagger each lane across the 34s cycle so the stream looks continuous
-     rather than rolling as a synchronized block. -3.09s × 11 lanes ≈ 34s. */
-  animation: augury-vertical-flow 34s linear infinite;
-  animation-delay: calc(var(--augury-lane, 0) * -3.09s);
-  will-change: opacity, transform;
 }
-
-body.augury-preview .augury-strand[data-populated="false"] {
-  visibility: hidden;
+body.augury-preview .augury-strand {
+  flex: 0 0 auto;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  width: 100%;
+  min-height: 62px;
+  max-height: 154px;
+  overflow: hidden;
+  opacity: 1;
 }
-
-body.augury-preview .augury-strand[data-echo="true"] {
-  opacity: 0.5;
-  filter: saturate(0.85);
-}
-
+body.augury-preview .augury-strand[data-populated="false"] { display: none; }
 body.augury-preview .augury-head {
   display: flex;
   align-items: baseline;
-  gap: 10px;
-  max-width: 100%;
-  overflow: hidden;
+  flex-wrap: wrap;
+  gap: 6px 9px;
+  line-height: 1.3;
 }
-
 body.augury-preview .augury-kind {
+  font-size: 11px;
   font-weight: 650;
-  letter-spacing: 0.12em;
-  opacity: 0.68;
-  text-transform: uppercase;
+  letter-spacing: .10em;
+  color: color-mix(in srgb, var(--cb-accent) 72%, #c5d6d1);
 }
-
+body.augury-preview .augury-strand[data-kind="log"] .augury-kind { display: none; }
 body.augury-preview .augury-title {
-  opacity: 0.70;
-  font-weight: 560;
+  font-size: 14px;
+  font-weight: 600;
+  letter-spacing: .065em;
+  color: #b0c6c3;
+  overflow-wrap: anywhere;
 }
-
 body.augury-preview .augury-meta {
-  font-size: 0.78em;
-  letter-spacing: 0.10em;
-  opacity: 0.46;
+  font-size: 11px;
   font-variant-numeric: tabular-nums;
-  white-space: nowrap;
+  color: #829c9a;
+  letter-spacing: .03em;
 }
-
 body.augury-preview .augury-text {
-  opacity: 0.84;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  overflow: hidden;
+  overflow-wrap: anywhere;
+  font: 400 18px/1.5 system-ui, sans-serif;
+  letter-spacing: .005em;
+  color: #c4d7d4;
 }
-
-body.augury-preview .augury-text:empty {
-  display: none;
+body.augury-preview .augury-strand[data-lead="true"] .augury-text {
+  font-size: 22px;
+  line-height: 1.4;
+  -webkit-line-clamp: 3;
+  color: #d1e1de;
 }
-
-body.augury-preview .augury-strand[data-kind="prompt"] {
-  color: rgba(247, 211, 107, 0.62);
-  border-left-color: rgba(247, 211, 107, 0.40);
+body.augury-preview .augury-text:empty { display: none; }
+body.augury-preview .augury-feed-status {
+  position: absolute;
+  left: 92px;
+  right: 16px;
+  top: 692px;
+  color: #91aaa7;
+  font-size: 10px;
+  line-height: 1.4;
+  letter-spacing: .07em;
 }
-
-body.augury-preview .augury-strand[data-kind="tool"] {
-  color: rgba(101, 243, 255, 0.66);
-  border-left-color: rgba(101, 243, 255, 0.40);
-}
-
-body.augury-preview .augury-strand[data-kind="thinking"] {
-  color: rgba(196, 186, 255, 0.60);
-  border-left-color: rgba(196, 186, 255, 0.38);
-}
-
-body.augury-preview .augury-strand[data-kind="log"] {
-  color: rgba(150, 220, 230, 0.56);
-  border-left-color: rgba(150, 220, 230, 0.34);
-}
-
-body[data-augury-presence="focus"].augury-preview .augury-ambient {
-  opacity: 0.66;
-  filter: saturate(0.88);
-}
-
-body[data-augury-presence="subdued"].augury-preview .augury-ambient {
-  opacity: 0.48;
-  filter: saturate(0.76);
-}
-
-body[data-augury-presence="subdued"].augury-preview .augury-strand[data-echo="true"] {
-  opacity: 0.28;
-}
-
-body[data-augury-presence="hidden"].augury-preview .augury-ambient {
-  opacity: 0;
-  visibility: hidden;
-}
-
-body.family-theater.augury-preview .augury-ambient {
-  display: none !important;
-}
-
+body[data-augury-presence="focus"].augury-preview .augury-ambient { opacity: .92; }
+body[data-augury-presence="subdued"].augury-preview .augury-ambient { opacity: .84; }
+body[data-augury-presence="hidden"].augury-preview .augury-ambient { visibility: hidden; }
+body.family-theater.augury-preview .augury-ambient { display: none !important; }
 body.augury-preview .augury-proof {
   position: fixed;
   left: 28px;
   bottom: 28px;
   z-index: 9;
-  padding: 5px 8px;
-  border: 1px solid rgba(101, 243, 255, 0.22);
-  border-radius: 8px;
-  color: rgba(101, 243, 255, 0.58);
-  background: rgba(3, 7, 11, 0.54);
-  font: 700 11px/1 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
-  letter-spacing: 0.14em;
+  color: #8cbcb4;
+  font: 700 11px/1 ui-monospace, monospace;
+  letter-spacing: .14em;
   pointer-events: none;
 }
-
-@keyframes augury-vertical-flow {
-  0%   { opacity: 0; transform: translate3d(0, 6vh, 0); }
-  14%  { opacity: 0.62; }
-  82%  { opacity: 0.48; }
-  100% { opacity: 0; transform: translate3d(0, -6vh, 0); }
-}
-
-@keyframes augury-veil-drift {
-  0%   { opacity: 0.34; transform: translate3d(0, 1.6vh, 0); }
-  100% { opacity: 0.62; transform: translate3d(0, -1.6vh, 0); }
-}
-
-@keyframes augury-band-rise {
-  0%   { opacity: 0; transform: translate3d(0, 110vh, 0); }
-  12%  { opacity: 0.55; }
-  88%  { opacity: 0.40; }
-  100% { opacity: 0; transform: translate3d(0, 0, 0); }
-}
-
 @media (prefers-reduced-motion: reduce) {
-  body.augury-preview .augury-strand {
-    animation: none !important;
-    transform: none !important;
-    opacity: 0.32;
-  }
-
-  body.augury-preview .augury-ambient::before {
-    animation: none !important;
-    transform: none !important;
-    opacity: 0.26;
-  }
-
-  body.augury-preview .augury-ambient::after {
-    animation: none !important;
-    opacity: 0;
-  }
-}
-
-html[data-hermes-reduced-motion="true"] body.augury-preview .augury-strand {
-  animation: none !important;
-  transform: none !important;
-  opacity: 0.32;
-}
-
-html[data-hermes-reduced-motion="true"] body.augury-preview .augury-ambient::before {
-  animation: none !important;
-  transform: none !important;
-  opacity: 0.26;
-}
-
-html[data-hermes-reduced-motion="true"] body.augury-preview .augury-ambient::after {
-  animation: none !important;
-  opacity: 0;
+  body.augury-preview .augury-ambient { transition: none; }
 }
 
 body.kiosk-mode.kiosk-landscape.claude-concept-b.family-theater {
@@ -3564,6 +3434,18 @@ body.kiosk-mode.kiosk-landscape.claude-concept-b.family-theater .cb-mode-hold[da
   box-shadow: 0 0 22px rgba(247, 211, 107, 0.18);
 }
 
+body.kiosk-mode.kiosk-landscape.claude-concept-b .cb-route-title {
+  color: color-mix(in srgb, var(--cb-accent) 62%, var(--cb-fg-0));
+}
+body.kiosk-mode.kiosk-landscape.claude-concept-b .cb-route-spine {
+  background: linear-gradient(180deg, transparent, color-mix(in srgb, var(--cb-accent) 46%, transparent) 9%, #a8c3bc38 84%, transparent);
+}
+body.kiosk-mode.kiosk-landscape.claude-concept-b .cb-route-row[data-state="confirmed"],
+body.kiosk-mode.kiosk-landscape.claude-concept-b .cb-route-row[data-active="true"] { color: var(--cb-accent); }
+body.kiosk-mode.kiosk-landscape.claude-concept-b .cb-route-row[data-collapsed="true"] { opacity: .55; }
+body.kiosk-mode.kiosk-landscape.claude-concept-b .cb-route-rail[data-rail-quiet="true"] { opacity: .86; }
+body.kiosk-mode.kiosk-landscape.claude-concept-b:is([data-cb-mode="active-turn"], [data-cb-mode="working"], [data-cb-mode="planning"]) .cb-route-rail { opacity: .84; }
+
 /* Social-presence aperture: when Hermes meets the viewer, instrumentation yields to the
    optic instead of competing with it. Alerts and stopped modes always retain full authority. */
 body.kiosk-mode.kiosk-landscape.claude-concept-b .cb-route-rail,
@@ -3639,3 +3521,136 @@ body.kiosk-mode.kiosk-landscape.claude-concept-b:is(
 ) .cb-field-instrumentation {
   opacity: 1;
 }
+
+/* Luminous presence: one material body, with information at the periphery. */
+body.kiosk-mode.kiosk-landscape.claude-concept-b .cb-presence-surface {
+  pointer-events: none;
+  fill: none;
+  stroke: url(#cb-surface-light);
+  stroke-width: .8;
+}
+.cb-presence-fold { vector-effect: non-scaling-stroke; }
+.cb-iris-crypt { fill: none; stroke: #06141d; opacity: .7; }
+body.kiosk-mode.kiosk-landscape.claude-concept-b .cb-eye-glass-sheen {
+  fill: url(#cb-glass-light);
+  opacity: .6;
+  filter: none;
+}
+body.kiosk-mode.kiosk-landscape.claude-concept-b .cb-eye-glass-crescent {
+  stroke: color-mix(in srgb, var(--cb-accent) 40%, #b9e3da);
+  opacity: .3;
+  stroke-width: .9;
+}
+body.kiosk-mode.kiosk-landscape.claude-concept-b .cb-eye-ring {
+  stroke-width: .65;
+  filter: none;
+  opacity: calc(.3 + var(--cb-edge-rim-opacity, .12));
+}
+body.kiosk-mode.kiosk-landscape.claude-concept-b .cb-eye-aura {
+  opacity: .22;
+  fill: color-mix(in srgb, var(--cb-accent) 68%, #3f6d70);
+  filter: blur(23px);
+}
+body.kiosk-mode.kiosk-landscape.claude-concept-b .cb-eye-pupil {
+  fill: #01050a;
+  stroke: color-mix(in srgb, var(--cb-accent) 40%, #536f71);
+  stroke-width: .6;
+  filter: none;
+}
+body.kiosk-mode.kiosk-landscape.claude-concept-b .cb-eye-lid {
+  fill: #040a0e;
+  stroke: color-mix(in srgb, var(--cb-accent) 24%, #152329);
+  stroke-width: .45;
+}
+body.kiosk-mode.kiosk-landscape.claude-concept-b .cb-aperture-shell,
+body.kiosk-mode.kiosk-landscape.claude-concept-b .cb-status-rings,
+body.kiosk-mode.kiosk-landscape.claude-concept-b .cb-axis,
+body.kiosk-mode.kiosk-landscape.claude-concept-b .cb-cardinal,
+body.kiosk-mode.kiosk-landscape.claude-concept-b .cb-field-compass,
+body.kiosk-mode.kiosk-landscape.claude-concept-b .cb-field-focus-rings,
+body.kiosk-mode.kiosk-landscape.claude-concept-b .cb-field-trace {
+  display: none;
+}
+body.kiosk-mode.kiosk-landscape.claude-concept-b .cb-eye-grid,
+body.kiosk-mode.kiosk-landscape.claude-concept-b .cb-eye-scan {
+  /* The observed mode remains available to integrations. Texture and gaze now
+     express focus; a grid or radar is no longer projected across the cornea. */
+  visibility: hidden;
+}
+body.kiosk-mode.kiosk-landscape.claude-concept-b .cb-bg-parallax-a {
+  background: radial-gradient(ellipse at 50% 46%, color-mix(in srgb, var(--cb-accent) 15%, transparent), transparent 38rem);
+}
+body.kiosk-mode.kiosk-landscape.claude-concept-b::before { opacity: .08; }
+body.kiosk-mode.kiosk-landscape.claude-concept-b .cb-state { font-size: 16px; letter-spacing: .2em; }
+body.kiosk-mode.kiosk-landscape.claude-concept-b .cb-line { font-size: 36px; font-weight: 450; }
+body.kiosk-mode.kiosk-landscape.claude-concept-b .cb-source { font-size: 13px; letter-spacing: .16em; }
+.cb-preview-proof {
+  position: absolute;
+  left: 50%;
+  top: 10%;
+  transform: translateX(-50%);
+  color: #829f9e;
+  font: 11px ui-monospace, monospace;
+  letter-spacing: .22em;
+}
+body.kiosk-mode.kiosk-landscape.claude-concept-b[data-optic-mode="waiting_user"] .cb-activity { opacity: 1; }
+body.kiosk-mode.kiosk-landscape.claude-concept-b .cb-radial-stage[data-quiet="night"] .cb-presence-surface,
+body.kiosk-mode.kiosk-landscape.claude-concept-b .cb-radial-stage[data-optic-mode="degraded_offline"] .cb-presence-surface { opacity: .3; }
+
+/* Operator touch: a quiet contact cue and useful, temporary inspection. */
+.cb-contact {
+  position: fixed;
+  left: -13px;
+  top: -13px;
+  width: 26px;
+  height: 26px;
+  z-index: 45;
+  pointer-events: none;
+  border: 1px solid #c0e4db99;
+  border-radius: 50%;
+  box-shadow: 0 0 20px #7ac5c02b;
+}
+.cb-contact[hidden], .cb-inspector[hidden] { display: none; }
+body.kiosk-mode.kiosk-landscape.claude-concept-b [data-inspect] {
+  pointer-events: auto;
+  cursor: pointer;
+}
+[data-inspect]:focus-visible { outline: 2px solid #a5e3d7; outline-offset: 6px; }
+.cb-metric-hit { fill: transparent; stroke: transparent; pointer-events: all; }
+.cb-inspector {
+  position: fixed;
+  z-index: 70;
+  bottom: 15%;
+  left: 50%;
+  transform: translateX(-50%);
+  width: min(600px, calc(100vw - 40px));
+  padding: 26px 30px;
+  color: #dfeeea;
+  border: 1px solid #83b9b04a;
+  border-radius: 18px;
+  background: linear-gradient(125deg, #112326, #071215 70%);
+  box-shadow: 0 24px 100px #000a, inset 0 1px #bde2d51c;
+}
+.cb-inspector > div { display: flex; align-items: center; justify-content: space-between; gap: 16px; }
+.cb-inspector > div > span { font: 13px ui-monospace, monospace; text-transform: uppercase; letter-spacing: .18em; color: #91bdb5; }
+.cb-inspector button { width: 48px; height: 48px; padding: 0; border: 1px solid #7caaa333; border-radius: 50%; color: #d7e9e3; font-size: 25px; background: #152d2d; cursor: pointer; }
+.cb-inspector > strong { display: block; margin: 10px 0 16px; font: 500 34px/1.25 system-ui, sans-serif; overflow-wrap: anywhere; }
+.cb-inspector p { font: 17px/1.5 system-ui, sans-serif; color: #a8c1bb; margin: 0 0 22px; }
+.cb-inspector small { font: 11px ui-monospace, monospace; letter-spacing: .1em; color: #88a49d; }
+body[data-inspecting="true"] .cb-inspector { animation: cb-inspect-arrive 200ms ease-out; }
+@keyframes cb-inspect-arrive { from { opacity: 0; margin-bottom: -7px; } to { opacity: 1; margin-bottom: 0; } }
+@media (prefers-reduced-motion: reduce) { body[data-inspecting="true"] .cb-inspector { animation: none; } }
+.cb-touch-hint {
+  position: fixed;
+  bottom: 20px;
+  left: 50%;
+  transform: translateX(-50%);
+  color: #829c96;
+  font: 12px/1.4 ui-monospace, monospace;
+  letter-spacing: .04em;
+  white-space: nowrap;
+  pointer-events: none;
+}
+@media (max-width: 700px) { .cb-touch-hint { display: none; } }
+
+.cb-inspector { border-color: color-mix(in srgb, var(--cb-accent) 32%, transparent); }

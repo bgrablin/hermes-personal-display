@@ -25,10 +25,12 @@ const STATIC_RUNTIME_FILES = [
   'src/mascot/states.js',
   'src/mascot/motion-adapter.js',
   'src/mascot/audio.js',
+  'src/mascot/operator-touch.js',
   'src/mascot/touch-fx.js',
   'src/mascot/entertainment.js',
   'src/mascot/watch-sequences.js',
   'src/mascot/sequences.json',
+  'src/mascot/presence.js',
   'src/mascot/app.js',
 ];
 

@@ -39,6 +39,7 @@
     "test:unit": "vitest run",
     "test:server": "python3 scripts/check-kanban-snapshot.py && python3 scripts/check-entertainment-server.py && python3 -m pytest tests/python -q && python3 -m py_compile scripts/hermes_display_server.py scripts/display_state/*.py scripts/generated/display_contract.py",
     "test:e2e": "playwright test",
+    "review:presence": "playwright test --config=playwright.presence.config.js --workers=1",
     "check:stack": "node scripts/check-adopted-stack.js",
     "check:client-events": "node scripts/check-client-avatar-event-validator.js",
     "check:kiosk": "npm run check:build-id && node scripts/check-kiosk-recommendation-regressions.js",

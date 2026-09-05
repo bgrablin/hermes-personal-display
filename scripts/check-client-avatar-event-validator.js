@@ -61,6 +61,7 @@ class FakeElement {
   }
   appendChild(child) { this.children.push(child); return child; }
   append(...children) { children.forEach((child) => this.appendChild(child)); }
+  replaceChildren(...children) { this.children = children; this.childNodes = this.children; }
   remove() { this.removed = true; }
   setAttribute(name, value) { this.attributes.set(name, String(value)); }
   getBoundingClientRect() { return { left: 0, top: 0, right: 320, bottom: 480, width: 320, height: 480 }; }
@@ -290,6 +291,8 @@ function invalidCases(base) {
 function loadApp() {
   FakeEventSource.instances = [];
   const context = makeContext();
+  const tracePath = path.join(ROOT, 'src/mascot/presence.js');
+  vm.runInContext(fs.readFileSync(tracePath, 'utf8'), context, { filename: tracePath });
   const source = fs.readFileSync(APP_JS, 'utf8');
   vm.runInContext(source, context, { filename: APP_JS });
   const eventSource = FakeEventSource.instances[0];

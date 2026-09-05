@@ -20,6 +20,8 @@ function runtimeUrl(mode, testInfo) {
   return `/src/character-runtime.html?${params.toString()}`;
 }
 
+function funRuntimeUrl(mode, testInfo) { return `${runtimeUrl(mode, testInfo)}&touch=fun`; }
+
 async function expectNoPageErrors(page, action) {
   const errors = [];
   page.on('console', (msg) => {
@@ -94,8 +96,8 @@ test.describe('Hermes kiosk smoke and visual regression anchors', () => {
     expect(sanitized).toBe('Visible');
   });
 
-  test('kiosk touch uses entertainment FX instead of touch zones or detail overlays', async ({ page }, testInfo) => {
-    await page.goto(`${runtimeUrl('idle_watch', testInfo)}&touchtest=1`);
+  test('explicit fun touch uses entertainment FX without legacy detail overlays', async ({ page }, testInfo) => {
+    await page.goto(`${funRuntimeUrl('idle_watch', testInfo)}&touchtest=1`);
     await expect(page.locator('.touch-zones')).toHaveCount(0);
     await expect(page.locator('.detail-overlay')).toHaveCount(0);
     await expect(page.locator('.cb-touch-zones')).toHaveCount(0);
@@ -117,7 +119,7 @@ test.describe('Hermes kiosk smoke and visual regression anchors', () => {
   });
 
   test('touch motes stay anchored to the optic field', async ({ page }, testInfo) => {
-    await page.goto(`${runtimeUrl('idle_watch', testInfo)}&touchtest=1`);
+    await page.goto(`${funRuntimeUrl('idle_watch', testInfo)}&touchtest=1`);
     await expect(page.locator('.cb-radial-stage')).toBeVisible();
     await expect(page.locator('.touch-fx-mote').first()).toBeVisible();
     await page.waitForTimeout(250);
@@ -167,7 +169,7 @@ test.describe('Hermes kiosk smoke and visual regression anchors', () => {
   ]) {
     test(`Concept B developer touch grid stays hidden for ${name}`, async ({ page }, testInfo) => {
       test.skip(testInfo.project.name !== 'minix-sf10t-landscape', 'MINIX-only Concept B touch grid');
-      await page.goto(`${runtimeUrl('idle_watch', testInfo)}&${query}`);
+      await page.goto(`${funRuntimeUrl('idle_watch', testInfo)}&${query}`);
       await expect(page.locator('.cb-touch-zones')).toHaveCount(0);
       await expect(page.locator('.cb-touch')).toHaveCount(0);
       await expect(page.locator('text=DIAGNOSTICS')).toHaveCount(0);
@@ -187,7 +189,7 @@ test.describe('Hermes kiosk smoke and visual regression anchors', () => {
   });
 
   test('kiosk touch FX does not mutate behavior mode', async ({ page }, testInfo) => {
-    await page.goto(`${runtimeUrl('tool_shell', testInfo)}&touchtest=1`);
+    await page.goto(`${funRuntimeUrl('tool_shell', testInfo)}&touchtest=1`);
     const before = await page.evaluate(() => window.__HERMES_DISPLAY_BEHAVIOR?.mode || null);
     const viewport = page.viewportSize();
     const w = viewport?.width || 320;
@@ -205,7 +207,7 @@ test.describe('Hermes kiosk smoke and visual regression anchors', () => {
 
   test('kiosk touch FX exposes multitouch orbit and reduced-motion-safe effects', async ({ page }, testInfo) => {
     await page.emulateMedia({ reducedMotion: 'reduce' });
-    await page.goto(`${runtimeUrl('idle_watch', testInfo)}&touchtest=1`);
+    await page.goto(`${funRuntimeUrl('idle_watch', testInfo)}&touchtest=1`);
     const snapshot = await page.evaluate(() => {
       const w = window.innerWidth;
       const h = window.innerHeight;
@@ -485,7 +487,7 @@ test.describe('Hermes kiosk smoke and visual regression anchors', () => {
     });
   });
 
-  test('Augury is private by default, hidden for critical states, and raw text requires auguryText=1', async ({ page }, testInfo) => {
+  test('Augury stays readable during alerts and raw text requires auguryText=1', async ({ page }, testInfo) => {
     test.skip(testInfo.project.name !== 'minix-sf10t-landscape', 'MINIX-only Concept B Augury mode');
     const feed = {
       schema_version: '0.1.0',
@@ -510,7 +512,7 @@ test.describe('Hermes kiosk smoke and visual regression anchors', () => {
     await expect(page.locator('.augury-ambient')).toContainText('RAW PROMPT BODY');
 
     await page.goto(`${runtimeUrl('blocked', testInfo)}&augury=1&auguryText=1`);
-    await expect.poll(() => page.evaluate(() => document.body.dataset.auguryPresence)).toBe('hidden');
+    await expect.poll(() => page.evaluate(() => document.body.dataset.auguryPresence)).toBe('subdued');
   });
 
   test('Augury strand flow and background veil respect reduced motion', async ({ page }, testInfo) => {
@@ -662,7 +664,7 @@ test.describe('Hermes kiosk smoke and visual regression anchors', () => {
 
   test('touch FX creates optic resonance, constellation stars, motes, and Concept B touch pulse', async ({ page }, testInfo) => {
     test.skip(testInfo.project.name !== 'minix-sf10t-landscape', 'MINIX-only Concept B touch integration');
-    await page.goto(`${runtimeUrl('idle_watch', testInfo)}&touchtest=1`);
+    await page.goto(`${funRuntimeUrl('idle_watch', testInfo)}&touchtest=1`);
     const result = await page.evaluate(() => {
       const pulseCalls = [];
       const motion = window.__HERMES_CONCEPT_B_EYE_MOTION;
@@ -729,7 +731,7 @@ test.describe('Hermes kiosk smoke and visual regression anchors', () => {
   test('touch FX keeps side comets and bottom fireflies despite thermal reduced display state', async ({ page }, testInfo) => {
     test.skip(testInfo.project.name !== 'minix-sf10t-landscape', 'MINIX-only touch FX integration');
     await page.emulateMedia({ reducedMotion: 'no-preference' });
-    await page.goto(`${runtimeUrl('idle_watch', testInfo)}&touchtest=1`);
+    await page.goto(`${funRuntimeUrl('idle_watch', testInfo)}&touchtest=1`);
     const result = await page.evaluate(() => {
       document.documentElement.dataset.hermesReducedMotion = 'true';
       const fx = window.HermesTouchFxController;
@@ -757,7 +759,7 @@ test.describe('Hermes kiosk smoke and visual regression anchors', () => {
 
   test('Concept B touch particles return behind the iris when idle', async ({ page }, testInfo) => {
     test.skip(testInfo.project.name !== 'minix-sf10t-landscape', 'MINIX-only iris layering');
-    await page.goto(`${runtimeUrl('idle_watch', testInfo)}&touchtest=1`);
+    await page.goto(`${funRuntimeUrl('idle_watch', testInfo)}&touchtest=1`);
     const state = await page.evaluate(() => {
       const layer = document.querySelector('.touch-fx-layer');
       const read = () => ({
@@ -888,7 +890,8 @@ test.describe('Hermes kiosk smoke and visual regression anchors', () => {
     expect(snapshot.map((row) => row.label)).toEqual(['CHATGPT', 'CLAUDE', 'GEMINI', 'COPILOT', 'XAI']);
     for (const row of snapshot) {
       expect(row).toMatchObject({ value: 'UNK', glyph: '○', state: 'unknown', active: 'false', headroomTier: 'none', collapsed: 'true' });
-      expect(row.rowOpacity).toBeLessThan(0.4);
+      expect(row.rowOpacity).toBeGreaterThan(.45); // Unknown remains readable.
+      expect(row.rowOpacity).toBeLessThan(.75); // Verified provider rows retain emphasis.
       expect(row.whiskerWidth).toBeGreaterThan(38);
       expect(row.whiskerTransform).toBe('matrix(0, 0, 0, 1, 0, 0)');
       expect(row.whiskerOpacity).toBe(0);
@@ -1391,9 +1394,9 @@ test.describe('Hermes kiosk smoke and visual regression anchors', () => {
     ['idle_watch', 'focus'],
     ['reasoning', 'subdued'],
     ['tool_shell', 'subdued'],
-    ['waiting_user', 'hidden'],
-    ['blocked', 'hidden'],
-    ['degraded_offline', 'hidden'],
+    ['waiting_user', 'subdued'],
+    ['blocked', 'subdued'],
+    ['degraded_offline', 'subdued'],
   ]) {
     test(`Augury presence uses accepted vocabulary for ${mode}`, async ({ page }, testInfo) => {
       test.skip(testInfo.project.name !== 'minix-sf10t-landscape', 'MINIX-only landscape project');
@@ -1445,30 +1448,22 @@ test.describe('Hermes kiosk smoke and visual regression anchors', () => {
     expect(Number(await page.locator('.cb-field-blocked-brackets').evaluate((node) => window.getComputedStyle(node).opacity))).toBeGreaterThan(0.3);
   });
 
-  test('field rings spin in place and do not drift off (anchored to optic center)', async ({ page }, testInfo) => {
+  test('material deforms around a stable optic without a spinning status ring', async ({ page }, testInfo) => {
     test.skip(testInfo.project.name !== 'minix-sf10t-landscape', 'MINIX-only landscape project');
-    await page.goto(runtimeUrl('searching', testInfo)); // fastest ring drift, worst case
+    await page.goto(runtimeUrl('reasoning', testInfo));
+    const folds = page.locator('.cb-presence-fold');
+    await expect(folds).toHaveCount(6);
     const sample = () => page.evaluate(() => {
-      const out = {};
-      for (const s of ['.cb-field-ring-a', '.cb-field-ring-b', '.cb-field-ring-c', '.cb-field-instrumentation']) {
-        const el = document.querySelector(s);
-        const r = el.getBoundingClientRect();
-        out[s] = [r.x + r.width / 2, r.y + r.height / 2];
-      }
-      return out;
+      const core = document.querySelector('.cb-eye-core');
+      const center = new DOMPoint(550, 550).matrixTransform(core.getScreenCTM());
+      return { x: center.x, y: center.y, d: document.querySelector('.cb-presence-fold').getAttribute('d') };
     });
-    const tracks = {};
-    for (let i = 0; i < 24; i += 1) {
-      const snap = await sample();
-      for (const k of Object.keys(snap)) (tracks[k] = tracks[k] || []).push(snap[k]);
-      await page.waitForTimeout(80);
-    }
-    for (const k of Object.keys(tracks)) {
-      const xs = tracks[k].map((v) => v[0]);
-      const ys = tracks[k].map((v) => v[1]);
-      const drift = Math.max(Math.max(...xs) - Math.min(...xs), Math.max(...ys) - Math.min(...ys));
-      expect(drift, `${k} center should stay anchored, not float`).toBeLessThan(4);
-    }
+    const first = await sample();
+    await page.waitForTimeout(700);
+    const second = await sample();
+    expect(second.d).not.toBe(first.d);
+    expect(Math.hypot(second.x - first.x, second.y - first.y)).toBeLessThan(1);
+    await expect(page.locator('.cb-status-rings')).toBeHidden();
   });
 
   test('iris lattice is procedural, clipped to the lens, and anchored to the optic center', async ({ page }, testInfo) => {
@@ -1477,10 +1472,13 @@ test.describe('Hermes kiosk smoke and visual regression anchors', () => {
     await page.waitForFunction(() => Boolean(window.__HERMES_CONCEPT_B_EYE_MOTION), null, { timeout: 8000 });
     const geometry = await page.evaluate(() => {
       const filaments = Array.from(document.querySelectorAll('.cb-iris-lattice .cb-iris-filament'));
-      const radii = filaments.flatMap((line) => [
-        Math.hypot(Number(line.getAttribute('x1')) - 550, Number(line.getAttribute('y1')) - 550),
-        Math.hypot(Number(line.getAttribute('x2')) - 550, Number(line.getAttribute('y2')) - 550),
-      ]);
+      const radii = filaments.flatMap(path => {
+        const length = path.getTotalLength();
+        return Array.from({ length: 20 }, (_, i) => {
+          const p = path.getPointAtLength(length * i / 19);
+          return Math.hypot(p.x - 550, p.y - 550);
+        });
+      });
       return {
         count: filaments.length,
         brightCount: document.querySelectorAll('.cb-iris-lattice .cb-iris-filament-bright').length,
@@ -1490,15 +1488,15 @@ test.describe('Hermes kiosk smoke and visual regression anchors', () => {
         hasLimbal: Boolean(document.querySelector('.cb-iris-lattice .cb-iris-limbal')),
       };
     });
-    expect(geometry.count).toBe(56);
-    expect(geometry.brightCount).toBe(8);
+    expect(geometry.count).toBe(180);
+    expect(geometry.brightCount).toBe(20);
     expect(geometry.maxR).toBeLessThanOrEqual(172); // inside the r=176 lens clip
-    expect(geometry.minR).toBeGreaterThanOrEqual(64); // outside the max scaled pupil (~r=60)
+    expect(geometry.minR).toBeGreaterThanOrEqual(48); // inner fibers can pass beneath the foreground pupil
     expect(geometry.hasCollar).toBe(true);
     expect(geometry.hasLimbal).toBe(true);
     // The single RAF writer must keep rotation pinned to the lens center.
     await expect.poll(() => page.evaluate(() => document.querySelector('.cb-iris-lattice').getAttribute('transform') || '')).toContain('550 550');
-    // Idle creep: slow forward rotation driven by the anime.js irisAngle loop.
+    // Gentle torsion stays centered; the material never makes a full revolution.
     await expect.poll(
       () => page.evaluate(() => window.__HERMES_CONCEPT_B_EYE_MOTION.debug().irisAngle),
       { timeout: 6000 },
@@ -1531,7 +1529,7 @@ test.describe('Hermes kiosk smoke and visual regression anchors', () => {
       }
     };
 
-    expect((await sampleMode('reasoning')).irisMs).toBeLessThan(0); // inward modes counter-rotate
+    expect((await sampleMode('reasoning')).irisMs).toBeLessThan(0); // inward focus begins with a counterclockwise lean
     const searching = await sampleMode('searching');
     expect(searching.irisMs).toBeGreaterThan(0);
     expect(Math.abs(searching.irisMs)).toBeLessThan(150000); // faster than reasoning
@@ -1663,8 +1661,9 @@ test.describe('Hermes kiosk smoke and visual regression anchors', () => {
       expect(gaze.hudEdgeBlur).toBe('');
       expect(Number(gaze.ringEdgeOpacity)).toBeGreaterThanOrEqual(0.12);
       expect(gaze.ringEdgeBlur).toMatch(/^\d+(?:\.\d+)?px$/);
-      expect(Number(gaze.computedRingOpacity)).toBeGreaterThan(0.68);
-      expect(gaze.computedRingFilter).toContain('drop-shadow');
+      expect(Number(gaze.computedRingOpacity)).toBeGreaterThan(0.4);
+      expect(Number(gaze.computedRingOpacity)).toBeLessThan(0.75);
+      expect(gaze.computedRingFilter).toBe('none'); // leaf opacity responds without rerasterizing a glow
     }
   });
 
@@ -1708,8 +1707,10 @@ test.describe('Hermes kiosk smoke and visual regression anchors', () => {
       });
       const active = samples.filter((s) => s.top && s.bottom);
       const parseCloseY = (d) => {
-        const m = d.match(/V ([\d.]+)/);
-        return m ? Number(m[1]) : null;
+        // The curved lids share side edges even while open. Measure the cubic's
+        // midpoint, where the lids actually meet, rather than the old shutter edge.
+        const m = d.match(/V ([\d.]+) C [-\d.]+ ([-\d.]+) [-\d.]+ ([-\d.]+) [-\d.]+ ([-\d.]+)/);
+        return m ? .125 * Number(m[1]) + .375 * Number(m[2]) + .375 * Number(m[3]) + .125 * Number(m[4]) : null;
       };
       const peak = active
         .map((s) => ({ ...s, topY: parseCloseY(s.top), bottomY: parseCloseY(s.bottom) }))
@@ -1854,7 +1855,7 @@ test.describe('Hermes kiosk smoke and visual regression anchors', () => {
 
   test('touch, room entry, and normalized local presence acknowledge without camera access', async ({ page }, testInfo) => {
     test.skip(testInfo.project.name !== 'minix-sf10t-landscape', 'MINIX-only landscape project');
-    await page.goto(`${runtimeUrl('idle_watch', testInfo)}&touchtest=1`);
+    await page.goto(`${funRuntimeUrl('idle_watch', testInfo)}&touchtest=1`);
     await page.waitForFunction(() => Boolean(window.__HERMES_CONCEPT_B_EYE_MOTION && window.HermesEntertainment), null, { timeout: 8000 });
 
     const result = await page.evaluate(async () => {
@@ -1935,9 +1936,9 @@ test.describe('Hermes kiosk smoke and visual regression anchors', () => {
     expect(result.critical.field).toBeGreaterThanOrEqual(0.95);
   });
 
-  test('ambient field rendering is bounded below the ocular RAF cadence', async ({ page }, testInfo) => {
+  test('conservative profile bounds ambient field rendering below the ocular RAF cadence', async ({ page }, testInfo) => {
     test.skip(testInfo.project.name !== 'minix-sf10t-landscape', 'MINIX-only landscape project');
-    await page.goto(runtimeUrl('idle_watch', testInfo));
+    await page.goto(`${runtimeUrl('idle_watch', testInfo)}&performance=conservative`);
     await page.waitForFunction(() => Boolean(window.__HERMES_CONCEPT_B_EYE_MOTION), null, { timeout: 8000 });
 
     const before = await page.evaluate(() => window.__HERMES_CONCEPT_B_EYE_MOTION.debug());

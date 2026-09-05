@@ -693,7 +693,15 @@
 
   function safeForIdleAttract() {
     const mode = currentMode();
-    if (['blocked', 'critical', 'degraded_offline'].includes(mode)) return false;
+    const packet = state.getPacket?.() || {};
+    const overlays = window.__HERMES_DISPLAY_BEHAVIOR?.overlays || {};
+    if (!window.HermesPresence?.allowsIdlePerformance({
+      mode,
+      freshness: packet.live?.freshness?.tier || 'unknown',
+      health: overlays.health,
+      quiet: overlays.quiet,
+      hidden: document.hidden,
+    })) return false;
     if (state.speaking || state.current || reducedMotion()) return false;
     const budget = window.HermesTouchFxController?.entertainmentBudget?.() || 'high';
     return budget !== 'low';
@@ -708,7 +716,8 @@
       const now = Date.now();
       if (now - state.lastTouchAt > 20000 && now - state.lastIdleAttractAt > 55000 && safeForIdleAttract()) {
         state.lastIdleAttractAt = now;
-        playSequence('aurora_breath', { trigger: 'idle:attract', zone: 'center', intensity: 0.35 });
+        const sequence = window.HermesPresence.chooseIdleSequence(state.lastIdleSequence);
+        if (playSequence(sequence, { trigger: 'idle:attract', zone: 'center', intensity: 0.35 })) state.lastIdleSequence = sequence;
       }
       scheduleIdleAttract();
     }, delay);
@@ -736,6 +745,18 @@
     }, 220);
   });
   window.addEventListener('hermes-watch-abort', abortCurrent);
+  window.addEventListener('hermes-live-packet', () => {
+    // Only automatic idle performances are interrupted; deliberate touch play
+    // keeps its existing behavior. Observe the packet because this listener can
+    // run before the panel has synchronized the behavior service.
+    const packet = state.getPacket?.() || {};
+    const mode = window.HermesBehaviorMachine?.modeFromPacket?.(packet);
+    if (state.currentContext?.trigger === 'idle:attract' &&
+        (mode !== 'idle_watch' || packet.live?.freshness?.tier !== 'fresh' || document.hidden)) {
+      abortCurrent();
+      scheduleIdleAttract();
+    }
+  });
   window.addEventListener('hermes-watch-speak-start', () => { document.body.dataset.watchSpeaking = 'true'; window.__HERMES_CONCEPT_B_EYE_MOTION?.pulse?.('notice'); });
   window.addEventListener('hermes-watch-speak-stop', () => { document.body.removeAttribute('data-watch-speaking'); window.__HERMES_CONCEPT_B_EYE_MOTION?.setTarget?.(currentOpticTarget()); });
   loadCatalog().then(() => { if (entertainmentEnabled()) { ['curious_orb', 'feathered_flyby', 'mini_showtime', 'peek_a_blink', 'aurora_breath'].forEach((id, idx) => timer(() => preloadPack(id), 3000 + idx * 1000)); scheduleIdleAttract(); } });

@@ -33,7 +33,8 @@
     const params = new URLSearchParams(window.location.search);
     const kiosk = truthy(params.get('kiosk'));
     if (!kiosk) return null;
-    const touchMode = (params.get('touch') || 'fun').toLowerCase();
+    const family = document.body.dataset.audience === 'family';
+    const touchMode = (params.get('touch') || (family ? 'fun' : 'inspect')).toLowerCase();
     const allowMouseTouchTest = truthy(params.get('touchtest'));
     const debugFlag = truthy(params.get('debug'));
     const debugTouch = debugFlag && allowMouseTouchTest;
@@ -44,6 +45,8 @@
       window.HermesTouchFxController = legacy;
       return legacy;
     }
+
+    if (!family && touchMode !== 'fun') return window.HermesOperatorTouch.install(options);
 
     const renderer = options.renderer || {};
     const getPacket = typeof options.getPacket === 'function' ? options.getPacket : () => ({});
@@ -153,15 +156,7 @@
     const acceptsPointer = (event) => event.pointerType !== 'mouse' || allowMouseTouchTest;
     const isReducedMotion = () => window.matchMedia?.('(prefers-reduced-motion: reduce)')?.matches;
     function entertainmentBudget(frameCadence = window.__hermesFrameCadence || {}) {
-      const packet = getPacket?.() || {};
-      const sys = packet.live?.system || {};
-      const cpu = Number(sys.cpu ?? sys.cpu_load ?? 0);
-      const normalizedCpu = Number.isFinite(cpu) ? (cpu > 1 ? cpu / 100 : cpu) : 0;
-      const temp = Number(sys.cpu_temp_c ?? sys.temp_c ?? sys.package_temp_c ?? 0);
-      const p95 = Number(frameCadence.p95Ms || 0);
-      if (normalizedCpu > 0.90 || temp > 78 || p95 > 34) return 'low';
-      if (normalizedCpu > 0.70 || temp > 72 || p95 > 25) return 'medium';
-      return 'high';
+      return window.HermesPresence.motionBudget(getPacket?.()?.live?.system, frameCadence);
     }
     const profile = () => {
       if (isReducedMotion()) return { budget: 'low', sparks: 4, trails: false, comets: false, fireflies: false, vortex: false, impact: 0.55, scale: 1.4, ttl: 700, motes: 0, stars: 4 };
