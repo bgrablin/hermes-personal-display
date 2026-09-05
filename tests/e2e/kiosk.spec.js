@@ -1672,6 +1672,11 @@ test.describe('Hermes kiosk smoke and visual regression anchors', () => {
     test.skip(testInfo.project.name !== 'minix-sf10t-landscape', 'MINIX-only landscape project');
     await page.goto(runtimeUrl('searching', testInfo));
     await page.waitForFunction(() => Boolean(window.__HERMES_CONCEPT_B_EYE_MOTION), null, { timeout: 8000 });
+    // Isolate blink anatomy from the separate 500ms mode-entry posture tween.
+    // Sampling immediately after rig creation measures both effects at once.
+    await page.evaluate(() => window.__HERMES_CONCEPT_B_EYE_MOTION.setTarget({ irisScale: 1, pupilScale: 1 }));
+    await expect.poll(() => page.evaluate(() => window.__HERMES_CONCEPT_B_EYE_MOTION.debug().iris)).toBeCloseTo(1, 3);
+    await expect.poll(() => page.evaluate(() => window.__HERMES_CONCEPT_B_EYE_MOTION.debug().pupil)).toBeCloseTo(1, 3);
     // Trigger the blink and sample entirely in-browser at RAF cadence. A living optic closes
     // mostly with the upper lid; the iris/pupil must not collapse like a camera aperture.
     const result = await page.evaluate(async () => {

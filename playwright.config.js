@@ -1,5 +1,10 @@
 import { defineConfig, devices } from '@playwright/test';
 
+// Use Playwright's matching Chromium by default, including Linux CI. Physical
+// kiosk verification can explicitly select its installed browser.
+const executablePath = process.env.HERMES_TEST_CHROMIUM;
+const launchOptions = executablePath ? { executablePath } : {};
+
 export default defineConfig({
   testDir: './tests/e2e',
   timeout: 30_000,
@@ -24,7 +29,7 @@ export default defineConfig({
       use: {
         ...devices['Desktop Chrome'],
         viewport: { width: 320, height: 480 },
-        launchOptions: process.platform === 'linux' ? { executablePath: '/snap/bin/chromium' } : undefined,
+        launchOptions,
       },
     },
     {
@@ -32,7 +37,7 @@ export default defineConfig({
       use: {
         ...devices['Desktop Chrome'],
         viewport: { width: 1920, height: 1280 },
-        launchOptions: process.platform === 'linux' ? { executablePath: '/snap/bin/chromium' } : undefined,
+        launchOptions,
       },
     },
   ],
