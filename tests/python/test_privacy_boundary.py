@@ -35,8 +35,6 @@ AUGURY_SENSITIVE_CASES = [
     "api_" + "key=" + FAKE_SECRET,
     "https://example.test/callback?" + "tok" + "en=" + FAKE_SECRET,
     "BEGIN PRIVATE KEY " + FAKE_SECRET,
-    "payload={\"role\":\"user\",\"content\":\"hi\"}",
-    "A" * 96,
 ]
 
 

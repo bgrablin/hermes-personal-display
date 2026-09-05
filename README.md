@@ -84,6 +84,15 @@ Core paths:
 - `docs/display-contract.md` - schema-to-generated-bindings contract notes.
 - `docs/project-manifest.md` - current source map and cleanup boundary.
 
+## Private home operator view
+
+Operator Augury now shows credential-redacted log excerpts by default with
+`augury=1`. Tap a row to hold and read its full bounded excerpt. Paths, task text,
+commands and ordinary structured results are permitted in this private view.
+`auguryText=0` restores compact titles. Family mode remains separate.
+See [private operator inspection](docs/private-operator-inspection.md) for the
+content policy, controls, validation and rollback.
+
 ## Privacy model
 
 The display should show what the agent is doing, not what the human said.
@@ -142,7 +151,7 @@ vendored asset changes. `npm run check:kiosk` fails if the generated id or first
 
 ### Display operating modes
 
-Safe Display Mode is the default. It may show health, lifecycle, coarse work state, labels, and bounded motion. It must not show prompts, raw logs, answers, secrets, file paths, URLs, tool I/O, transcripts, traceback dumps, private operational terms, or credential-like strings.
+The ambient state/event contract uses Safe Display Mode. The private operator Augury rail described above is an intentional exception for this home deployment. Safe Display Mode may show health, lifecycle, coarse work state, labels, and bounded motion. It must not show prompts, raw logs, answers, secrets, file paths, URLs, tool I/O, transcripts, traceback dumps, private operational terms, or credential-like strings.
 
 Private Diagnostic Mode is explicit opt-in. It may show redacted local diagnostics for troubleshooting. It is never enabled by default and should remain local/private.
 

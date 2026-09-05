@@ -34,8 +34,8 @@
     const context = panel.querySelector('[data-inspector-context]');
     const freshness = panel.querySelector('[data-inspector-freshness]');
     const closeButton = panel.querySelector('button');
-    // Inspect only the safe text already on the display. No raw packet, hidden
-    // prompt, tool output, or additional network request enters this surface.
+    // Metric inspection reads displayed values; Augury supplies a bounded,
+    // credential-redacted observation snapshot. Neither path executes commands.
     const read = node => (node?.textContent || '').replace(/\s+/g, ' ').trim().slice(0, 240);
     function bind(node, label, detail, readValue) {
       if (!node) return;
@@ -45,7 +45,7 @@
       node.setAttribute('aria-label', `Inspect ${label}`);
       targets.push({ node, label, detail, readValue });
     }
-    const metrics = { cpu: ['CPU', 'Recent processor utilization reported by this host.'],
+    const metrics = { cpu: ['CPU', 'Host load reading. The built-in collector reports one-minute load divided by CPU count, not sampled CPU utilization.'],
       mem: ['Memory', 'RAM utilization reported by this host.'],
       temp: ['Temperature', 'Reported CPU temperature. The displayed warning level follows the host thresholds.'] };
     for (const [key, [label, detail]] of Object.entries(metrics)) {
@@ -83,9 +83,12 @@
       context.textContent = selected.detail;
       const feed = read(document.querySelector('[data-cb-feed]'));
       const age = read(document.querySelector('[data-cb-feed-age]'));
-      freshness.textContent = `${feed || 'AWAITING TELEMETRY'}${age ? ` · ${age}` : ''}`;
+      freshness.textContent = selected.observation
+        ? `PINNED OBSERVATION · ${selected.meta || 'Time unavailable'}`
+        : `${feed || 'AWAITING TELEMETRY'}${age ? ` · ${age}` : ''}`;
     }
     function close({ restoreFocus = true } = {}) {
+      const wasObservation = selected?.observation;
       panel.hidden = true;
       selected = null;
       window.clearTimeout(dismissTimer);
@@ -93,19 +96,32 @@
       document.body.removeAttribute('data-inspecting');
       if (restoreFocus && opener?.isConnected && panel.contains(document.activeElement)) opener.focus();
       opener = null;
+      if (wasObservation) window.dispatchEvent(new CustomEvent('hermes-observation-pin', { detail: false }));
     }
     function open(target) {
       close({ restoreFocus: false });
       selected = target;
+      panel.dataset.observation = String(!!target.observation);
       opener = target.node;
       refresh();
       panel.hidden = false;
       document.body.dataset.inspecting = 'true';
       eye()?.forceGaze?.('bottom_status', 1200);
       closeButton.focus({ preventScroll: true });
-      dismissTimer = window.setTimeout(close, 15000);
+      if (target.observation) window.dispatchEvent(new CustomEvent('hermes-observation-pin', { detail: true }));
+      else dismissTimer = window.setTimeout(close, 15000);
       refreshTimer = window.setInterval(refresh, 1000);
     }
+    function inspectObservation(event) {
+      const item = event.detail;
+      if (!item?.node?.isConnected) return;
+      const clean = window.HermesSanitize.operatorText;
+      const snapshot = clean(item.text, 320);
+      open({ node: item.node, label: clean(item.label, 48), readValue: () => snapshot,
+        detail: 'Selected activity excerpt. Held here until you close it; live observations continue in the background.',
+        meta: clean(item.meta, 96), observation: true });
+    }
+    window.addEventListener('hermes-inspect-observation', inspectObservation);
     function position(x, y) {
       ring.style.transform = `translate(${x}px, ${y}px)`;
     }
@@ -175,6 +191,7 @@
       },
       dispose() {
         close();
+        window.removeEventListener('hermes-inspect-observation', inspectObservation);
         window.clearTimeout(returnTimer);
         for (const [type, handler] of [['pointerdown', down], ['pointermove', move], ['pointerup', up],
           ['pointercancel', cancel], ['lostpointercapture', cancel], ['keydown', key]]) document.body.removeEventListener(type, handler);

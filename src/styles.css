@@ -3654,3 +3654,11 @@ body[data-inspecting="true"] .cb-inspector { animation: cb-inspect-arrive 200ms 
 @media (max-width: 700px) { .cb-touch-hint { display: none; } }
 
 .cb-inspector { border-color: color-mix(in srgb, var(--cb-accent) 32%, transparent); }
+
+/* Private operator excerpts remain touchable and readable at full length. */
+body.augury-preview .augury-strand[data-populated="true"] { pointer-events: auto; cursor: pointer; }
+.augury-strand:focus-visible { outline: 2px solid #a5e3d7; outline-offset: 5px; }
+
+.cb-inspector { max-height: 70vh; overflow-y: auto; touch-action: pan-y; }
+.cb-inspector p { overflow-wrap: anywhere; }
+.cb-inspector[data-observation="true"] > strong { font: 500 22px/1.5 ui-monospace, monospace; }

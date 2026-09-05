@@ -4,28 +4,23 @@ from __future__ import annotations
 import re
 from typing import Any
 
-from avatar_event_bus import SECRET_PATTERNS
-
 CURRENT_WORK_MAX_AGE_SECONDS = 4 * 60
 AUGURY_MAX_ITEM_CHARS = 320
 AUGURY_REDACTED_PLACEHOLDER = "[redacted]"
-AUGURY_REDACTION_POLICY = "credentials_log_payloads_preserve_paths"
+AUGURY_REDACTION_POLICY = "credentials_only_private_operator"
 
+# Private operator excerpts retain paths, commands and structured results. Mask
+# credentials before whitespace normalization/truncation so a key cannot leak
+# through a clipped match. The stricter ambient event contract stays separate.
 AUGURY_HARD_REDACT_PATTERNS: list[re.Pattern[str]] = [
-    *SECRET_PATTERNS,
-    # Augury is operator-only and intentionally keeps useful operational text,
-    # including normal file paths. Redact raw payload-shaped fields that are
-    # likely to contain prompts/log bodies, plus hard credential shapes below.
-    re.compile(
-        r"(?i)\b(?:raw[_-]?)?(?:prompt|messages?|tool[_-]?output|traceback|log[_-]?payload|payload|request[_-]?body|response[_-]?body|headers?)\s*[:=]\s*"
-        r"(?:\{[^\n{}]{0,240}\}|\[[^\n\[\]]{0,240}\]|\"[^\n\"]{0,240}\"|'[^\n']{0,240}'|\S{12,})"
-    ),
-    re.compile(r"(?i)\bbearer\s+[A-Za-z0-9._~\-+/=]{16,}\b"),
-    re.compile(r"(?i)\bauthorization\s*[:=]\s*[^\s'\"]{12,}"),
-    re.compile(r"(?i)\b(?:api[_-]?key|access[_-]?key|secret[_-]?key|client[_-]?secret)\s+[A-Za-z0-9._~\-+/=]{12,}\b"),
-    re.compile(r"\bsk-[A-Za-z0-9_-]{2,}\.\.\.[A-Za-z0-9_-]{2,}\b"),
-    re.compile(r"\bgh[pousr]_[A-Za-z0-9_]{2,}\.\.\.[A-Za-z0-9_]{2,}\b"),
-    re.compile(r"\b[A-Za-z0-9+/]{60,}={0,2}\b"),
+    re.compile(r"-----BEGIN [A-Z ]*PRIVATE KEY-----.*?(?:-----END [A-Z ]*PRIVATE KEY-----|$)", re.S),
+    re.compile(r"(?i)\b(?:authorization|proxy-authorization|cookie|set-cookie)[\"']?\s*[:=]\s*(?:\"[^\"]*\"|'[^']*'|[^\r\n]+)"),
+    re.compile(r"(?i)\b(?:access[_-]?token|refresh[_-]?token|token|api[_-]?key|access[_-]?key|secret[_-]?key|client[_-]?secret|password|passwd|secret)[\"']?\s*[:=]\s*(?:\"[^\"]*\"|'[^']*'|[^\s\"'&,;}\]]+)"),
+    re.compile(r"(?i)(?:[?&])(?:token|key|auth|signature|sig|x-amz-signature|x-goog-signature)=[^\s&#\"']+"),
+    re.compile(r"(?i)\bbearer\s+[A-Za-z0-9._~\-+/=]{16,}"),
+    re.compile(r"\b(?:sk-[A-Za-z0-9_-]{8,}|gh[pousr]_[A-Za-z0-9_]{8,}|github_pat_[A-Za-z0-9_]{8,})(?:\.\.\.[A-Za-z0-9_-]+)?"),
+    re.compile(r"\b(?:sk-|gh[pousr]_)[A-Za-z0-9_-]{2,}\.\.\.[A-Za-z0-9_-]{2,}\b"),
+    re.compile(r"\b[A-Za-z0-9_-]{20,}\.[A-Za-z0-9_-]{20,}\.[A-Za-z0-9_-]{20,}\b"),
 ]
 
 SCRUB_RISKY_PATTERNS: list[re.Pattern[str]] = [
@@ -49,7 +44,7 @@ CURRENT_WORK_FORBIDDEN_KEYS = {
 
 
 def augury_redact(text: str) -> str:
-    """Mask hard credentials and payload-shaped fields while preserving useful operator text."""
+    """Mask credential values while preserving useful private operator context."""
     if not text:
         return ""
     redacted = str(text)
@@ -72,10 +67,10 @@ def augury_clean(text: str | None, max_chars: int = AUGURY_MAX_ITEM_CHARS) -> st
     """Normalize whitespace, redact hard credentials, and bound length."""
     if text is None:
         return ""
-    collapsed = re.sub(r"\s+", " ", str(text).replace("\r", " ").replace("\t", " ")).strip()
+    collapsed = re.sub(r"\s+", " ", augury_redact(str(text)).replace("\r", " ").replace("\t", " ")).strip()
     if not collapsed:
         return ""
-    return ellipsize(augury_redact(collapsed), max_chars)
+    return ellipsize(collapsed, max_chars)
 
 
 def scrub(text: Any) -> str:
@@ -129,8 +124,8 @@ def sanitize_current_work(work: dict, *, max_age_seconds: int = CURRENT_WORK_MAX
         if age > max_age_seconds and safe.get("active"):
             safe["active"] = False
             safe["state"] = "quiet_watch"
-            safe["summary"] = "Quiet watch. No active turn is running."
-            safe["detail"] = "Recent activity expired from the display-safe current work window."
+            safe["summary"] = "Activity observation expired. Current work is unknown."
+            safe["detail"] = "No recent observation; a quiet feed does not establish completion."
             safe["expires_in_seconds"] = 0
     except Exception:
         pass

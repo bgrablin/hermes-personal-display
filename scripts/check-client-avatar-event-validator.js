@@ -310,6 +310,11 @@ function main() {
   assert(debug.accepted === 1, `valid client avatar event was not accepted: ${JSON.stringify(debug)}`);
   assert(debug.dropped === 0, `valid client avatar event was dropped: ${JSON.stringify(debug)}`);
   assert(debug.recent[0]?.label === base.display.label, 'accepted event label was not retained as display-safe recent state');
+  eventSource.emit(base.event, base);
+  const replayed = context.window.HermesDisplayRuntime.avatarEvents();
+  assert(replayed.accepted === debug.accepted, 'replay repeated event side effects');
+  assert(replayed.duplicates === 1, 'replay was not counted');
+
 
   for (const [label, event] of invalidCases(base)) {
     const before = context.window.HermesDisplayRuntime.avatarEvents();
