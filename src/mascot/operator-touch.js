@@ -171,14 +171,7 @@
       mode: () => 'inspect', activeCount: () => contact ? 1 : 0,
       fxCount: () => 0,
       entertainmentBudget() {
-        const sys = options.getPacket?.()?.live?.system || {};
-        const cpu = Number(sys.cpu ?? sys.cpu_load ?? 0);
-        const normalizedCpu = cpu > 1 ? cpu / 100 : cpu;
-        const temp = Number(sys.cpu_temp_c ?? sys.temp_c ?? sys.package_temp_c ?? 0);
-        const frame = Number(window.__hermesFrameCadence?.p95Ms || 0);
-        if (normalizedCpu > .9 || temp > 78 || frame > 34) return 'low';
-        if (normalizedCpu > .7 || temp > 72 || frame > 25) return 'medium';
-        return 'high';
+        return window.HermesPresence.motionBudget(options.getPacket?.()?.live?.system, window.__hermesFrameCadence);
       },
       dispose() {
         close();

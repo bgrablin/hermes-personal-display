@@ -311,9 +311,18 @@
       return { ...lastThermalLoad };
     }
     let thermal = 'cool';
-    if ((temp !== null && temp >= 88) || (normalizedLoad !== null && normalizedLoad >= 0.92) || (loadAverage !== null && loadAverage >= 5.5)) thermal = 'critical';
-    else if ((temp !== null && temp >= 80) || (normalizedLoad !== null && normalizedLoad >= 0.78) || (loadAverage !== null && loadAverage >= 4.0)) thermal = 'hot';
-    else if ((temp !== null && temp >= 72) || (normalizedLoad !== null && normalizedLoad >= 0.62) || (loadAverage !== null && loadAverage >= 2.5)) thermal = 'warm';
+    const conservative = new URLSearchParams(window.location?.search || '').get('performance') === 'conservative';
+    if (conservative) {
+      if ((temp !== null && temp >= 88) || (normalizedLoad !== null && normalizedLoad >= 0.92) || (loadAverage !== null && loadAverage >= 5.5)) thermal = 'critical';
+      else if ((temp !== null && temp >= 80) || (normalizedLoad !== null && normalizedLoad >= 0.78) || (loadAverage !== null && loadAverage >= 4.0)) thermal = 'hot';
+      else if ((temp !== null && temp >= 72) || (normalizedLoad !== null && normalizedLoad >= 0.62) || (loadAverage !== null && loadAverage >= 2.5)) thermal = 'warm';
+    } else {
+      // Absolute load averages from the old four-thread NUC are not a useful
+      // heat signal on the upgraded host. Busy CPUs alone do not park the eye.
+      if (temp !== null && temp >= 96) thermal = 'critical';
+      else if (temp !== null && temp >= 92) thermal = 'hot';
+      else if ((temp !== null && temp >= 86) || (normalizedLoad !== null && normalizedLoad >= .95)) thermal = 'warm';
+    }
     lastThermalLoad = { thermal, temp_c: temp, cpu_load: normalizedLoad };
     return { ...lastThermalLoad };
   }

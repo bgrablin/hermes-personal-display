@@ -487,7 +487,7 @@ test.describe('Hermes kiosk smoke and visual regression anchors', () => {
     });
   });
 
-  test('Augury is private by default, hidden for critical states, and raw text requires auguryText=1', async ({ page }, testInfo) => {
+  test('Augury stays readable during alerts and raw text requires auguryText=1', async ({ page }, testInfo) => {
     test.skip(testInfo.project.name !== 'minix-sf10t-landscape', 'MINIX-only Concept B Augury mode');
     const feed = {
       schema_version: '0.1.0',
@@ -512,7 +512,7 @@ test.describe('Hermes kiosk smoke and visual regression anchors', () => {
     await expect(page.locator('.augury-ambient')).toContainText('RAW PROMPT BODY');
 
     await page.goto(`${runtimeUrl('blocked', testInfo)}&augury=1&auguryText=1`);
-    await expect.poll(() => page.evaluate(() => document.body.dataset.auguryPresence)).toBe('hidden');
+    await expect.poll(() => page.evaluate(() => document.body.dataset.auguryPresence)).toBe('subdued');
   });
 
   test('Augury strand flow and background veil respect reduced motion', async ({ page }, testInfo) => {
@@ -890,7 +890,8 @@ test.describe('Hermes kiosk smoke and visual regression anchors', () => {
     expect(snapshot.map((row) => row.label)).toEqual(['CHATGPT', 'CLAUDE', 'GEMINI', 'COPILOT', 'XAI']);
     for (const row of snapshot) {
       expect(row).toMatchObject({ value: 'UNK', glyph: '○', state: 'unknown', active: 'false', headroomTier: 'none', collapsed: 'true' });
-      expect(row.rowOpacity).toBeLessThan(0.4);
+      expect(row.rowOpacity).toBeGreaterThan(.45); // Unknown remains readable.
+      expect(row.rowOpacity).toBeLessThan(.75); // Verified provider rows retain emphasis.
       expect(row.whiskerWidth).toBeGreaterThan(38);
       expect(row.whiskerTransform).toBe('matrix(0, 0, 0, 1, 0, 0)');
       expect(row.whiskerOpacity).toBe(0);
@@ -1393,9 +1394,9 @@ test.describe('Hermes kiosk smoke and visual regression anchors', () => {
     ['idle_watch', 'focus'],
     ['reasoning', 'subdued'],
     ['tool_shell', 'subdued'],
-    ['waiting_user', 'hidden'],
-    ['blocked', 'hidden'],
-    ['degraded_offline', 'hidden'],
+    ['waiting_user', 'subdued'],
+    ['blocked', 'subdued'],
+    ['degraded_offline', 'subdued'],
   ]) {
     test(`Augury presence uses accepted vocabulary for ${mode}`, async ({ page }, testInfo) => {
       test.skip(testInfo.project.name !== 'minix-sf10t-landscape', 'MINIX-only landscape project');
@@ -1935,9 +1936,9 @@ test.describe('Hermes kiosk smoke and visual regression anchors', () => {
     expect(result.critical.field).toBeGreaterThanOrEqual(0.95);
   });
 
-  test('ambient field rendering is bounded below the ocular RAF cadence', async ({ page }, testInfo) => {
+  test('conservative profile bounds ambient field rendering below the ocular RAF cadence', async ({ page }, testInfo) => {
     test.skip(testInfo.project.name !== 'minix-sf10t-landscape', 'MINIX-only landscape project');
-    await page.goto(runtimeUrl('idle_watch', testInfo));
+    await page.goto(`${runtimeUrl('idle_watch', testInfo)}&performance=conservative`);
     await page.waitForFunction(() => Boolean(window.__HERMES_CONCEPT_B_EYE_MOTION), null, { timeout: 8000 });
 
     const before = await page.evaluate(() => window.__HERMES_CONCEPT_B_EYE_MOTION.debug());

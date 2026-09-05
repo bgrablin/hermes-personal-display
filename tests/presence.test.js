@@ -3,12 +3,33 @@ import fs from 'node:fs';
 import vm from 'node:vm';
 
 function api() {
-  const context = vm.createContext({ window: {} });
+  const context = vm.createContext({ window: {}, URLSearchParams });
   vm.runInContext(fs.readFileSync(new URL('../src/mascot/presence.js', import.meta.url), 'utf8'), context);
   return context.window.HermesPresence;
 }
 
 describe('presence without workflow assumptions', () => {
+  it('gives errors and unavailable telemetry priority over decorative activity colors', () => {
+    const { themeForObservation } = api();
+    expect(themeForObservation({ mode: 'reasoning' }).name).toBe('thinking');
+    expect(themeForObservation({ mode: 'tool_shell' }).name).toBe('working');
+    expect(themeForObservation({ mode: 'reasoning', critical: true }).name).toBe('error');
+    expect(themeForObservation({ mode: 'complete', freshness: 'lost' }).name).toBe('offline');
+    expect(themeForObservation({ mode: 'complete', gatewayOk: false }).name).toBe('offline');
+    expect(themeForObservation({ mode: 'reading', freshness: 'stale' }).name).toBe('waiting');
+  });
+
+  it('allows the upgraded host more headroom while preserving a conservative option', () => {
+    const { motionBudget } = api();
+    const warmHost = { cpu: .84, temp_c: 81 };
+    expect(motionBudget(warmHost, { p95Ms: 30 }, false)).toBe('high');
+    expect(motionBudget(warmHost, { p95Ms: 30 }, true)).toBe('low');
+    expect(motionBudget({ temp_c: 87 }, {}, false)).toBe('medium');
+    expect(motionBudget({ temp_c: 93 }, {}, false)).toBe('low');
+    expect(motionBudget({}, { p95Ms: 56 }, false)).toBe('low');
+    expect(motionBudget({ cpu: 96 }, {}, false)).toBe('medium');
+  });
+
   it('keeps the membrane bounded and finite through all modes and invalid inputs', () => {
     const { surfacePaths, materialForMode } = api();
     for (const mode of ['idle_watch', 'reasoning', 'searching', 'blocked', 'degraded_offline', 'unknown']) {

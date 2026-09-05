@@ -1465,7 +1465,7 @@
     const includeBodyText = ['1', 'true', 'yes'].includes((params.get('auguryText') || '').toLowerCase());
     const proofEnabled = ['1', 'true', 'yes', 'preview'].includes(raw) && ['1', 'true', 'yes'].includes((params.get('debug') || params.get('qa') || '').toLowerCase());
 
-    const MAX_STRANDS = 11;
+    const MAX_STRANDS = 5;
     const POLL_MS = 5200;
     const POLL_BACKOFF_MS = 22000;
     const MAX_TEXT_CHARS = 220;
@@ -1514,10 +1514,19 @@
     document.body.classList.add('augury-preview');
     document.body.dataset.auguryPresence = document.body.dataset.auguryPresence || 'ambient';
 
-    const root = document.createElement('div');
+    const root = document.createElement('aside');
     root.className = 'augury-ambient';
-    root.setAttribute('aria-hidden', 'true');
+    root.setAttribute('aria-label', 'Augury activity');
     root.dataset.source = 'idle';
+    const heading = document.createElement('h2');
+    heading.className = 'augury-heading';
+    heading.textContent = 'AUGURY · ACTIVITY';
+    const list = document.createElement('div');
+    list.className = 'augury-list';
+    const feedStatus = document.createElement('div');
+    feedStatus.className = 'augury-feed-status';
+    feedStatus.textContent = 'AWAITING OBSERVATIONS';
+    root.append(heading, list, feedStatus);
     document.body.appendChild(root);
     if (proofEnabled) {
       const proof = document.createElement('div');
@@ -1545,8 +1554,8 @@
       textEl.className = 'augury-text';
       strand.append(headEl, textEl);
       strand.dataset.populated = 'false';
-      root.appendChild(strand);
-      strands.push({ strand, kindEl, titleEl, metaEl, textEl });
+      list.appendChild(strand);
+      strands.push({ strand, kindEl, titleEl, metaEl, textEl, key: '', position: -1, animation: null });
     }
 
     const allowedKinds = new Set(['prompt', 'tool', 'thinking', 'log']);
@@ -1556,7 +1565,7 @@
     // reach here so a malformed payload cannot self-elevate past the text gate.
     const sanitizeItems = (items, trustSafe = false) => {
       if (!Array.isArray(items)) return [];
-      return items
+      const sanitized = items
         .map((raw) => {
           const kind = String(raw?.kind || 'log').toLowerCase();
           const safeRow = trustSafe && raw?.safeText === true;
@@ -1582,7 +1591,18 @@
         // A text row that merely repeats the title reads as filler; drop it and
         // let the head row (kind, title, meta) carry the strand.
         .map((item) => (item.text && (item.text === item.title || item.text === item.rawTitle) ? { ...item, text: '' } : item))
-        .filter((item) => item.text || item.title || item.meta);
+        .filter((item) => item.text || item.title);
+      // Collapse repeated observations rather than filling the rail with echoes.
+      // Age is intentionally absent from identity: a clock tick is not a new event.
+      const unique = new Map();
+      for (const item of sanitized) {
+        const key = `${item.kind}:${item.title}:${item.text}`;
+        const previous = unique.get(key);
+        if (previous) previous.repeats += 1;
+        else unique.set(key, { ...item, key, repeats: 1 });
+      }
+      return [...unique.values()].map(item => ({ ...item,
+        meta: [item.meta, item.repeats > 1 ? `×${item.repeats}` : ''].filter(Boolean).join(' · ') }));
     };
 
     let lastAugurySignature = '';
@@ -1600,15 +1620,20 @@
       if (signature) lastAugurySignature = signature;
       // Only populate strands with real items; never echo/duplicate rows to fill the field.
       // Empty strands stay unpopulated so on-glass density matches actual log volume.
-      const visible = Array.from({ length: MAX_STRANDS }, (_, idx) => safe[idx] || null);
+      const visible = safe;
       const renderSignature = `${source || 'idle'}|${safe.length}|${visible.map((item) => item ? `${item.kind}:${item.title}:${item.meta}:${item.text}` : '').join('|')}`;
       if (renderRows.lastRenderSignature === renderSignature) return;
       renderRows.lastRenderSignature = renderSignature;
       setConceptBDataset(root, 'source', source || 'idle');
       setConceptBDataset(root, 'count', String(safe.length));
-      strands.forEach((row, idx) => {
-        const item = visible[idx];
-        if (!item) {
+      const keys = new Set(visible.map(item => item.key));
+      const existing = new Map(strands.filter(row => row.key).map(row => [row.key, row]));
+      const available = strands.filter(row => !keys.has(row.key));
+      strands.forEach(row => {
+        if (!keys.has(row.key)) {
+          row.animation?.cancel();
+          row.key = '';
+          row.position = -1;
           setConceptBDataset(row.strand, 'populated', 'false');
           setConceptBDataset(row.strand, 'kind', '');
           setConceptBDataset(row.strand, 'echo', 'false');
@@ -1616,53 +1641,83 @@
           setConceptBText(row.titleEl, '');
           setConceptBText(row.metaEl, '');
           setConceptBText(row.textEl, '');
-          return;
         }
+      });
+      visible.forEach((item, idx) => {
+        const row = existing.get(item.key) || available.shift();
+        const changed = row.key !== item.key;
+        const moved = row.position !== idx;
+        row.key = item.key;
+        row.position = idx;
+        list.appendChild(row.strand);
         setConceptBDataset(row.strand, 'populated', 'true');
+        setConceptBDataset(row.strand, 'lead', idx === 0 ? 'true' : 'false');
         setConceptBDataset(row.strand, 'kind', item.kind);
         setConceptBDataset(row.strand, 'echo', 'false');
         setConceptBText(row.kindEl, item.kind.toUpperCase());
         setConceptBText(row.titleEl, item.title);
         setConceptBText(row.metaEl, item.meta || '');
         setConceptBText(row.textEl, item.text);
+        if ((changed || moved) && lastAugurySignature && !prefersReducedMotion && !document.hidden) {
+          row.animation?.cancel();
+          row.animation = row.strand.animate([
+            { opacity: changed ? .25 : 1, transform: `translateY(${changed ? 8 : 16}px)` },
+            { opacity: 1, transform: 'translateY(0)' },
+          ], { duration: 650, easing: 'cubic-bezier(.2,.7,.2,1)' });
+        }
       });
     };
 
     let feedItems = [];
     let feedWork = null;
     let lastFeedAt = 0;
+    let feedFailed = false;
+    let latestPacket = currentPacket;
 
-    // The feed's current_work card is built server-side from display-safe fields
-    // (the same summary/detail already shown center-screen), so its text may
-    // render without auguryText=1.
+    // Pin the latest display-safe work observation above recent log titles.
+    // A successful log poll never suppresses fresher live work from the packet.
     const currentWorkRows = (card) => {
       if (!card || typeof card !== 'object') return [];
+      const age = Number(card.age_seconds);
+      const reliable = !liveStatus.failures && (latestPacket?.live?.freshness?.tier || 'fresh') === 'fresh';
+      const current = card.active === true && card.age_seconds != null
+        && Number.isFinite(age) && age <= CURRENT_WORK_MAX_AGE_SECONDS && reliable;
+      const mode = String(card.visual_kind || card.kind || '');
+      const title = !reliable || (card.age_seconds != null && age > CURRENT_WORK_MAX_AGE_SECONDS) ? 'LAST OBSERVED'
+        : mode === 'blocked' ? 'BLOCKED' : ['waiting', 'waiting_user'].includes(mode) ? 'WAITING'
+        : current ? 'NOW' : card.active === false ? 'WATCH' : 'LAST OBSERVED';
       const rows = [];
-      const session = card.session_id || card.session_label || '';
-      if (card.summary) rows.push({ kind: card.kind || 'log', title: 'NOW', text: card.summary, safeText: true, age_seconds: card.age_seconds, session_id: session });
-      if (card.detail && card.detail !== card.summary) rows.push({ kind: 'log', title: 'STATUS', text: card.detail, safeText: true, session_id: session });
+      if (card.summary) rows.push({ kind: 'log', title,
+        text: card.summary, safeText: true, age_seconds: card.age_seconds });
+      if (card.detail && card.detail !== card.summary) rows.push({ kind: 'log', title: 'DETAIL',
+        text: card.detail, safeText: true });
       return rows;
     };
 
     const renderFromPacket = (packet) => {
-      // Only fall back to packet-derived rows if the feed is missing or stale.
-      if (feedItems.length && Date.now() - lastFeedAt < POLL_BACKOFF_MS) return;
-      const live = packet?.live || {};
-      const work = live.current_work || {};
-      const fallback = [];
-      if (work.summary) fallback.push({ kind: work.visual_kind || 'log', title: 'CURRENT', text: work.summary, safeText: true, age_seconds: work.age_seconds, session_id: work.session_id || work.session_label });
-      if (work.detail && work.detail !== work.summary) fallback.push({ kind: 'log', title: 'STATUS', text: work.detail, safeText: true });
-      if (packet?.caption?.text) fallback.push({ kind: 'log', title: 'STATE', text: packet.caption.text, safeText: true });
-      if (packet?.snippet?.text && packet.snippet.sensitivity === 'display_safe') fallback.push({ kind: 'thinking', title: 'SIGNAL', text: packet.snippet.text, safeText: true });
-      const session = live.active_sessions?.[0];
-      if (session?.session_label) fallback.push({ kind: 'prompt', title: 'SESSION', text: session.session_label, safeText: true });
-      if (!fallback.length) return;
-      renderRows(fallback, 'packet', true);
+      latestPacket = packet || latestPacket;
+      const live = latestPacket?.live || {};
+      const packetWork = live.current_work;
+      const feedFresh = lastFeedAt && !feedFailed && Date.now() - lastFeedAt < POLL_BACKOFF_MS;
+      const card = packetWork?.summary ? packetWork : feedFresh ? feedWork : null;
+      const rows = currentWorkRows(card);
+      if (!rows.length && latestPacket?.caption?.text) {
+        rows.push({ kind: 'log', title: 'OBSERVED STATE', text: latestPacket.caption.text, safeText: true });
+      }
+      // Raw feed rows cannot self-elevate past the existing auguryText gate.
+      rows.push(...feedItems.map(item => ({ ...item, safeText: false })));
+      if (!rows.length) rows.push({ kind: 'log', title: 'AWAITING ACTIVITY',
+        text: 'No current observation is available.', safeText: true });
+      const age = lastFeedAt ? Math.floor((Date.now() - lastFeedAt) / 1000) : null;
+      setConceptBDataset(root, 'feedHealth', feedFresh ? 'fresh' : lastFeedAt ? 'stale' : 'unavailable');
+      setConceptBText(feedStatus, feedFresh ? `RECENT LOG · UPDATED ${age}S AGO`
+        : lastFeedAt ? `LOG DELAYED · LAST UPDATE ${age}S AGO` : 'LOG UNAVAILABLE · DISPLAY STATE ONLY');
+      renderRows(rows, feedFresh ? 'feed' : 'packet', true);
     };
 
     let fetchPending = false;
     const pollFeed = async () => {
-      if (fetchPending) return;
+      if (fetchPending || document.hidden) return;
       fetchPending = true;
       const controller = new AbortController();
       const timeout = window.setTimeout(() => controller.abort(), 4000);
@@ -1677,13 +1732,11 @@
         feedItems = Array.isArray(payload.items) ? payload.items : [];
         feedWork = payload.current_work && typeof payload.current_work === 'object' ? payload.current_work : null;
         lastFeedAt = Date.now();
-        // Strip safeText from raw log items so only client-built rows can use it.
-        const rows = [...currentWorkRows(feedWork), ...feedItems.map((item) => ({ ...item, safeText: false }))];
-        if (rows.length) renderRows(rows, 'feed', true);
-        else renderFromPacket(currentPacket);
+        feedFailed = false;
+        renderFromPacket(latestPacket);
       } catch {
-        // Feed unavailable; fall back to the live packet on the next event.
-        renderFromPacket(currentPacket);
+        feedFailed = true;
+        renderFromPacket(latestPacket);
       } finally {
         window.clearTimeout(timeout);
         fetchPending = false;
@@ -1724,7 +1777,7 @@
     const top = document.createElement('header');
     top.className = 'cb-topbar';
     top.innerHTML = `
-      <div class="cb-id"><span class="cb-mark" aria-hidden="true">☤</span><strong>HERMES</strong><span>NUC · LOCAL OPERATOR</span></div>
+      <div class="cb-id"><span class="cb-mark" aria-hidden="true">☤</span><strong>HERMES</strong><span>LOCAL OPERATOR</span></div>
       <div class="cb-time"><strong data-cb-time>--:--</strong><span data-cb-uptime>LOCAL TIME</span></div>
     `;
 
@@ -1742,34 +1795,34 @@
           </radialGradient>
           <radialGradient id="cb-iris-body">
             <stop offset="24%" stop-color="#050b12" />
-            <stop offset="32%" stop-color="#726248" />
-            <stop offset="44%" stop-color="#267b80" />
-            <stop offset="67%" stop-color="#14414e" />
-            <stop offset="89%" stop-color="#0b2636" />
+            <stop offset="32%" stop-color="color-mix(in srgb, var(--cb-accent) 24%, #726248)" />
+            <stop offset="44%" stop-color="color-mix(in srgb, var(--cb-accent) 56%, #16444a)" />
+            <stop offset="67%" stop-color="color-mix(in srgb, var(--cb-accent) 30%, #071a25)" />
+            <stop offset="89%" stop-color="color-mix(in srgb, var(--cb-accent) 15%, #06101d)" />
             <stop offset="100%" stop-color="#030912" />
           </radialGradient>
           <radialGradient id="cb-iris-spectrum">
             <stop offset="23%" stop-color="#b18351" />
             <stop offset="35%" stop-color="#edc587" />
-            <stop offset="52%" stop-color="#a5efde" />
-            <stop offset="77%" stop-color="#449cad" />
-            <stop offset="100%" stop-color="#355f89" />
+            <stop offset="52%" stop-color="color-mix(in srgb, var(--cb-accent) 70%, #e0f6de)" />
+            <stop offset="77%" stop-color="color-mix(in srgb, var(--cb-accent) 68%, #24424c)" />
+            <stop offset="100%" stop-color="color-mix(in srgb, var(--cb-accent) 42%, #1a2e48)" />
           </radialGradient>
           <radialGradient id="cb-iris-vignette">
             <stop offset="64%" stop-color="#020710" stop-opacity="0" />
             <stop offset="100%" stop-color="#020710" stop-opacity=".85" />
           </radialGradient>
           <linearGradient id="cb-surface-light" x1="0" y1="0" x2="1" y2="1">
-            <stop offset="0%" stop-color="#6171a8" />
-            <stop offset="26%" stop-color="#a5f3ed" />
-            <stop offset="52%" stop-color="#428c9d" />
-            <stop offset="76%" stop-color="#c2a674" />
-            <stop offset="100%" stop-color="#46658c" />
+            <stop offset="0%" stop-color="color-mix(in srgb, var(--cb-accent) 60%, #6171a8)" />
+            <stop offset="26%" stop-color="color-mix(in srgb, var(--cb-accent) 60%, #a5f3ed)" />
+            <stop offset="52%" stop-color="color-mix(in srgb, var(--cb-accent) 65%, #428c9d)" />
+            <stop offset="76%" stop-color="color-mix(in srgb, var(--cb-accent) 25%, #c2a674)" />
+            <stop offset="100%" stop-color="color-mix(in srgb, var(--cb-accent) 60%, #46658c)" />
           </linearGradient>
           <linearGradient id="cb-glass-light" x1="0" y1="0" x2=".9" y2="1">
-            <stop offset="0%" stop-color="#ddf8ee" stop-opacity=".7" />
-            <stop offset="45%" stop-color="#9ddedc" stop-opacity=".07" />
-            <stop offset="100%" stop-color="#79aac0" stop-opacity="0" />
+            <stop offset="0%" stop-color="color-mix(in srgb, var(--cb-accent) 28%, #ddf8ee)" stop-opacity=".7" />
+            <stop offset="45%" stop-color="color-mix(in srgb, var(--cb-accent) 50%, #9ddedc)" stop-opacity=".07" />
+            <stop offset="100%" stop-color="color-mix(in srgb, var(--cb-accent) 60%, #79aac0)" stop-opacity="0" />
           </linearGradient>
           <radialGradient id="cb-core-glow" cx="50%" cy="50%" r="50%" gradientUnits="userSpaceOnUse">
             <stop offset="0%" stop-color="var(--cb-accent)" stop-opacity="0.26" />
@@ -1818,7 +1871,7 @@
             </g>
             <g class="cb-field-notice-pulse"><circle class="cb-field-pulse" cx="550" cy="550" r="244" /></g>
           </g>
-          <g class="cb-presence-enclosure" transform="translate(550 550) scale(1.65) translate(-550 -550)">
+          <g class="cb-presence-enclosure" transform="translate(550 550) scale(1.18) translate(-550 -550)">
           <g class="cb-eye-core" aria-hidden="true">
             <g class="cb-eye-socket">
               <circle class="cb-eye-aura" cx="550" cy="550" r="230" />
@@ -2635,9 +2688,9 @@
       [0.07, 0.26, 0.43, 0.61, 0.82].forEach((phase, idx) => {
         const mote = document.createElementNS(ns, 'circle');
         mote.classList.add('cb-field-mote');
-        mote.setAttribute('r', String(idx === 1 ? 3.2 : 2.4));
+        mote.setAttribute('r', String(idx === 1 ? 4.2 : 3.2));
         mote.dataset.phase = String(phase);
-        mote.dataset.radius = String(248 + (idx % 3) * 34);
+        mote.dataset.radius = String(296 + (idx % 3) * 30);
         motes.appendChild(mote);
       });
     }
@@ -2671,6 +2724,7 @@
     const motion = window.HermesMotionAdapter?.createMotionAdapter?.({ prefersReducedMotion }) || null;
     const field = {
       root: hud.querySelector('.cb-field-instrumentation'),
+      cadence: window.HermesPresence.motionCadence(),
       rings: Array.from(hud.querySelectorAll('.cb-field-ring')),
       compass: hud.querySelector('.cb-field-compass'),
       ticks: Array.from(hud.querySelectorAll('.cb-field-tick')),
@@ -3588,9 +3642,10 @@
     if (!field?.root) return;
     const now = performance.now();
     const reducedMotion = prefersReducedMotion;
-    // The eye remains at display RAF cadence. Ambient instrumentation is deliberately
-    // half-rate with a 30 ms floor, preserving responsive gaze while reducing SVG churn.
-    if (!reducedMotion && (((state.eyeRenderCount || 0) % 2) !== 0 || (field.__lastRenderAt && now - field.__lastRenderAt < 30))) return;
+    // The upgraded host can render the small orbital field at display cadence.
+    // The former NUC budget remains available via performance=conservative.
+    if (!reducedMotion && ((field.cadence.everyOtherFrame && (state.eyeRenderCount || 0) % 2 !== 0)
+      || (field.__lastRenderAt && now - field.__lastRenderAt < field.cadence.fieldMs))) return;
     field.__lastRenderAt = now;
     state.fieldRenderCount = (state.fieldRenderCount || 0) + 1;
     const mode = state.mode || 'idle_watch';
@@ -3630,21 +3685,27 @@
       });
     }
 
-    const radiusBias = mode === 'reasoning' || mode === 'planning' ? -24 : mode === 'searching' ? 0 : blocked ? -36 : 0;
-    const moteBucket = `${mode}:${Math.round(seconds * 8)}:${Math.round(x)}:${Math.round(y)}:${radiusBias}:${Math.round(resonanceAngle * 16)}:${Math.round(resonanceGain * 16)}`;
-    if (field.__lastMoteBucket !== moteBucket) {
-      field.__lastMoteBucket = moteBucket;
+    const radiusBias = mode === 'reasoning' || mode === 'planning' ? -12 : blocked ? -20 : 0;
+    if (!field.__lastMoteAt || now - field.__lastMoteAt >= field.cadence.moteMs) {
+      const dt = Math.min(.1, Math.max(0, (now - (field.__lastMoteAt || now)) / 1000));
+      field.__lastMoteAt = now;
+      const parked = reducedMotion || document.hidden || field.root.closest('.cb-radial-stage')?.dataset.quiet === 'night';
       field.motes?.forEach((mote, idx) => {
-        const phase = Number(mote.dataset.phase) || 0;
-        const baseRadius = Number(mote.dataset.radius) || 270;
-        const orbit = (phase + seconds / (mode === 'searching' ? 9 + idx : blocked ? 42 : 26 + idx * 3)) * Math.PI * 2;
-        const r = baseRadius + radiusBias + (reducedMotion ? 0 : Math.sin(seconds * 0.45 + idx) * 2);
+        const period = mode === 'searching' ? 14 + idx * 1.7 : blocked ? 48 : 26 + idx * 3;
+        // Integrate phase so a mode change alters speed without teleporting dots.
+        mote.__phase ??= (Number(mote.dataset.phase) || 0) * Math.PI * 2;
+        if (!parked) mote.__phase += dt * Math.PI * 2 / period * (idx === 3 ? -1 : 1);
+        const orbit = mote.__phase;
+        const targetRadius = Number(mote.dataset.radius) + radiusBias;
+        mote.__radius ??= targetRadius;
+        mote.__radius += (targetRadius - mote.__radius) * (1 - Math.exp(-dt * 2));
+        const r = mote.__radius;
         const touchPull = resonanceGain * Math.max(0, Math.cos(orbit - resonanceAngle)) * 18;
         const moteX = 550 + Math.cos(orbit) * r + x * 0.18 + Math.cos(resonanceAngle) * touchPull;
-        const moteY = 550 + Math.sin(orbit) * r + y * 0.18 + Math.sin(resonanceAngle) * touchPull;
+        const moteY = 550 + Math.sin(orbit) * r * (.94 + (idx % 3) * .02) + y * 0.18 + Math.sin(resonanceAngle) * touchPull;
         setConceptBAttribute(mote, 'cx', moteX.toFixed(2));
         setConceptBAttribute(mote, 'cy', moteY.toFixed(2));
-        setConceptBStyleProperty(mote, '--cb-field-mote-opacity', String(blocked && idx > 2 ? 0 : 0.18 + focus * 0.20 + resonanceGain * 0.22));
+        setConceptBStyleProperty(mote, '--cb-field-mote-opacity', String(blocked ? .35 : .62 + focus * .16 + resonanceGain * .12));
       });
     }
 
@@ -3691,19 +3752,15 @@
   }
 
   function applyConceptBOptic(hud, puppet, fallbackAccent) {
-    // Per-mode halo color is a primary state indicator. Normal active work must not
-    // read as warning/caution on the physical display, so amber active modes are
-    // rendered as calm cyan/blue. Reserve ochre/rust for actual waiting/blocked states.
-    const palette = {
-      amber: 'rgb(101, 243, 255)',
-      hot_amber: 'rgb(137, 213, 230)',
-      ochre: 'rgb(214, 126, 46)',
-      rust: 'rgb(201, 84, 50)',
-      moss: 'rgb(108, 182, 116)',
-      steel: 'rgb(139, 156, 178)'
-    };
-    const colorKey = String(puppet?.halo?.color || '').trim();
-    const accent = palette[colorKey] || fallbackAccent;
+    const live = currentPacket?.live || {};
+    const theme = window.HermesPresence.themeForObservation({
+      mode: puppet?.mode,
+      freshness: liveStatus.failures >= 8 ? 'lost' : liveStatus.failures ? 'stale' : live.freshness?.tier || 'fresh',
+      gatewayOk: live.gateway_ok,
+      critical: currentPacket?.state_preset === 'critical' || live.resolver?.display_state === 'critical_local_issue',
+    });
+    const accent = theme.accent || fallbackAccent;
+    setConceptBDataset(document.body, 'dashboardTheme', theme.name);
     const root = document.documentElement;
     setConceptBStyleProperty(root, '--cb-halo-opacity', String(clamp01(puppet?.halo?.opacity ?? puppet?.glow?.halo ?? 0.38)));
     setConceptBStyleProperty(root, '--cb-ring-opacity', String(clamp01(puppet?.ring?.opacity ?? 0.42)));
@@ -3839,10 +3896,10 @@
     const state = live?.resolver?.display_state || '';
     const preset = currentPacket?.state_preset || '';
     const effectiveMode = String(mode || '').toLowerCase();
-    if (['blocked', 'critical', 'degraded_offline'].includes(preset)) return 'hidden';
-    if (['blocked_user_task', 'critical_local_issue'].includes(state)) return 'hidden';
-    if (freshnessTier === 'lost' || gatewayText === 'GATEWAY WATCH') return 'hidden';
-    if (['blocked', 'critical', 'degraded_offline', 'waiting_user'].includes(effectiveMode)) return 'hidden';
+    if (['blocked', 'critical', 'degraded_offline'].includes(preset)) return 'subdued';
+    if (['blocked_user_task', 'critical_local_issue'].includes(state)) return 'subdued';
+    if (freshnessTier === 'lost' || gatewayText === 'GATEWAY WATCH') return 'subdued';
+    if (['blocked', 'critical', 'degraded_offline', 'waiting_user'].includes(effectiveMode)) return 'subdued';
     if (['active-turn', 'active_turn', 'reasoning', 'planning', 'tool_shell', 'writing', 'searching'].includes(effectiveMode)) return 'subdued';
     return 'focus';
   }

@@ -30,6 +30,47 @@
     return choices[index];
   }
 
+  // One palette for the whole instrument. Health outranks activity, while metric
+  // warning colors remain independent of this decorative activity tint.
+  function themeForObservation({ mode = 'idle_watch', freshness = 'fresh', gatewayOk = true, critical = false } = {}) {
+    const name = critical || mode === 'critical' ? 'error'
+      : freshness === 'lost' || gatewayOk === false || mode === 'degraded_offline' ? 'offline'
+      : mode === 'blocked' ? 'error'
+      : freshness === 'stale' || mode === 'waiting_user' ? 'waiting'
+      : ['reasoning', 'planning'].includes(mode) ? 'thinking'
+      : ['tool_shell', 'writing'].includes(mode) ? 'working'
+      : mode === 'complete' ? 'complete'
+      : ['notice', 'listening'].includes(mode) ? 'listening'
+      : mode === 'reading' ? 'reading' : mode === 'searching' ? 'searching' : 'idle';
+    const colors = {
+      idle: 'rgb(116, 208, 230)', thinking: 'rgb(160, 176, 255)',
+      working: 'rgb(92, 216, 192)', searching: 'rgb(92, 216, 237)',
+      reading: 'rgb(128, 207, 211)', listening: 'rgb(155, 215, 255)',
+      waiting: 'rgb(231, 187, 109)', error: 'rgb(235, 120, 110)',
+      complete: 'rgb(137, 217, 167)', offline: 'rgb(140, 161, 184)',
+    };
+    return { name, accent: colors[name] };
+  }
+
+  function conservativeMotion() {
+    return new URLSearchParams(window.location?.search || '').get('performance') === 'conservative';
+  }
+  function motionCadence() {
+    return conservativeMotion()
+      ? { surfaceMs: 40, quietMs: 100, fieldMs: 30, moteMs: 125, everyOtherFrame: true }
+      : { surfaceMs: 16, quietMs: 50, fieldMs: 16, moteMs: 16 };
+  }
+  function motionBudget(system = {}, cadence = {}, conservative = conservativeMotion()) {
+    const cpu = Number(system.cpu ?? system.cpu_load ?? 0);
+    const load = cpu > 1 ? cpu / 100 : cpu;
+    const temp = Number(system.cpu_temp_c ?? system.temp_c ?? system.package_temp_c ?? 0);
+    const frame = Number(cadence.p95Ms || 0);
+    const limits = conservative ? [.70, .90, 72, 78, 25, 34] : [.95, .99, 86, 92, 40, 55];
+    if (load > limits[1] || temp > limits[3] || frame > limits[5]) return 'low';
+    if (load > limits[0] || temp > limits[2] || frame > limits[4]) return 'medium';
+    return 'high';
+  }
+
   const NS = 'http://www.w3.org/2000/svg';
   function svg(tag, attrs = {}) {
     const node = document.createElementNS(NS, tag);
@@ -113,6 +154,7 @@
   }
 
   function installSurface(container) {
+    const cadence = motionCadence();
     const paths = Array.from({ length: 6 }, (_, layer) => {
       const path = svg('path', { class: 'cb-presence-fold', opacity: .52 - layer * .065 });
       container.appendChild(path);
@@ -129,7 +171,7 @@
         const still = reduced || hidden || quiet === 'night';
         const signature = `${mode}:${still}`;
         const dt = lastAt === null ? 0 : Math.min(.1, Math.max(0, (now - lastAt) / 1000));
-        if (lastAt !== null && signature === lastSignature && (still || now - lastAt < (quiet === 'quiet' ? 100 : 40))) return;
+        if (lastAt !== null && signature === lastSignature && (still || now - lastAt < (quiet === 'quiet' ? cadence.quietMs : cadence.surfaceMs))) return;
         lastAt = now;
         const target = materialForMode(mode);
         const ease = 1 - Math.exp(-dt * 2.5);
@@ -145,5 +187,5 @@
   }
 
   window.HermesPresence = Object.freeze({ presenceForMode, allowsIdlePerformance, chooseIdleSequence,
-    buildIris, materialForMode, surfacePaths, installSurface });
+    themeForObservation, motionBudget, motionCadence, buildIris, materialForMode, surfacePaths, installSurface });
 })();

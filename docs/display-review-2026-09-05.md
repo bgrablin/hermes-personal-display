@@ -37,8 +37,13 @@ The revision uses material, posture, gaze, and explicit current-state copy. Its
 motion is expressive and does not measure reasoning depth, tool count, percentage
 complete, or remaining time. Mode previews are labeled `PREVIEW`.
 
-See [Luminous presence](luminous-presence.md) for touch behavior, animation ownership,
-and the reproducible browser recording command.
+The follow-up revision reduces the eye diameter by about 28%, restores five blue
+orbiting lights, connects the full instrument to the activity palette, and replaces
+the fading Augury overlay with a readable observation rail. The upgraded host now
+has a larger motion budget; the former NUC policy is opt-in.
+
+See [Luminous presence](luminous-presence.md) for the palette, Augury behavior,
+touch controls, motion thresholds, and reproducible browser recording command.
 
 ## Remaining priorities
 
@@ -51,7 +56,7 @@ and the reproducible browser recording command.
 | Medium | Make the render budget govern every animation layer | Adaptive thermal policy sets dataset/CSS values, while several eye-loop guards inspect the OS reduced-motion preference directly. Measure DOM mutations, frame time, process CPU, and GPU load at each thermal tier, then consolidate one effective motion policy. No temperature improvement is claimed here. |
 | Medium | Show overlapping agents accurately | One eye and one `current_work` slot cannot explain parallel sessions. Add bounded, pseudonymous activity counts or small satellite indicators only after the producer contract supplies reliable concurrent-turn identity. Avoid manufacturing progress from CPU utilization. |
 | Medium | Expose upcoming scheduled work | Show the next approved scheduled task and time only when the producer supplies a display-safe label. Distinguish “scheduled,” “running,” “waiting,” and “finished”; never infer task completion from a quiet process. |
-| Medium | Improve the operator's reading hierarchy | The private Augury overlay and provider rail can become extremely faint during active/direct-presence states. Test at normal viewing distance in daylight before globally increasing contrast. Keep input requests and actual faults prominent. |
+| Medium | Verify the revised rails on the physical panel | Augury now has steady readable text, a bounded layout, and update-only transitions. Provider unknown-state dimming is less aggressive. Check both rails at normal viewing distance in daylight and verify that real alerts remain prominent. |
 | Medium | Split the 4,359-line baseline runtime | Extract transport reconciliation, status panels, and optic rig behind explicit interfaces. Preserve the generated contract and the existing animation ownership model; use behavior tests rather than widening source-pattern exceptions. |
 
 ## Visual and operational acceptance

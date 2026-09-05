@@ -345,8 +345,8 @@ if (!appSource.includes("includeBodyText\n              ? auguryClean(raw?.text"
 if (!appSource.includes("if (familyAudience) return 'hidden';")) {
   fail('Family/theater mode must force Augury presence hidden.');
 }
-if (!appSource.includes("['blocked_user_task', 'critical_local_issue'].includes(state)")) {
-  fail('Blocked and critical states must hide Augury so operational status wins.');
+if (!appSource.includes("['blocked_user_task', 'critical_local_issue'].includes(state)) return 'subdued'")) {
+  fail('Blocked and critical states must keep Augury readable but subordinate to the alert.');
 }
 if (!appSource.includes("['active-turn', 'active_turn', 'reasoning', 'planning', 'tool_shell', 'writing', 'searching']")) {
   fail('Active work/search/reasoning states must subdue Augury rather than leaving it dominant.');
@@ -354,17 +354,17 @@ if (!appSource.includes("['active-turn', 'active_turn', 'reasoning', 'planning',
 requireAll(cssSource, [
   '.augury-head',
   '.augury-meta',
-  'augury-veil-drift',
-  'augury-band-rise',
-], 'Augury left stream must keep trace head/meta rows and the ambient background veil.');
+  '.augury-heading',
+  '.augury-feed-status',
+], 'Augury activity rail must keep readable headings, observation metadata, and feed freshness.');
 if (!appSource.includes('raw?.safeText === true')) {
   fail('Augury safe-text rows must be explicitly client-flagged; raw feed text stays gated behind auguryText=1.');
 }
 if (!appSource.includes('safeText: false')) {
   fail('Feed log items must have safeText stripped so a malformed payload cannot bypass the auguryText gate.');
 }
-if (!cssSource.includes('html[data-hermes-reduced-motion="true"] body.augury-preview .augury-ambient::before')) {
-  fail('Augury background veil must be disabled under Hermes reduced-motion.');
+if (!appSource.includes('!prefersReducedMotion && !document.hidden') || cssSource.includes('animation: augury-vertical-flow')) {
+  fail('Augury must animate only new observations, respect reduced motion, and never continuously fade readable text.');
 }
 if (!appSource.includes("state === 'blocked_user_task') return { label: 'WAITING FOR BRIAN'")) {
   fail('Blocked current work must elevate a WAITING FOR BRIAN top alert.');
@@ -486,10 +486,10 @@ requireAll(appSource, ['CURRENT TURN', 'conceptBQueuedTaskCount', 'queued calmly
 if (appSource.includes('Hermes is watching.') || appSource.includes('available tasks')) {
   fail('Local-watch copy must not read like a caution/warning banner; use calm queued/watch language.');
 }
-requireAll(appSource, ["amber: 'rgb(101, 243, 255)'", "hot_amber: 'rgb(137, 213, 230)'", "if (severity === 'active') return '#65f3ff'"], 'Normal active work must render with calm cyan/blue accents, not amber/red warning colors.');
+requireAll(presenceSource, ['themeForObservation', "thinking: 'rgb(160, 176, 255)'", "working: 'rgb(92, 216, 192)'"], 'Activity tint must remain distinct from waiting and error colors.');
 requireAll(appSource, ["if (temp >= 90) return 'metric-hot temp-hot';", "if (temp >= 82) return 'metric-warn temp-warn';", "if (mode === 'cpu') return number >= 95 ? 'metric-hot' : number >= 85 ? 'metric-warn' : 'metric-ok';"], 'Normal NUC kiosk operating temperatures/CPU should not look like caution; reserve warn/hot classes for real thermal/load thresholds.');
 
-requireAll(cssSource, ['.augury-ambient', '.augury-strand', 'width: min(50vw, 960px)', 'z-index: 1', 'clamp(13px, 0.98vw, 18px)', 'linear-gradient(to right, #000 0%, #000 62%, rgba(0, 0, 0, 0.62) 82%, transparent 100%)', '--augury-optic-protect-mask', 'ellipse 24vw 39vh at 50.5vw 49.2vh'], 'Augury overlay must span about half the display, stay behind the optic, remain desk-readable, fade toward center/right, and protect the central optic with a focused radial attenuation mask.');
+requireAll(cssSource, ['.augury-ambient', '.augury-strand', '.augury-list', 'left: 64px', 'top: 162px', 'width: 430px'], 'Augury must occupy a readable left rail aligned with the provider rail, clear of the optic.');
 if (/\.augury-ambient[\s\S]{0,700}mix-blend-mode:\s*screen/.test(cssSource)) {
   fail('Augury must not use mix-blend-mode: screen against the bright optic glow.');
 }
@@ -498,11 +498,11 @@ if (serverSource.includes('override ignored:')) {
 }
 requireAll(serverSource, ['def gateway_ok_recently', 'line_is_recent(line, minutes)', 'gateway_ok_recently(recent_gateway)'], 'Gateway status must be recency-bounded, not raw token presence over a stale log tail.');
 requireAll(serverSource + logSnapshotSource, ['def augury_log_tail', 'text = augury_log_tail(line)', 'safe_text = augury_clean(text, AUGURY_MAX_ITEM_CHARS)'], 'Augury items must clean timestamp/session/module prefixes before display.');
-requireAll(appSource, ["title: 'CURRENT'", "title: 'STATUS'", "title: 'STATE'", "title: 'SIGNAL'"], 'Augury packet fallback labels must be operator-facing, not internal work/detail/caption/snippet keys.');
+requireAll(appSource, ["current ? 'NOW'", "title: 'DETAIL'", "title: 'OBSERVED STATE'", "title: 'AWAITING ACTIVITY'"], 'Augury packet fallback labels must be operator-facing, not internal work/detail/caption/snippet keys.');
 if (/title:\s*'(?:work|detail|caption|snippet)'/.test(appSource)) {
   fail('Augury fallback must not surface raw internal packet labels.');
 }
-requireAll(appSource, ['const MAX_STRANDS = 11', 'safe[idx] || null', "setConceptBDataset(row.strand, 'echo', 'false')"], 'Augury should keep enough strand slots but only populate real items; never duplicate echoes to fake density.');
+requireAll(appSource, ['const MAX_STRANDS = 5', 'const visible = safe;', 'const unique = new Map();', "setConceptBDataset(row.strand, 'echo', 'false')"], 'Augury must bound and deduplicate real observations; never duplicate echoes to fake density.');
 if (/safe\[idx\s*%\s*safe\.length\]/.test(appSource)) {
   fail('Augury must not duplicate real rows with modulo indexing to fill empty strands.');
 }
@@ -824,11 +824,8 @@ requireAll(cssSource, [
 if (!appSource.includes('setConceptBAttribute(') || !appSource.includes('setConceptBStyleProperty(')) {
   fail('Concept B RAF loop must use change-aware DOM writers to avoid redundant SVG/style invalidation.');
 }
-if (!appSource.includes('field.__lastTickBucket') || !appSource.includes('field.__lastMoteBucket')) {
-  fail('Concept B field instrumentation must bucket tiny per-frame changes so it preserves motion without rewriting every SVG node every RAF.');
-}
-if (/__lastMoteBucket[\s\S]{0,400}Math\.round\(seconds\s*\*\s*60\)/.test(appSource)) {
-  fail('Concept B mote bucket must throttle below per-frame; seconds * 60 changes every RAF and defeats the bucket.');
+if (!appSource.includes('field.__lastTickBucket') || !appSource.includes('field.cadence.moteMs')) {
+  fail('Concept B field must retain change-aware tick updates and respect the selected orbital render budget.');
 }
 requireAll(cssSource, ['.cb-eye-gaze,', '.cb-eye-pupil-group {', 'will-change: transform;'], 'Hot Concept B gaze and pupil transform targets must retain compositor promotion hints.');
 requireAll(xsessionSource, ['--disable-backgrounding-occluded-windows', 'configure_audio', 'PERSONAL_DISPLAY_AUDIO_VOLUME', 'PERSONAL_DISPLAY_AUDIO_SINK'], 'Physical kiosk launcher must prevent Chromium from treating the kiosk as occluded/backgrounded and must use env-configured SF10T/HDMI audio.');

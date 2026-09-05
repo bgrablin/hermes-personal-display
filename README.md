@@ -227,6 +227,12 @@ npm run review:presence
 The recording and still frames are written beneath `test-results/presence/`.
 See [the visual and touch design](docs/luminous-presence.md).
 
+The upgraded-host default allows smoother orbital and surface motion with less
+aggressive thermal throttling. Add `performance=conservative` to the kiosk URL
+to restore the former NUC motion budget. Temperature warning indicators remain
+unchanged. Augury uses the canonical `augury=1` URL and now shows a readable left
+activity rail; raw log bodies still require the separate `auguryText=1` opt-in.
+
 The Python display server is also available for local state API work:
 
 ```bash
