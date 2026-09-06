@@ -83,7 +83,7 @@ Local services bind loopback by default.
 - **check scripts are intentional stiffness:** `scripts/check-kiosk-recommendation-regressions.js` and
   friends pattern-match exact source lines and numeric constants. Refactoring guarded code requires
   updating the guard in the same change — that is by design, not an accident to work around.
-- **Git hooks:** pre-commit auto-refreshes `docs/current-dashboard.png` when frontend files change
+- **Git hooks:** pre-commit auto-refreshes `docs/current-dashboard.png` from bounded synthetic state when frontend files change
   (skip with `HERMES_SKIP_DASHBOARD_CAPTURE=1`); pre-push blocks non-main refs to the public
   `bgrablin/hermes-personal-display` remote.
 - **No legacy v2 aliases:** the retired `-v2` entrypoints must 404

@@ -31,6 +31,8 @@ This repository is intentionally trimmed to the files needed to run, test, and o
 - `scripts/xsession-minix-kiosk.sh` — current MINIX/SF10T X11 session; selects the default Chromium kiosk or the opt-in terminal renderer.
 - `scripts/herdr-monitor-raw-compositor.py` — optional fixed-size Alacritty/tmux terminal renderer.
 - `scripts/launch-herdr-monitor-display.sh` — validates dependencies and launches the optional terminal renderer.
+- `scripts/capture-public-dashboard.cjs` — generates the public README image from bounded synthetic state.
+- `scripts/capture-current-dashboard.sh` — keeps physical captures private and routes repository captures through the synthetic generator.
 - `scripts/generate-build-id.js` — synchronizes `src/generated/build-id.js` and first-party runtime `?v=` cache keys.
 - `deploy/systemd-user/` — preview and generic user-kiosk templates.
 - `deploy/systemd-system/` — MINIX/thermal system unit templates and drop-ins; install/render live kiosk unit via `scripts/install-system-unit.sh`.

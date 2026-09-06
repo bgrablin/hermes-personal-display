@@ -24,6 +24,8 @@ const displayCliSource = fs.readFileSync(path.join(projectRoot, 'scripts', 'herm
 const telemetryWatchdogSource = fs.readFileSync(path.join(projectRoot, 'scripts', 'display-telemetry-watchdog.sh'), 'utf8');
 const runtimeChecksSource = fs.readFileSync(path.join(projectRoot, 'scripts', 'display_runtime_checks.py'), 'utf8');
 const captureModesSource = fs.readFileSync(path.join(projectRoot, 'scripts', 'capture-mode-artifacts.cjs'), 'utf8');
+const captureDashboardSource = fs.readFileSync(path.join(projectRoot, 'scripts', 'capture-current-dashboard.sh'), 'utf8');
+const capturePublicSource = fs.readFileSync(path.join(projectRoot, 'scripts', 'capture-public-dashboard.cjs'), 'utf8');
 const audioSource = fs.readFileSync(path.join(projectRoot, 'src', 'mascot', 'audio.js'), 'utf8');
 const touchFxSource = fs.readFileSync(path.join(projectRoot, 'src', 'mascot', 'touch-fx.js'), 'utf8');
 const entertainmentSource = fs.readFileSync(path.join(projectRoot, 'src', 'mascot', 'entertainment.js'), 'utf8');
@@ -733,6 +735,18 @@ requireAll(captureModesSource, [
   'PERSONAL_DISPLAY_BUILD_ID',
   '--print-build-id',
 ], 'Mode artifact capture must derive its cache-bust build id from the generated build-id.js source and support a lightweight print smoke path.');
+requireAll(captureDashboardSource, [
+  'capture_public()',
+  'node "$PUBLIC_CAPTURE" "$REPO_OUT"',
+  '`--repo-only` never captures or publishes live operator state.',
+], 'Repository screenshot capture must route through the synthetic public generator.');
+requireAll(capturePublicSource, [
+  "caption: { text: 'Synthetic dashboard preview.' }",
+  "source: 'demo data'",
+  'assertPublicText(visibleText)',
+  "await page.route('**/api/hermes-state**'",
+  "await page.route('**/api/augury-feed**'",
+], 'Public screenshot generation must use bounded synthetic state and reject private text shapes.');
 if (/const DISPLAY_BUILD_ID = ['"][^'"]+['"]/.test(captureModesSource) || captureModesSource.includes("src', 'mascot', 'app.js'")) {
   fail('Mode artifact capture must not scrape the removed literal DISPLAY_BUILD_ID from src/mascot/app.js.');
 }

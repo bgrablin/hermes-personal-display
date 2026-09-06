@@ -4,6 +4,16 @@ A local, browser-based companion display for [Hermes Agent](https://github.com/N
 
 ![Hermes personal display screenshot](docs/current-dashboard.png)
 
+The public screenshot uses bounded synthetic state at the reference 1920 x 1280
+viewport. Live physical framebuffer captures remain private verification
+artifacts and are not copied into the public repository.
+
+Refresh the public image while the local preview server is available:
+
+```bash
+npm run capture:public
+```
+
 This repo is useful if you are running Hermes Agent on a local box and want something more physical than a chat window: a kiosk display that shows what the agent is doing without leaking prompts, answers, secrets, or raw logs.
 
 ## Why this exists

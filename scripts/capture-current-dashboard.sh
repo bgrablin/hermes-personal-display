@@ -1,17 +1,14 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# Capture the live Hermes personal display and keep one current screenshot in:
-#   1. the synced local folder Brian can inspect from other machines
-#   2. the private project repo for GitHub review/history
-#
-# This intentionally captures the real X11 kiosk display instead of rendering a
-# synthetic browser page. The dashboard is a physical presence surface, so the
-# reference image should reflect what is actually on DP-2.
+# Capture the live physical display for private/synced review and generate a
+# separate synthetic screenshot for the public repository. Never copy live
+# operator state into docs/current-dashboard.png.
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 SYNC_OUT="${HERMES_DASHBOARD_SYNC_OUT:-$HOME/Sync/hermes-dashboard-current.png}"
 REPO_OUT="${HERMES_DASHBOARD_REPO_OUT:-$ROOT_DIR/docs/current-dashboard.png}"
+PUBLIC_CAPTURE="$ROOT_DIR/scripts/capture-public-dashboard.cjs"
 DISPLAY_NAME="${DISPLAY:-:0}"
 OUTPUT_NAME="${HERMES_DASHBOARD_OUTPUT:-DP-2}"
 
@@ -19,8 +16,9 @@ usage() {
   cat <<'USAGE'
 Usage: scripts/capture-current-dashboard.sh [--sync-only|--repo-only|--output PATH]
 
-Captures the current live Hermes dashboard from the X11 display. By default it
-updates both ~/Sync/hermes-dashboard-current.png and docs/current-dashboard.png.
+Captures the current live Hermes dashboard for the private synced output and
+generates a bounded synthetic dashboard for docs/current-dashboard.png.
+`--repo-only` never captures or publishes live operator state.
 
 Environment overrides:
   DISPLAY                       X display to capture, defaults to :0
@@ -64,6 +62,19 @@ while [[ $# -gt 0 ]]; do
   esac
   shift
 done
+
+capture_public() {
+  if [[ ! -f "$PUBLIC_CAPTURE" ]]; then
+    echo "Missing public screenshot helper: $PUBLIC_CAPTURE" >&2
+    return 1
+  fi
+  node "$PUBLIC_CAPTURE" "$REPO_OUT"
+}
+
+if [[ "$write_repo" -eq 1 && "$write_sync" -eq 0 && -z "$custom_out" ]]; then
+  capture_public
+  exit 0
+fi
 
 if ! command -v scrot >/dev/null 2>&1; then
   echo "scrot is required to capture the X11 framebuffer" >&2
@@ -133,8 +144,7 @@ if [[ "$write_sync" -eq 1 ]]; then
   written+=("$SYNC_OUT")
 fi
 if [[ "$write_repo" -eq 1 ]]; then
-  mkdir -p "$(dirname "$REPO_OUT")"
-  cp "$tmp_crop" "$REPO_OUT"
+  capture_public
   written+=("$REPO_OUT")
 fi
 

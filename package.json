@@ -45,6 +45,7 @@
     "check:kiosk": "npm run check:build-id && node scripts/check-kiosk-recommendation-regressions.js",
     "check:augury-feed": "python3 scripts/check-augury-feed.py",
     "capture:dashboard": "scripts/capture-current-dashboard.sh",
+    "capture:public": "node scripts/capture-public-dashboard.cjs docs/current-dashboard.png",
     "capture:modes": "node scripts/capture-mode-artifacts.cjs",
     "install:hooks": "git config core.hooksPath .githooks",
     "test:all": "npm run build && npm test && npm run check:client-events && npm run check:kiosk && npm run check:augury-feed && npm run test:e2e -- --project=chromium-kiosk --project=minix-sf10t-landscape --workers=1"
