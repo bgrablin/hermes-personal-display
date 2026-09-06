@@ -22,6 +22,7 @@ LEGACY_KANBAN_DB = HERMES_HOME / "kanban.db"
 
 FRESHNESS_ORDER = {"fresh": 0, "aging": 1, "stale": 2, "lost": 3}
 MEASUREMENT_KEYS = ("cpu", "memory", "temp_c", "cpu_temp_c", "pch_temp_c")
+REQUIRED_MEASUREMENT_KEYS = ("cpu", "memory", "temp_c")
 
 
 # === telemetry ===
@@ -286,7 +287,16 @@ def normalize_measurement(raw, *, age_seconds: float | int | None = None) -> dic
 
 def normalize_system_freshness(system: dict) -> tuple[dict, dict]:
     measurements = {key: normalize_measurement(system.get(key)) for key in MEASUREMENT_KEYS}
-    worst = max((m["status"] for m in measurements.values()), key=lambda status: FRESHNESS_ORDER[status], default="lost")
+    aggregate_measurements = {
+        key: measurement
+        for key, measurement in measurements.items()
+        if key in REQUIRED_MEASUREMENT_KEYS or system.get(key) is not None
+    }
+    worst = max(
+        (m["status"] for m in aggregate_measurements.values()),
+        key=lambda status: FRESHNESS_ORDER[status],
+        default="lost",
+    )
     valid_count = sum(1 for m in measurements.values() if m["valid"])
     if valid_count == 0:
         worst = "lost"
@@ -304,7 +314,11 @@ def normalize_system_freshness(system: dict) -> tuple[dict, dict]:
     return safe, {
         "tier": worst,
         "valid_measurements": valid_count,
-        "stale_measurements": [key for key, m in measurements.items() if m["status"] in {"aging", "stale", "lost"}],
+        "stale_measurements": [
+            key
+            for key, measurement in aggregate_measurements.items()
+            if measurement["status"] in {"aging", "stale", "lost"}
+        ],
     }
 
 
