@@ -273,6 +273,13 @@ Full local gate, including Playwright projects:
 npm run test:all
 ```
 
+The `minix-sf10t-landscape` browser project also protects the two-line activity
+headline at the 1920 x 1280 panel viewport. Its regression waits for fonts to
+load, verifies the clipping-safe computed line height, and rejects a partially
+visible third line. Physical framebuffer review remains the release gate for
+painted glyph clipping because DOM range rectangles vary between Chromium
+builds and do not represent exact glyph ink bounds.
+
 ## Reference hardware
 
 This project does not require a specific display or mini PC. The public screenshot and reference deployment use commodity hardware:
