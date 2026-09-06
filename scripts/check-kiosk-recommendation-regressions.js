@@ -746,7 +746,16 @@ requireAll(capturePublicSource, [
   'assertPublicText(visibleText)',
   "await page.route('**/api/hermes-state**'",
   "await page.route('**/api/augury-feed**'",
-], 'Public screenshot generation must use bounded synthetic state and reject private text shapes.');
+  'async function freezeOpenEye(page, { timeoutMs = 5000, maxBlink = 0.02 } = {})',
+  'const blink = Number(rig?.debug?.().blink)',
+  'blink <= pageMaxBlink',
+  'const timeoutId = setTimeout',
+  'cancelAnimationFrame(frameId)',
+  'catch (error)',
+  'rig.teardown()',
+  'await freezeOpenEye(page)',
+  'module.exports = { freezeOpenEye }',
+], 'Public screenshot generation must use bounded synthetic state, reject private text shapes, and freeze an explicitly open eye before capture.');
 if (/const DISPLAY_BUILD_ID = ['"][^'"]+['"]/.test(captureModesSource) || captureModesSource.includes("src', 'mascot', 'app.js'")) {
   fail('Mode artifact capture must not scrape the removed literal DISPLAY_BUILD_ID from src/mascot/app.js.');
 }

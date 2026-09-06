@@ -93,7 +93,51 @@ function assertPublicText(text) {
   }
 }
 
-(async () => {
+async function freezeOpenEye(page, { timeoutMs = 5000, maxBlink = 0.02 } = {}) {
+  return page.evaluate(({ timeoutMs: pageTimeoutMs, maxBlink: pageMaxBlink }) => new Promise((resolve, reject) => {
+    let consecutiveOpenFrames = 0;
+    let frameId = 0;
+    let settled = false;
+
+    const cleanup = () => {
+      clearTimeout(timeoutId);
+      if (frameId) {
+        cancelAnimationFrame(frameId);
+        frameId = 0;
+      }
+    };
+    const settle = (handler, value) => {
+      if (settled) return;
+      settled = true;
+      cleanup();
+      handler(value);
+    };
+    const timeoutId = setTimeout(() => {
+      settle(reject, new Error('eye did not reach a stable open frame before capture'));
+    }, pageTimeoutMs);
+    const inspect = () => {
+      frameId = 0;
+      try {
+        const rig = window.__HERMES_CONCEPT_B_EYE_MOTION;
+        const blink = Number(rig?.debug?.().blink);
+        consecutiveOpenFrames = Number.isFinite(blink) && blink <= pageMaxBlink
+          ? consecutiveOpenFrames + 1
+          : 0;
+        if (rig && consecutiveOpenFrames >= 2) {
+          rig.teardown();
+          settle(resolve, blink);
+          return;
+        }
+        frameId = requestAnimationFrame(inspect);
+      } catch (error) {
+        settle(reject, error);
+      }
+    };
+    frameId = requestAnimationFrame(inspect);
+  }), { timeoutMs, maxBlink });
+}
+
+async function main() {
   fs.mkdirSync(path.dirname(OUTPUT), { recursive: true });
   const executablePath = browserExecutable();
   const browser = await chromium.launch({ executablePath, args: ['--no-sandbox'] });
@@ -118,6 +162,7 @@ function assertPublicText(text) {
     await page.evaluate(() => document.fonts.ready);
     await page.waitForSelector('.claude-concept-b .cb-radial-stage', { state: 'visible' });
     await page.waitForTimeout(900);
+    await freezeOpenEye(page);
 
     const visibleText = await page.locator('body').innerText();
     assertPublicText(visibleText);
@@ -126,7 +171,13 @@ function assertPublicText(text) {
     await browser.close();
   }
   console.log(`Updated public dashboard screenshot: ${OUTPUT}`);
-})().catch((error) => {
-  console.error(`capture-public-dashboard failed: ${error.stack || error}`);
-  process.exit(1);
-});
+}
+
+module.exports = { freezeOpenEye };
+
+if (require.main === module) {
+  main().catch((error) => {
+    console.error(`capture-public-dashboard failed: ${error.stack || error}`);
+    process.exit(1);
+  });
+}
