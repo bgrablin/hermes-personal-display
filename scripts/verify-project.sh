@@ -31,6 +31,8 @@ check_file src/mascot/app.js
 check_file src/mascot/SOURCE-LICENSE.md
 check_file scripts/hermes-display
 check_file scripts/hermes_display_server.py
+check_file scripts/herdr-monitor-raw-compositor.py
+check_file scripts/launch-herdr-monitor-display.sh
 check_file scripts/xsession-minix-kiosk.sh
 check_file scripts/serve-preview.sh
 check_file deploy/systemd-user/hermes-personal-display-preview.service
@@ -46,8 +48,9 @@ node --check src/mascot/app.js
 node --check scripts/check-adopted-stack.js
 node --check scripts/check-client-avatar-event-validator.js
 node --check scripts/check-kiosk-recommendation-regressions.js
-python3 -m py_compile scripts/hermes_display_server.py scripts/avatar_event_bus.py scripts/display_state/*.py scripts/generated/display_contract.py
+python3 -m py_compile scripts/hermes_display_server.py scripts/avatar_event_bus.py scripts/display_state/*.py scripts/generated/display_contract.py scripts/display_runtime_checks.py scripts/herdr-monitor-raw-compositor.py
 bash -n scripts/hermes-display
+bash -n scripts/launch-herdr-monitor-display.sh
 bash -n scripts/serve-preview.sh
 bash -n scripts/xsession-minix-kiosk.sh
 bash -n scripts/detect-display-env.sh

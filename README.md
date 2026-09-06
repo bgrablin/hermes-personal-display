@@ -219,6 +219,29 @@ Physical panel:
 
 `hermes-display verify` checks the live Chromium command line for the full operator URL shape, including the generated build cache key (`v=<build>`). `audience=family` or `family=1` suppresses private/operator overlays such as Augury.
 
+### Optional terminal renderer
+
+Chromium remains the default and recommended character runtime. An opt-in
+`herdr-monitor` renderer replaces Chromium with one fullscreen Alacritty window
+and an isolated tmux source containing btop plus a read-only health monitor. It
+does not attach to or resize an interactive Herdr workspace.
+
+Set `PERSONAL_DISPLAY_RENDERER=herdr-monitor` only after configuring
+`PERSONAL_DISPLAY_HEALTH_MONITOR` and `PERSONAL_DISPLAY_BTOP_CONFIG`; the env
+template lists the optional tmux socket/session overrides. This path requires
+Alacritty, tmux, btop, and IBM Plex Mono. Run the normal project checks before
+deployment, then use `hermes-display verify-render` and inspect the physical
+framebuffer. Code checks do not replace that physical acceptance gate.
+
+### Telemetry recovery behavior
+
+System freshness requires CPU, memory, and primary temperature measurements.
+Optional CPU/PCH sensors affect aggregate freshness only when the collector
+reports them. A persistent non-restartable render fault is logged once when the
+display enters that state, then suppressed until recovery re-arms the
+transition. Restartable render failures retain their existing bounded restart
+policy.
+
 Operator touch now defaults to quiet contact and inspection: drag to guide the eye;
 tap CPU, memory, temperature, a provider, or a bottom status reading for current details.
 Details close with the close button, Escape, another touch outside, or after 15 seconds.

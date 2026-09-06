@@ -29,6 +29,10 @@ DISPLAY_MODE="${HERMES_DISPLAY_OUTPUT_MODE:-${PERSONAL_DISPLAY_OUTPUT_MODE:-1920
 DISPLAY_ROTATE="${HERMES_DISPLAY_OUTPUT_ROTATE:-${PERSONAL_DISPLAY_OUTPUT_ROTATE:-inverted}}"
 DISPLAY_POS="${HERMES_DISPLAY_OUTPUT_POS:-${PERSONAL_DISPLAY_OUTPUT_POS:-0x0}}"
 CHROME_PROFILE="${PERSONAL_DISPLAY_CHROME_PROFILE:-$HOME/snap/chromium/common/hermes-personal-display-profile}"
+DISPLAY_RENDERER="${HERMES_DISPLAY_RENDERER:-${PERSONAL_DISPLAY_RENDERER:-chromium}}"
+MONITOR_COMPOSITOR="$PROJECT/scripts/herdr-monitor-raw-compositor.py"
+MONITOR_TMUX_SOCKET="${PERSONAL_DISPLAY_SOURCE_TMUX_SOCKET:-hermes-personal-display-source}"
+MONITOR_TMUX_SESSION="${PERSONAL_DISPLAY_SOURCE_TMUX_SESSION:-hermes-personal-display-source}"
 AUDIO_SINK="${HERMES_DISPLAY_AUDIO_SINK:-${PERSONAL_DISPLAY_AUDIO_SINK:-}}"
 AUDIO_VOLUME="${HERMES_DISPLAY_AUDIO_VOLUME:-${PERSONAL_DISPLAY_AUDIO_VOLUME:-90%}}"
 XAUTH_GLOB="/tmp/serverauth.*"
@@ -43,8 +47,8 @@ usage() {
 Usage: hermes-display [verify|verify-render|fix|restart|status|screenshot|build-id|url]
 
 Commands:
-  verify      Check preview API, system service, live Chromium URL/build, display layout, thermal policy, and audio.
-  verify-render  Check only the managed service, Chromium browser instance count, display layout, and visible framebuffer.
+  verify      Check the display renderer, preview API, system service, display layout, thermal policy, and audio.
+  verify-render  Check only the managed renderer, display layout, and visible framebuffer.
   fix         Repair the display path: restart preview if needed, restart the real system kiosk, then verify.
   restart     Force a full preview + system kiosk restart, then verify.
   status      Show service, process, URL, display, thermal-policy, and audio status.
@@ -106,6 +110,13 @@ secure_runtime_dir() {
 
 live_chromium_line() {
   python3 "$RUNTIME_CHECKS" managed-chromium --profile "$CHROME_PROFILE"
+}
+
+live_monitor_renderer_line() {
+  python3 "$RUNTIME_CHECKS" managed-herdr-monitor \
+    --script "$MONITOR_COMPOSITOR" \
+    --socket "$MONITOR_TMUX_SOCKET" \
+    --session "$MONITOR_TMUX_SESSION"
 }
 
 chromium_kiosk_instance_count() {
@@ -304,7 +315,7 @@ check_framebuffer() (
 )
 
 verify_render_path() {
-  local status=0 live count display_status framebuffer_status framebuffer_rc
+  local status=0 renderer_status display_status framebuffer_status framebuffer_rc
 
   if systemctl is-active --quiet -- "$SYSTEM_SERVICE"; then
     echo "OK system kiosk active: $SYSTEM_SERVICE"
@@ -313,20 +324,36 @@ verify_render_path() {
     status=1
   fi
 
-  if live="$(live_chromium_line 2>&1)"; then
-    count="$(chromium_kiosk_instance_count "$live")"
-    if [[ "$count" -eq 1 ]]; then
-      echo "OK Chromium kiosk browser instance count: 1"
-    else
-      echo "FAIL Chromium kiosk browser instance count: $count (expected exactly 1)"
-      [[ -n "$live" ]] && printf '%s\n' "$live" | sed -n '1,4p'
-      [[ "$status" -ge 1 ]] || status=1
-    fi
-  else
-    echo "FAIL unable to inspect managed Chromium processes: $live"
-    live=""
-    status=2
-  fi
+  case "$DISPLAY_RENDERER" in
+    chromium)
+      local live count
+      if live="$(live_chromium_line 2>&1)"; then
+        count="$(chromium_kiosk_instance_count "$live")"
+        if [[ "$count" -eq 1 ]]; then
+          echo "OK Chromium kiosk browser instance count: 1"
+        else
+          echo "FAIL Chromium kiosk browser instance count: $count (expected exactly 1)"
+          [[ -n "$live" ]] && printf '%s\n' "$live" | sed -n '1,4p'
+          [[ "$status" -ge 1 ]] || status=1
+        fi
+      else
+        echo "FAIL unable to inspect managed Chromium processes: $live"
+        status=2
+      fi
+      ;;
+    herdr-monitor|monitor)
+      if renderer_status="$(live_monitor_renderer_line 2>&1)"; then
+        echo "OK lightweight Herdr Monitor renderer: $renderer_status"
+      else
+        echo "FAIL lightweight Herdr Monitor renderer: $renderer_status"
+        status=1
+      fi
+      ;;
+    *)
+      echo "FAIL unsupported display renderer: $DISPLAY_RENDERER"
+      status=2
+      ;;
+  esac
 
   if display_status="$(check_display_output 2>&1)"; then
     echo "OK display layout: $display_status"
@@ -351,25 +378,33 @@ verify_render_path() {
 }
 
 status_kiosk() {
-  local build live
+  local build live renderer_status
   build="$(build_id)"
   echo "Project: $PROJECT"
   echo "Expected build: $build"
   echo "Canonical URL: $(canonical_url)"
+  echo "Renderer: $DISPLAY_RENDERER"
   echo "System service: $SYSTEM_SERVICE $(systemctl is-active "$SYSTEM_SERVICE" 2>/dev/null || true)"
   echo "Preview service: $PREVIEW_SERVICE $(systemctl --user is-active "$PREVIEW_SERVICE" 2>/dev/null || true)"
   echo
-  echo "Live Chromium:"
-  live="$(live_chromium_line 2>/dev/null || true)"
-  if [[ -n "$live" ]]; then
-    printf '%s\n' "$live" | sed -n '1,8p'
+  if [[ "$DISPLAY_RENDERER" == "chromium" ]]; then
+    echo "Live Chromium:"
+    live="$(live_chromium_line 2>/dev/null || true)"
+    if [[ -n "$live" ]]; then
+      printf '%s\n' "$live" | sed -n '1,8p'
+    else
+      echo "not running"
+    fi
+    echo "Kiosk browser instance count: $(chromium_kiosk_instance_count "$live")"
+    echo
+    echo "URL match:"
+    canonical_url_status "$live" "$build" || true
   else
-    echo "not running"
+    echo "Herdr Monitor renderer:"
+    renderer_status="$(live_monitor_renderer_line 2>&1 || true)"
+    printf '%s\n' "${renderer_status:-not running}"
+    echo "Source: isolated tmux monitor source; no browser URL is used"
   fi
-  echo "Kiosk browser instance count: $(chromium_kiosk_instance_count "$live")"
-  echo
-  echo "URL match:"
-  canonical_url_status "$live" "$build" || true
   echo
   echo "Display output (${DISPLAY_OUTPUT:-auto}):"
   check_display_output || true
@@ -402,14 +437,21 @@ verify_kiosk() {
     ok=1
   fi
 
-  live="$(live_chromium_line 2>/dev/null || true)"
-  local url_status=0 url_message
-  url_message="$(canonical_url_status "$live" "$build")" || url_status=$?
-  if [[ "$url_status" -eq 0 ]]; then
-    echo "OK live Chromium URL canonical: $url_message"
+  if [[ "$DISPLAY_RENDERER" == "chromium" ]]; then
+    live="$(live_chromium_line 2>/dev/null || true)"
+    local url_status=0 url_message
+    url_message="$(canonical_url_status "$live" "$build")" || url_status=$?
+    if [[ "$url_status" -eq 0 ]]; then
+      echo "OK live Chromium URL canonical: $url_message"
+    else
+      echo "FAIL live Chromium URL not canonical: $url_message"
+      [[ -n "$live" ]] && printf '%s\n' "$live" | sed -n '1,4p' || echo "no live Chromium kiosk process"
+      ok=1
+    fi
+  elif [[ "$DISPLAY_RENDERER" == "herdr-monitor" || "$DISPLAY_RENDERER" == "monitor" ]]; then
+    echo "OK Herdr Monitor source: isolated tmux source; no browser URL is required"
   else
-    echo "FAIL live Chromium URL not canonical: $url_message"
-    [[ -n "$live" ]] && printf '%s\n' "$live" | sed -n '1,4p' || echo "no live Chromium kiosk process"
+    echo "FAIL unsupported display renderer: $DISPLAY_RENDERER"
     ok=1
   fi
 

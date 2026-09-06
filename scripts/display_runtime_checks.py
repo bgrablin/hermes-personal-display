@@ -7,6 +7,7 @@ import argparse
 import os
 import re
 import shlex
+import subprocess
 import sys
 from dataclasses import dataclass
 from pathlib import Path
@@ -35,6 +36,18 @@ class FramebufferResult:
 class ManagedChromiumProcess:
     pid: int
     args: tuple[str, ...]
+
+
+@dataclass(frozen=True)
+class ManagedHerdrMonitorDisplay:
+    alacritty_pid: int | None
+    compositor_pids: tuple[int, ...]
+    tmux_session: bool
+
+    @property
+    def healthy(self) -> bool:
+        alacritty_ok = self.alacritty_pid is not None and self.alacritty_pid != -1
+        return alacritty_ok and len(self.compositor_pids) == 1 and self.tmux_session
 
 
 def _parse_mode(mode: str) -> tuple[int, int]:
@@ -193,6 +206,101 @@ def managed_chromium_processes(
     return matches
 
 
+def _is_monitor_compositor(args: tuple[str, ...], script: str) -> bool:
+    """Match the compositor's Python entry point, not a verifier option value."""
+    if not args or not Path(args[0]).name.casefold().startswith("python"):
+        return False
+    expected_script = os.path.normpath(os.path.expanduser(script))
+    # Python's first non-option argument is the executed script.  Requiring
+    # that position prevents a command such as ``... --script compositor``
+    # (the verifier itself) from counting as another compositor process.
+    for arg in args[1:]:
+        if arg in {"-c", "-m"}:
+            return False
+        if arg.startswith("-"):
+            continue
+        return os.path.normpath(os.path.expanduser(arg)) == expected_script
+    return False
+
+
+def _is_monitor_alacritty(
+    args: tuple[str, ...], executable: str, script: str
+) -> bool:
+    if Path(executable).name.casefold() != "alacritty":
+        return False
+    if "HermesMonitorDisplay" not in args:
+        return False
+    expected_script = os.path.normpath(os.path.expanduser(script))
+    return any(os.path.normpath(os.path.expanduser(arg)) == expected_script for arg in args)
+
+
+def managed_herdr_monitor_display(
+    proc_root: str | Path,
+    *,
+    script: str,
+    tmux_socket: str,
+    tmux_session: str,
+    tmux_binary: str = "tmux",
+) -> ManagedHerdrMonitorDisplay:
+    """Inspect the one-window, fixed-source terminal display path."""
+    alacritty_pid: int | None = None
+    compositor: list[int] = []
+    root = Path(proc_root)
+    for process_dir in sorted(
+        (path for path in root.iterdir() if path.name.isdigit()),
+        key=lambda path: int(path.name),
+    ):
+        try:
+            raw = process_dir.joinpath("cmdline").read_bytes()
+            args = tuple(
+                part.decode("utf-8", "replace")
+                for part in raw.split(b"\0")
+                if part
+            )
+            args = _normalized_process_args(args)
+        except (FileNotFoundError, PermissionError, ProcessLookupError, OSError):
+            continue
+        try:
+            executable = os.readlink(process_dir / "exe")
+        except (FileNotFoundError, PermissionError, ProcessLookupError, OSError):
+            # Yama/containerized procfs can hide exe even for a readable cmdline.
+            executable = args[0] if args else ""
+        pid = int(process_dir.name)
+        if _is_monitor_compositor(args, script):
+            compositor.append(pid)
+        if _is_monitor_alacritty(args, executable, script):
+            if alacritty_pid is None:
+                alacritty_pid = pid
+            else:
+                # -1 makes duplicate Alacritty instances fail the uniqueness gate.
+                alacritty_pid = -1
+
+    try:
+        tmux_result = subprocess.run(
+            [
+                tmux_binary,
+                "-L",
+                tmux_socket,
+                "-f",
+                "/dev/null",
+                "has-session",
+                "-t",
+                tmux_session,
+            ],
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+            timeout=1.5,
+            check=False,
+        )
+    except (OSError, subprocess.TimeoutExpired):
+        tmux_result = None
+    return ManagedHerdrMonitorDisplay(
+        alacritty_pid=alacritty_pid,
+        compositor_pids=tuple(compositor),
+        tmux_session=bool(tmux_result and tmux_result.returncode == 0),
+    )
+
+
 def _layout_command(args: argparse.Namespace) -> int:
     try:
         matches = output_layout_matches(
@@ -217,6 +325,32 @@ def _processes_command(args: argparse.Namespace) -> int:
     for process in processes:
         print(f"{process.pid} {shlex.join(process.args)}")
     return 0
+
+
+def _herdr_monitor_command(args: argparse.Namespace) -> int:
+    try:
+        display = managed_herdr_monitor_display(
+            args.proc_root,
+            script=args.script,
+            tmux_socket=args.socket,
+            tmux_session=args.session,
+            tmux_binary=args.tmux_bin,
+        )
+    except (FileNotFoundError, NotADirectoryError, PermissionError, OSError) as exc:
+        print(f"unable to inspect Herdr Monitor display: {exc}", file=sys.stderr)
+        return 2
+    if display.alacritty_pid is None:
+        alacritty = "missing"
+    elif display.alacritty_pid == -1:
+        alacritty = "duplicate"
+    else:
+        alacritty = "ok"
+    tmux = "ok" if display.tmux_session else "none"
+    message = (
+        f"alacritty={alacritty} compositor={len(display.compositor_pids)} tmux={tmux}"
+    )
+    print(message)
+    return 0 if display.healthy else 1
 
 
 def _framebuffer_command(args: argparse.Namespace) -> int:
@@ -248,6 +382,14 @@ def _parser() -> argparse.ArgumentParser:
     processes.add_argument("--proc-root", default="/proc")
     processes.add_argument("--profile", required=True)
     processes.set_defaults(handler=_processes_command)
+
+    monitor = commands.add_parser("managed-herdr-monitor")
+    monitor.add_argument("--proc-root", default="/proc")
+    monitor.add_argument("--script", required=True)
+    monitor.add_argument("--socket", required=True)
+    monitor.add_argument("--session", required=True)
+    monitor.add_argument("--tmux-bin", default="tmux")
+    monitor.set_defaults(handler=_herdr_monitor_command)
 
     framebuffer = commands.add_parser("framebuffer")
     framebuffer.add_argument("--image", required=True)

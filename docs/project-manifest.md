@@ -28,7 +28,9 @@ This repository is intentionally trimmed to the files needed to run, test, and o
 - Canonical control path: `hermes-display status|verify|restart|fix|screenshot|build-id|url`.
 - `scripts/hermes-display` — local status/restart/verify helper for the live kiosk.
 - `scripts/serve-preview.sh` — preview server entrypoint used by systemd.
-- `scripts/xsession-minix-kiosk.sh` — current MINIX/SF10T X11 Chromium kiosk session.
+- `scripts/xsession-minix-kiosk.sh` — current MINIX/SF10T X11 session; selects the default Chromium kiosk or the opt-in terminal renderer.
+- `scripts/herdr-monitor-raw-compositor.py` — optional fixed-size Alacritty/tmux terminal renderer.
+- `scripts/launch-herdr-monitor-display.sh` — validates dependencies and launches the optional terminal renderer.
 - `scripts/generate-build-id.js` — synchronizes `src/generated/build-id.js` and first-party runtime `?v=` cache keys.
 - `deploy/systemd-user/` — preview and generic user-kiosk templates.
 - `deploy/systemd-system/` — MINIX/thermal system unit templates and drop-ins; install/render live kiosk unit via `scripts/install-system-unit.sh`.

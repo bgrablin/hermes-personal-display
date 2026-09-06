@@ -91,6 +91,25 @@ sudo systemctl restart hermes-personal-display-minix.service
 
 Machine-specific display/audio choices belong in `~/.config/hermes-personal-display.env`; the scripts fall back to auto-detection where possible.
 
+### Optional terminal renderer
+
+The system kiosk defaults to the Chromium character runtime. To select the
+terminal renderer, set these host-specific values in the local env file before
+restarting the system kiosk:
+
+```text
+PERSONAL_DISPLAY_RENDERER=herdr-monitor
+PERSONAL_DISPLAY_HEALTH_MONITOR=/path/to/read-only-health-monitor
+PERSONAL_DISPLAY_BTOP_CONFIG=/path/to/btop.conf
+```
+
+The renderer starts one fullscreen Alacritty process and one private tmux
+source with btop and the configured health monitor. It does not attach to the
+operator's Herdr workspace. `hermes-display verify-render` requires exactly one
+managed compositor, its Alacritty window, the private tmux session, the expected
+display layout, and non-blank framebuffer pixels. Enabling this renderer is a
+deployment change and still requires physical-panel verification.
+
 ## Verification
 
 After changes:

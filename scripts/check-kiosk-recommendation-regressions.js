@@ -229,6 +229,12 @@ requireAll(xsessionSource, [
   'URL="${PERSONAL_DISPLAY_URL:-$($SCRIPT_DIR/hermes-display url)}"',
 ], 'Physical X session must derive its default launch URL from hermes-display url.');
 requireAll(xsessionSource, [
+  'PATH="${PATH:-/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin}"',
+  'case ":$PATH:" in',
+  '*":$HOME/.local/bin:"*)',
+  'export PATH',
+], 'Physical X session must expose user-installed Herdr tools to the monitor source.');
+requireAll(xsessionSource, [
   'for _ in $(seq 1 40); do',
   "grep -Ei 'touch|SiS HID'",
   'touch input not detected after 10 seconds',
@@ -245,15 +251,20 @@ requireAll(displayCliSource, [
 ], 'hermes-display must assert and report the canonical operator URL shape.');
 requireAll(displayCliSource, [
   'verify_render_path()',
+  'DISPLAY_RENDERER=',
   'chromium_kiosk_instance_count()',
   'OK Chromium kiosk browser instance count: 1',
+  'managed-herdr-monitor',
+  'MONITOR_COMPOSITOR=',
+  'OK lightweight Herdr Monitor renderer:',
+  'OK Herdr Monitor source: isolated tmux source;',
   'OK visible render:',
   'scrot --overwrite "$shot"',
   'managed-chromium --profile "$CHROME_PROFILE"',
   'framebuffer',
   'EXPECTED_SYSTEM_SERVICE="hermes-personal-display-minix.service"',
   'verify-render) verify_render_path',
-], 'hermes-display must verify one managed Chromium kiosk and non-blank live framebuffer pixels.');
+], 'hermes-display must verify the selected managed renderer and non-blank live framebuffer pixels.');
 requireAll(telemetryWatchdogSource, [
   'SCRIPT_DIR="$(cd -- "$(dirname -- "$SCRIPT_PATH")" && pwd)"',
   'HERMES_DISPLAY="${PERSONAL_DISPLAY_COMMAND:-$SCRIPT_DIR/hermes-display}"',
@@ -270,8 +281,10 @@ requireAll(runtimeChecksSource, [
   'active_segment = line.split(" (", 1)[0]',
   'def inspect_framebuffer(',
   'def managed_chromium_processes(',
+  'def managed_herdr_monitor_display(',
+  'def _is_monitor_compositor(',
   'if "--kiosk" not in args',
-], 'Display runtime checks must parse active rotation, configured framebuffer geometry, and managed Chromium roots.');
+], 'Display runtime checks must parse active rotation, framebuffer geometry, and managed renderer roots.');
 if (telemetryWatchdogSource.includes('${XDG_RUNTIME_DIR:-/tmp}')) {
   fail('Display watchdog state must never fall back to predictable files directly under /tmp.');
 }

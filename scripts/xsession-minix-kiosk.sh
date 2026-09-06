@@ -5,6 +5,14 @@ export DISPLAY="${DISPLAY:-:0}"
 export HOME="${HOME:-$(getent passwd "$(id -un)" | cut -d: -f6)}"
 export XDG_RUNTIME_DIR="${XDG_RUNTIME_DIR:-/run/user/$(id -u)}"
 export DBUS_SESSION_BUS_ADDRESS="${DBUS_SESSION_BUS_ADDRESS:-unix:path=${XDG_RUNTIME_DIR}/bus}"
+# The graphical session does not inherit the operator's interactive shell PATH.
+# The optional terminal renderer may invoke user-installed monitoring tools.
+PATH="${PATH:-/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin}"
+case ":$PATH:" in
+  *":$HOME/.local/bin:"*) ;;
+  *) PATH="$HOME/.local/bin:$PATH" ;;
+esac
+export PATH
 
 SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd -P)"
 BUILD_ID="${PERSONAL_DISPLAY_BUILD_ID:-$($SCRIPT_DIR/hermes-display build-id)}"
@@ -253,9 +261,31 @@ launch_chromium_loop() {
   done
 }
 
+launch_herdr_monitor_loop() {
+  while true; do
+    clear_screen_dark
+    log "starting lightweight Herdr Monitor terminal display"
+    "$SCRIPT_DIR/launch-herdr-monitor-display.sh" >>"$LOG_FILE" 2>&1 || true
+    log "Herdr Monitor terminal display exited; restarting in 3 seconds"
+    sleep 3
+  done
+}
+
 wait_for_x
 import_agent_environment
 configure_outputs
 configure_audio
 launch_helpers
-launch_chromium_loop
+
+case "${PERSONAL_DISPLAY_RENDERER:-chromium}" in
+  chromium)
+    launch_chromium_loop
+    ;;
+  herdr-monitor|monitor)
+    launch_herdr_monitor_loop
+    ;;
+  *)
+    log "unsupported PERSONAL_DISPLAY_RENDERER=${PERSONAL_DISPLAY_RENDERER}"
+    exit 2
+    ;;
+esac
