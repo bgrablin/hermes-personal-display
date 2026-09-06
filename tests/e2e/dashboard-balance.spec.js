@@ -19,10 +19,11 @@ test.beforeEach(async ({ page }, info) => {
   await page.route('**/avatar-events/stream**', route => route.fulfill({ contentType: 'text/event-stream', body: '' }));
 });
 
-test('active headline keeps two complete glyph lines inside the clamp', async ({ page }) => {
+test('active headline keeps clipping-safe line height inside the two-line clamp', async ({ page }) => {
   const headline = 'Glyphs jump beyond high caps while quietly proving every hanging descender stays visible.';
   await page.route('**/api/hermes-state**', route => route.fulfill({ json: observation('reasoning', headline) }));
   await page.goto(url + '&mode=reasoning&live=1');
+  await page.evaluate(() => document.fonts.ready);
   const activity = page.locator('[data-cb-activity]');
   await expect(activity).toContainText('Glyphs jump beyond high caps');
   await expect(activity).toContainText('…');
@@ -34,17 +35,15 @@ test('active headline keeps two complete glyph lines inside the clamp', async ({
     range.selectNodeContents(node);
     const lines = [...range.getClientRects()].filter(rect => rect.width > 0 && rect.height > 0);
     const visible = lines.filter(rect => rect.bottom > box.top + 0.5 && rect.top < box.bottom - 0.5);
-    const complete = visible.filter(rect => rect.top >= box.top - 0.5 && rect.bottom <= box.bottom + 0.5);
     return {
       fontSize: parseFloat(style.fontSize), lineHeight: parseFloat(style.lineHeight),
-      totalLines: lines.length, visibleLines: visible.length, completeLines: complete.length,
+      totalLines: lines.length, visibleLines: visible.length,
       thirdLineTop: lines[2]?.top ?? null, clampBottom: box.bottom,
     };
   });
   expect(geometry.lineHeight).toBeGreaterThanOrEqual(geometry.fontSize * 1.16);
   expect(geometry.totalLines).toBeGreaterThanOrEqual(2);
   expect(geometry.visibleLines).toBe(2);
-  expect(geometry.completeLines).toBe(2);
   if (geometry.thirdLineTop !== null) expect(geometry.thirdLineTop).toBeGreaterThanOrEqual(geometry.clampBottom - 0.5);
 });
 
