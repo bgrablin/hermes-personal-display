@@ -764,12 +764,6 @@ def request_provider_route_rail_refresh() -> dict:
     return {"ok": True, "status": "queued"}
 
 
-def clear_state_cache() -> None:
-    with _STATE_CACHE_LOCK:
-        _STATE_CACHE["at"] = 0.0
-        _STATE_CACHE["state"] = None
-
-
 def degraded_state(reason: str = "state_api_error") -> dict:
     """Return display-safe degraded state when live collection fails."""
     facts = {
@@ -924,13 +918,6 @@ def reserve_entertainment_budget(kind: str) -> bool:
         _increment_usage(usage, kind)
         atomic_json_write(ENTERTAINMENT_USAGE_PATH, usage)
         return True
-
-
-def record_entertainment_usage(kind: str) -> None:
-    with _ENTERTAINMENT_USAGE_LOCK:
-        usage = entertainment_usage()
-        _increment_usage(usage, kind)
-        atomic_json_write(ENTERTAINMENT_USAGE_PATH, usage)
 
 
 def write_watch_animation_log(payload: dict) -> dict:

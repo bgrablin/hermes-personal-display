@@ -3888,11 +3888,6 @@
     setConceptBAttribute(bottom, 'd', `M 374 ${bottomY} H 726 V ${bottomEdge.toFixed(1)} C ${(650 + curveShift * .45).toFixed(1)} ${bottomCurve.toFixed(1)} ${(450 + curveShift * .45).toFixed(1)} ${bottomCurve.toFixed(1)} 374 ${bottomEdge.toFixed(1)} Z`);
   }
 
-  function clamp01(value) {
-    const n = Number(value);
-    return Number.isFinite(n) ? Math.max(0, Math.min(1, n)) : 0;
-  }
-
   function conceptBAccent(label, freshnessTier, gatewayOk) {
     if (freshnessTier === 'lost' || gatewayOk === false) return 'rgb(200, 119, 90)';
     if (/BLOCKED|CRITICAL/.test(label)) return 'rgb(201, 151, 74)';
