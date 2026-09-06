@@ -32,6 +32,10 @@ DISPLAY_POS="${PERSONAL_DISPLAY_OUTPUT_POS:-0x0}"
 RENDER_FAILURES="$RUNTIME_DIR/hermes-display-render-failures"
 RENDER_RESTART_STAMP="$RUNTIME_DIR/hermes-display-render-last-restart"
 RENDER_RESTART_COOLDOWN="${PERSONAL_DISPLAY_RENDER_RESTART_COOLDOWN:-300}"
+# Tracks the last observed non-restartable (status 2) render state so the
+# watchdog can surface that fault on the transition into it without repeating
+# it on every tick while the display stays genuinely inactive/unavailable.
+RENDER_DOWN_SEEN="$RUNTIME_DIR/hermes-display-render-down-seen"
 HERMES_DISPLAY="${PERSONAL_DISPLAY_COMMAND:-$SCRIPT_DIR/hermes-display}"
 RUNTIME_CHECKS="$SCRIPT_DIR/display_runtime_checks.py"
 
@@ -73,6 +77,7 @@ read_state_file() {
 validate_state_path "$STAMP"
 validate_state_path "$RENDER_FAILURES"
 validate_state_path "$RENDER_RESTART_STAMP"
+validate_state_path "$RENDER_DOWN_SEEN"
 
 # Reassert the always-on policy every watchdog tick. This is harmless when the
 # X server has no DPMS extension, and repairs a connector that is still present
@@ -115,9 +120,13 @@ fi
 render_status=0
 if "$HERMES_DISPLAY" verify-render >/dev/null 2>&1; then
   rm -f "$RENDER_FAILURES"
+  rm -f "$RENDER_DOWN_SEEN"
 else
   render_status=$?
   if [[ "$render_status" -eq 1 ]]; then
+    # Restartable fault: the display is present but rendering is broken, so we
+    # leave the quiescent state and re-arm the non-restartable transition log.
+    rm -f "$RENDER_DOWN_SEEN"
     failures="$(read_state_file "$RENDER_FAILURES")"
     [[ "$failures" =~ ^[0-9]+$ ]] || failures=0
     failures=$((failures + 1))
@@ -140,8 +149,18 @@ else
       fi
     fi
   else
+    # Non-restartable fault (e.g. display output disconnected / framebuffer
+    # unavailable): restart cannot help, so recovery stays fail-closed and
+    # suppressed. Surface the fault once on the transition into this state and
+    # stay quiet while it persists, so the watchdog is not noisy every tick for
+    # an expected, long-lived inactive display.
     rm -f "$RENDER_FAILURES"
-    echo "Display verification reported a non-restartable fault (status $render_status); kiosk restart suppressed." >&2
+    last_down="$(read_state_file "$RENDER_DOWN_SEEN")"
+    [[ "$last_down" =~ ^[0-9]+$ ]] || last_down=0
+    if [[ "$last_down" -ne "$render_status" ]]; then
+      write_state_file "$RENDER_DOWN_SEEN" "$render_status"
+      echo "Display verification reported a non-restartable fault (status $render_status); kiosk restart suppressed." >&2
+    fi
   fi
 fi
 

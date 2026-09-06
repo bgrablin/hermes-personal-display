@@ -23,6 +23,8 @@ def _watchdog_env(tmp_path: Path, *, verify_status: int = 0) -> tuple[dict[str, 
     runtime.mkdir(mode=0o700)
     home = tmp_path / "home"
     home.mkdir()
+    tmpdir = tmp_path / "tmp"
+    tmpdir.mkdir()
     command_log = tmp_path / "commands.log"
     display_log = tmp_path / "display.log"
 
@@ -50,6 +52,7 @@ def _watchdog_env(tmp_path: Path, *, verify_status: int = 0) -> tuple[dict[str, 
             "COMMAND_LOG": str(command_log),
             "DISPLAY_LOG": str(display_log),
             "PERSONAL_DISPLAY_RENDER_RESTART_COOLDOWN": "300",
+            "TMPDIR": str(tmpdir),
         }
     )
     return env, runtime
@@ -77,6 +80,40 @@ def test_nonrestartable_render_failures_do_not_restart_kiosk(tmp_path: Path) -> 
     assert second.returncode == 0
     assert not Path(env["COMMAND_LOG"]).exists()
     assert not runtime.joinpath("hermes-display-render-failures").exists()
+
+
+def test_nonrestartable_fault_is_logged_only_on_transition(tmp_path: Path) -> None:
+    # A persistent non-restartable state (display inactive / output unavailable)
+    # is expected for the watchdog: restart is suppressed and there is nothing
+    # actionable per tick, so the fault must be surfaced once on the transition
+    # into that state rather than repeated on every timer tick.
+    env, _ = _watchdog_env(tmp_path, verify_status=2)
+
+    first = _run_watchdog(env)
+    second = _run_watchdog(env)
+
+    assert first.returncode == 0
+    assert second.returncode == 0
+    assert first.stderr.count("non-restartable fault") == 1
+    assert second.stderr.count("non-restartable fault") == 0
+
+
+def test_nonrestartable_fault_is_logged_again_after_recovery(tmp_path: Path) -> None:
+    # A fresh transition back into the non-restartable state (after a healthy
+    # tick) must surface the fault again, so a real return of the defect stays
+    # visible and the watchdog does not stay silent forever.
+    env, _ = _watchdog_env(tmp_path, verify_status=2)
+
+    down = _run_watchdog(env)
+    assert down.stderr.count("non-restartable fault") == 1
+
+    env["VERIFY_STATUS"] = "0"
+    healthy = _run_watchdog(env)
+    assert healthy.stderr.count("non-restartable fault") == 0
+
+    env["VERIFY_STATUS"] = "2"
+    down_again = _run_watchdog(env)
+    assert down_again.stderr.count("non-restartable fault") == 1
 
 
 def test_restartable_failure_state_is_private_and_clears_only_after_success(tmp_path: Path) -> None:
