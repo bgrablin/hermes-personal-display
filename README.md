@@ -402,3 +402,7 @@ Hermes Agent, local AI assistant, AI agent dashboard, personal display, ambient 
 MIT for the project-authored code and documentation. See [`LICENSE`](LICENSE).
 
 Third-party or prototype assets keep their original provenance and license notes under `src/**/SOURCE-LICENSE.md`. The retained prototype asset packs currently documented there are CC0, but check those files before reusing visual assets outside this repo.
+
+### Merged Hermes integrations
+
+See [Hermes main integrations](docs/hermes-main-integrations.md) for the optional lifecycle observer, background-process and delegation tracking, private provider/MCP inspection, and explicitly scoped automation pause/resume controls. The guide includes the upstream commit baseline, commissioning steps, validation evidence and rollback. These integrations require configuration on the actual Hermes/display host. `HERMES_DISPLAY_INTEGRATION_DIR` selects the shared private observer snapshot directory, and `HERMES_DISPLAY_RPC_CONFIG` selects the mode-0600 owner/session RPC configuration; both are optional and documented in the deployment environment template.

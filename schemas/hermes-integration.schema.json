@@ -1,0 +1,109 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Private Hermes integration inspection",
+  "description": "Loopback operator endpoint only. Never included in family state. Strings are credential-redacted before bounding.",
+  "type": "object",
+  "required": [
+    "schema_version",
+    "sources",
+    "coverage",
+    "rpc",
+    "provider_calls"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "schema_version": {
+      "const": 1
+    },
+    "coverage": {
+      "enum": [
+        "observed",
+        "unavailable"
+      ]
+    },
+    "sources": {
+      "type": "array",
+      "maxItems": 32,
+      "items": {
+        "type": "object",
+        "required": [
+          "schema_version",
+          "observed_at",
+          "owner",
+          "sessions",
+          "fresh",
+          "age_seconds"
+        ],
+        "properties": {
+          "schema_version": {
+            "const": 1
+          },
+          "owner": {
+            "type": "string"
+          },
+          "observed_at": {
+            "type": "number"
+          },
+          "fresh": {
+            "type": "boolean"
+          },
+          "age_seconds": {
+            "type": "number"
+          },
+          "sessions": {
+            "type": "array",
+            "maxItems": 64,
+            "items": {
+              "type": "object",
+              "required": [
+                "session_id",
+                "status",
+                "processes",
+                "delegations"
+              ],
+              "properties": {
+                "session_id": {
+                  "type": "string"
+                },
+                "profile": {
+                  "type": "string"
+                },
+                "status": {
+                  "type": "string"
+                },
+                "processes": {
+                  "type": "array",
+                  "maxItems": 64
+                },
+                "delegations": {
+                  "type": "array",
+                  "maxItems": 64
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "rpc": {
+      "type": "object",
+      "required": [
+        "sessions",
+        "status"
+      ],
+      "properties": {
+        "sessions": {
+          "type": "array",
+          "maxItems": 128
+        },
+        "status": {
+          "type": "string"
+        }
+      }
+    },
+    "provider_calls": {
+      "type": "array",
+      "maxItems": 8
+    }
+  }
+}

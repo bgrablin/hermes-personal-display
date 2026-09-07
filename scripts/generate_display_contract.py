@@ -37,6 +37,7 @@ def build_payload() -> dict:
             "display_state": state_schema,
             "avatar_event": event_schema,
             "optic_state": optic_schema,
+            "integration": load("hermes-integration.schema.json"),
         },
     }
 

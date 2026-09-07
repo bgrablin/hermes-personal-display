@@ -34,6 +34,105 @@
     const context = panel.querySelector('[data-inspector-context]');
     const freshness = panel.querySelector('[data-inspector-freshness]');
     const closeButton = panel.querySelector('button');
+    const integration = document.createElement('div');
+    integration.className = 'cb-integration';
+    integration.hidden = true;
+    panel.append(integration);
+    let detailRequest = 0;
+    function textNode(tag, text) {
+      const node = document.createElement(tag);
+      node.textContent = String(text ?? 'Unknown');
+      return node;
+    }
+    function renderIntegration(data) {
+      integration.replaceChildren();
+      const status = textNode('small', 'LOCAL OPERATOR · OBSERVED SOURCES');
+      integration.append(status);
+      const refreshButton = textNode('button', 'Refresh details');
+      refreshButton.type = 'button';
+      refreshButton.addEventListener('click', loadIntegration);
+      integration.append(refreshButton);
+      const rows = [];
+      for (const source of data.sources || []) {
+        for (const session of source.sessions || []) rows.push({ ...session, source,
+          label: `${session.session_id} · ${source.fresh ? 'observed' : 'stale'} · ${source.owner.slice(0, 8)}` });
+      }
+      for (const row of data.rpc?.sessions || []) rows.push({ ...row,
+        label: `${row.connection} / ${row.profile} / ${row.session_id}` });
+      const select = document.createElement('select');
+      select.setAttribute('aria-label', 'Observed Hermes session');
+      rows.forEach((row, i) => { const option = textNode('option', row.label); option.value = String(i); select.append(option); });
+      const detail = document.createElement('div');
+      integration.append(select, detail);
+      function show() {
+        detail.replaceChildren();
+        const row = rows[Number(select.value)];
+        if (!row) {
+          detail.append(textNode('p', `Session coverage unavailable. RPC: ${data.rpc?.status || 'not configured'}.`));
+          return;
+        }
+        detail.append(textNode('strong', row.status || (row.available ? 'Automation observed' : 'Control unavailable')));
+        if (row.source) {
+          detail.append(textNode('p', `Observation age: ${row.source.age_seconds}s. Turn outcome and background work are separate.`));
+          if (row.source.dropped_events) detail.append(textNode('p', 'Observation gap: some events were dropped. Outcomes may be unknown.'));
+          for (const process of row.processes || []) detail.append(textNode('p', `Process ${process.session_id}: ${process.status}${process.exit_code == null ? '' : ` · exit ${process.exit_code}`}`));
+          for (const batch of row.delegations || []) {
+            detail.append(textNode('strong', `Delegation ${batch.delegation_id}: ${batch.settled ? 'all units settled' : 'unsettled'}`));
+            for (const unit of batch.units) detail.append(textNode('p', `${unit.delegation_id} · group ${unit.group ?? 'ungrouped'} · tasks ${unit.task_indexes?.join(', ')} · ${unit.status}`));
+          }
+        }
+        if (row.control) {
+          if (!row.available) detail.append(textNode('p', row.error || 'Last observation retained; control unavailable.'));
+          for (const kind of ['goal', 'loop', 'heartbeat']) {
+            detail.append(textNode('strong', kind.toUpperCase()));
+            detail.append(textNode('pre', row.control[kind] == null ? 'Not configured' : JSON.stringify(row.control[kind], null, 2)));
+            for (const action of ['pause', 'resume']) {
+              const name = `${kind}.${action}`;
+              if (!row.control[kind] || !row.actions?.includes(name)) continue;
+              const button = textNode('button', `${action} ${kind}`);
+              button.type = 'button';
+              button.addEventListener('click', async () => {
+                detail.querySelectorAll('button').forEach(b => { b.disabled = true; });
+                const feedback = textNode('p', `Sending ${name} to ${row.label}…`);
+                detail.append(feedback);
+                try {
+                  const response = await fetch('/api/hermes-integration/control', { method: 'POST',
+                    headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({
+                      connection: row.connection, profile: row.profile, session_id: row.session_id,
+                      stored_session_id: row.stored_session_id, revision: row.control.revision, action: name }) });
+                  const result = await response.json();
+                  feedback.textContent = result.status || 'Outcome unknown; refresh before retrying.';
+                } catch { feedback.textContent = 'Outcome unknown; refresh before retrying.'; }
+              });
+              detail.append(button);
+            }
+          }
+        }
+        if (row.mcp) {
+          detail.append(textNode('strong', `MCP · cached observation${row.mcp_unavailable ? ' · refresh unavailable' : ''}`));
+          detail.append(textNode('p', `Checked at: ${row.mcp.checked_at ?? 'unknown'}. This does not probe connectivity.`));
+          for (const server of row.mcp.servers || []) detail.append(textNode('p', `${server.name}: ${server.status} · ${server.transport} · ${server.tools} tools`));
+        }
+      }
+      select.addEventListener('change', show);
+      show();
+      integration.append(textNode('strong', 'RECENT PROVIDER CALLS · LOG OBSERVATIONS'));
+      for (const call of data.provider_calls || []) integration.append(textNode('p',
+        `${call.model} · ${call.upstream || call.provider} · ${call.latency_seconds}s · input ${call.input ?? '?'} / output ${call.output ?? '?'} · cache read ${call.cache_read ?? '?'} / write ${call.cache_write ?? '?'} · response ${call.response_id ?? '?'} · ${call.observation || 'timestamp unavailable'}`));
+    }
+    async function loadIntegration() {
+      const request = ++detailRequest;
+      integration.hidden = false;
+      integration.replaceChildren(textNode('p', 'Reading Hermes observations…'));
+      try {
+        const response = await fetch('/api/hermes-integration', { cache: 'no-store' });
+        if (!response.ok) throw new Error('unavailable');
+        const data = await response.json();
+        if (request === detailRequest && selected) renderIntegration(data);
+      } catch {
+        if (request === detailRequest) integration.replaceChildren(textNode('p', 'Hermes integration unavailable. Existing display readings remain visible.'));
+      }
+    }
     // Metric inspection reads displayed values; Augury supplies a bounded,
     // credential-redacted observation snapshot. Neither path executes commands.
     const read = node => (node?.textContent || '').replace(/\s+/g, ' ').trim().slice(0, 240);
@@ -43,7 +142,7 @@
       node.setAttribute('role', 'button');
       node.setAttribute('tabindex', '0');
       node.setAttribute('aria-label', `Inspect ${label}`);
-      targets.push({ node, label, detail, readValue });
+      targets.push({ node, label, detail, readValue, integration: node.matches('.cb-route-row, .cb-bottom-rail .cb-cell:last-child') });
     }
     const metrics = { cpu: ['CPU', 'Host load reading. The built-in collector reports one-minute load divided by CPU count, not sampled CPU utilization.'],
       mem: ['Memory', 'RAM utilization reported by this host.'],
@@ -78,18 +177,20 @@
 
     function refresh() {
       if (!selected) return;
-      title.textContent = selected.label;
-      value.textContent = selected.readValue() || 'Unknown';
-      context.textContent = selected.detail;
+      title.textContent = selected.integration ? 'HERMES CONNECTION' : selected.label;
+      value.textContent = selected.integration ? 'Sessions & automation' : selected.readValue() || 'Unknown';
+      context.textContent = selected.integration ? 'Select an observed session for background work, automation, and connection details.' : selected.detail;
       const feed = read(document.querySelector('[data-cb-feed]'));
       const age = read(document.querySelector('[data-cb-feed-age]'));
-      freshness.textContent = selected.observation
+      freshness.textContent = selected.integration ? 'PRIVATE OBSERVATIONS · REFRESH TO UPDATE' : selected.observation
         ? `PINNED OBSERVATION · ${selected.meta || 'Time unavailable'}`
         : `${feed || 'AWAITING TELEMETRY'}${age ? ` · ${age}` : ''}`;
     }
     function close({ restoreFocus = true } = {}) {
       const wasObservation = selected?.observation;
       panel.hidden = true;
+      integration.hidden = true;
+      ++detailRequest;
       selected = null;
       window.clearTimeout(dismissTimer);
       window.clearInterval(refreshTimer);
@@ -102,6 +203,7 @@
       close({ restoreFocus: false });
       selected = target;
       panel.dataset.observation = String(!!target.observation);
+      panel.dataset.integration = String(!!target.integration);
       opener = target.node;
       refresh();
       panel.hidden = false;
@@ -109,7 +211,8 @@
       eye()?.forceGaze?.('bottom_status', 1200);
       closeButton.focus({ preventScroll: true });
       if (target.observation) window.dispatchEvent(new CustomEvent('hermes-observation-pin', { detail: true }));
-      else dismissTimer = window.setTimeout(close, 15000);
+      else if (!target.integration) dismissTimer = window.setTimeout(close, 15000);
+      if (target.integration) loadIntegration();
       refreshTimer = window.setInterval(refresh, 1000);
     }
     function inspectObservation(event) {

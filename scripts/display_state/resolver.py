@@ -80,6 +80,10 @@ def resolve_display_state(facts: dict, sys: dict, freshness: dict) -> dict:
         reason_codes.append("recent_warning_log")
         return {"display_state": "needs_attention", "priority": 30, "reason_codes": reason_codes, "secondary_badges": secondary_badges}
 
+    if work.get("source") == "hermes_observer" and work.get("state") in {"unknown", "failed"}:
+        reason_codes.append("observer_" + work["state"])
+        return {"display_state": "needs_attention", "priority": 30, "reason_codes": reason_codes, "secondary_badges": secondary_badges}
+
     if active_work and work_kind in {"thinking", "reasoning", "request", "compression"}:
         reason_codes.append("planning_or_reasoning_active")
         return {"display_state": "planning_reasoning", "priority": 40, "reason_codes": reason_codes, "secondary_badges": secondary_badges}

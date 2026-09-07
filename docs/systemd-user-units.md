@@ -56,6 +56,8 @@ Do not confuse `launch-kiosk.sh` with the live `xsession-minix-kiosk.sh` path. T
    PERSONAL_DISPLAY_AUDIO_VOLUME=90%
    HERMES_DISPLAY_COPILOT_ACCOUNT=github-login
    HERMES_DISPLAY_COPILOT_PLAN=pro
+   HERMES_DISPLAY_INTEGRATION_DIR=/path/to/private/hermes-display-integration
+   HERMES_DISPLAY_RPC_CONFIG=/path/to/private/hermes-display-rpc.json
    ```
 
    The route-rail refresh unit loads this file. Copilot headroom uses GitHub's
@@ -67,6 +69,14 @@ Do not confuse `launch-kiosk.sh` with the live `xsession-minix-kiosk.sh` path. T
    and permissions and are not represented as personal headroom. If consumption
    is confirmed but no valid individual limit is available, the rail shows
    credits used without inventing remaining percentage headroom.
+
+   The two `HERMES_DISPLAY_*` integration values are optional. The snapshot
+   directory must be shared with each enabled observer when Hermes and the
+   display server use different homes. The RPC path must name a separate
+   mode-0600 configuration based on `integrations/rpc-config.example.json`;
+   keep credentials and session IDs out of this environment file and begin
+   commissioning with `allow_controls: false`. See
+   `docs/hermes-main-integrations.md` for setup, validation, and rollback.
 
 4. Enable the user timers/services as needed:
 

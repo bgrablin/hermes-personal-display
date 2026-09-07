@@ -17,8 +17,12 @@ This repository is intentionally trimmed to the files needed to run, test, and o
 - `scripts/hermes_display_server.py` — local static server and `/api/hermes-state` API.
 - `scripts/avatar_event_bus.py` — loopback avatar event validation and SSE support.
 - `scripts/display_state/` — display-state helper module boundary.
+- `scripts/display_state/integration.py` — bounded private observer snapshot I/O, work-state projection, redaction, and provider-call telemetry parsing.
+- `scripts/display_state/observer.py` — opt-in in-process Hermes lifecycle/background-work observer.
+- `scripts/display_state/rpc_monitor.py` — optional loopback RPC inspection and bounded pause/resume control client.
 - `scripts/generated/display_contract.py` — generated Python contract constants.
 - `schemas/` — source JSON contract and preset/posture definitions.
+- `schemas/hermes-integration.schema.json` — private operator integration response contract.
 
 ## Operation
 
@@ -34,6 +38,10 @@ This repository is intentionally trimmed to the files needed to run, test, and o
 - `scripts/capture-public-dashboard.cjs` — generates the public README image from bounded synthetic state.
 - `scripts/capture-current-dashboard.sh` — keeps physical captures private and routes repository captures through the synthetic generator.
 - `scripts/generate-build-id.js` — synchronizes `src/generated/build-id.js` and first-party runtime `?v=` cache keys.
+- `integrations/display-observer/` — symlink-installed Hermes observer plugin entrypoint and metadata.
+- `integrations/requirements.txt` — exact optional Python dependency pin for RPC monitoring.
+- `integrations/rpc-config.example.json` — credential-free owner/session RPC configuration example.
+- `docs/hermes-main-integrations.md` — integration architecture, commissioning, validation, limits, and rollback.
 - `deploy/systemd-user/` — preview and generic user-kiosk templates.
 - `deploy/systemd-system/` — MINIX/thermal system unit templates and drop-ins; install/render live kiosk unit via `scripts/install-system-unit.sh`.
 - `docs/minix-sf10t-bringup.md` and `docs/systemd-user-units.md` — current operational notes.

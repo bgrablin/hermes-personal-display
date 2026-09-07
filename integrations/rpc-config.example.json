@@ -1,0 +1,16 @@
+{
+  "connections": [
+    {
+      "name": "home-dashboard",
+      "url": "ws://127.0.0.1:8642/api/ws",
+      "sessions": [
+        {
+          "profile": "default",
+          "session_id": "REPLACE_WITH_RUNTIME_SESSION_ID",
+          "stored_session_id": "REPLACE_WITH_DURABLE_SESSION_ID",
+          "allow_controls": false
+        }
+      ]
+    }
+  ]
+}

@@ -31,6 +31,9 @@ check_file src/mascot/app.js
 check_file src/mascot/SOURCE-LICENSE.md
 check_file scripts/hermes-display
 check_file scripts/hermes_display_server.py
+check_file scripts/display_state/integration.py
+check_file scripts/display_state/observer.py
+check_file scripts/display_state/rpc_monitor.py
 check_file scripts/capture-public-dashboard.cjs
 check_file scripts/herdr-monitor-raw-compositor.py
 check_file scripts/launch-herdr-monitor-display.sh
@@ -41,6 +44,12 @@ check_file deploy/systemd-user/hermes-personal-display-kiosk.service
 check_file deploy/systemd-user/hermes-personal-display.env.example
 check_file docs/systemd-user-units.md
 check_file docs/minix-sf10t-bringup.md
+check_file docs/hermes-main-integrations.md
+check_file integrations/display-observer/__init__.py
+check_file integrations/display-observer/plugin.yaml
+check_file integrations/requirements.txt
+check_file integrations/rpc-config.example.json
+check_file schemas/hermes-integration.schema.json
 
 say '== syntax =='
 node --check src/state.js

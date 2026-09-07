@@ -3667,3 +3667,17 @@ body.augury-preview .augury-strand[data-populated="true"] { pointer-events: auto
 .cb-inspector { max-height: 70vh; overflow-y: auto; touch-action: pan-y; }
 .cb-inspector p { overflow-wrap: anywhere; }
 .cb-inspector[data-observation="true"] > strong { font: 500 22px/1.5 ui-monospace, monospace; }
+
+/* Private Hermes inspection stays scrollable on the physical 3:2 panel. */
+.cb-inspector > .cb-integration { display: block; max-height: 48vh; overflow-y: auto; margin-top: 12px; border-top: 1px solid #557080; padding-top: 10px; touch-action: pan-y; }
+.cb-integration[hidden] { display: none; }
+.cb-integration select { width: 100%; min-height: 44px; background: #101b28; color: #d8e9f8; margin: 8px 0; }
+.cb-integration button { position: static !important; width: auto !important; min-width: 90px; min-height: 44px; margin: 5px; color: #d8e9f8; background: #203448; border: 1px solid #557080; border-radius: 6px; font-size: 14px; }
+.cb-integration p, .cb-integration pre { white-space: pre-wrap; overflow-wrap: anywhere; font: 14px/1.5 monospace; color: #d8e9f8; margin: 6px 0; }
+.cb-integration strong { display: block; font-size: 14px; margin-top: 10px; }
+
+.cb-inspector[data-integration="true"]:not([hidden]) { display: flex; flex-direction: column; height: min(900px, 80vh); max-height: 80vh; bottom: 10vh; overflow: hidden; }
+.cb-inspector[data-integration="true"] > strong { font-size: 24px; margin: 8px 0; }
+.cb-inspector[data-integration="true"] > p { font-size: 14px; margin-bottom: 10px; }
+.cb-inspector[data-integration="true"] > .cb-integration { flex: 1; min-height: 0; max-height: none; }
+@media (max-height: 600px) { .cb-inspector[data-integration="true"] { padding: 14px; } .cb-inspector[data-integration="true"] > p { display: none; } .cb-inspector[data-integration="true"] > strong { font-size: 18px; } }

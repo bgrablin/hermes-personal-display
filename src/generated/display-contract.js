@@ -1063,6 +1063,115 @@
       "title": "Hermes Display State Packet",
       "type": "object"
     },
+    "integration": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "additionalProperties": false,
+      "description": "Loopback operator endpoint only. Never included in family state. Strings are credential-redacted before bounding.",
+      "properties": {
+        "coverage": {
+          "enum": [
+            "observed",
+            "unavailable"
+          ]
+        },
+        "provider_calls": {
+          "maxItems": 8,
+          "type": "array"
+        },
+        "rpc": {
+          "properties": {
+            "sessions": {
+              "maxItems": 128,
+              "type": "array"
+            },
+            "status": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "sessions",
+            "status"
+          ],
+          "type": "object"
+        },
+        "schema_version": {
+          "const": 1
+        },
+        "sources": {
+          "items": {
+            "properties": {
+              "age_seconds": {
+                "type": "number"
+              },
+              "fresh": {
+                "type": "boolean"
+              },
+              "observed_at": {
+                "type": "number"
+              },
+              "owner": {
+                "type": "string"
+              },
+              "schema_version": {
+                "const": 1
+              },
+              "sessions": {
+                "items": {
+                  "properties": {
+                    "delegations": {
+                      "maxItems": 64,
+                      "type": "array"
+                    },
+                    "processes": {
+                      "maxItems": 64,
+                      "type": "array"
+                    },
+                    "profile": {
+                      "type": "string"
+                    },
+                    "session_id": {
+                      "type": "string"
+                    },
+                    "status": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "session_id",
+                    "status",
+                    "processes",
+                    "delegations"
+                  ],
+                  "type": "object"
+                },
+                "maxItems": 64,
+                "type": "array"
+              }
+            },
+            "required": [
+              "schema_version",
+              "observed_at",
+              "owner",
+              "sessions",
+              "fresh",
+              "age_seconds"
+            ],
+            "type": "object"
+          },
+          "maxItems": 32,
+          "type": "array"
+        }
+      },
+      "required": [
+        "schema_version",
+        "sources",
+        "coverage",
+        "rpc",
+        "provider_calls"
+      ],
+      "title": "Private Hermes integration inspection",
+      "type": "object"
+    },
     "optic_state": {
       "$schema": "https://json-schema.org/draft/2020-12/schema",
       "properties": {

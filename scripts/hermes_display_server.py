@@ -32,6 +32,19 @@ from avatar_event_bus import (
 )
 
 from display_state.persistence import atomic_json_write, append_bounded_jsonl
+from display_state.integration import read_snapshots, observed_work, provider_telemetry
+from display_state.rpc_monitor import Monitor
+
+_INTEGRATION_MONITOR = None
+_INTEGRATION_MONITOR_LOCK = threading.Lock()
+
+def integration_monitor():
+    global _INTEGRATION_MONITOR
+    with _INTEGRATION_MONITOR_LOCK:
+        if _INTEGRATION_MONITOR is None:
+            _INTEGRATION_MONITOR = Monitor()
+    return _INTEGRATION_MONITOR
+
 from display_state.collector import (
     kanban_snapshot,
     metric_snippet,
@@ -670,7 +683,7 @@ def build_state() -> dict:
     recent_gateway = tail_text(gateway_log, 40_000)
     facts = {
         "warn_lines": recent_matching_lines(errors_log, ERR_RE, minutes=3, limit=4),
-        "work": recent_agent_work(agent_log),
+        "work": observed_work(read_snapshots()) or recent_agent_work(agent_log),
         "active_summary": active_session_summary(agent_log, minutes=CURRENT_WORK_SECONDS / 60),
         "resident_agents": active_agent_count(),
         "kanban": kanban_snapshot(),
@@ -1363,6 +1376,12 @@ class Handler(SimpleHTTPRequestHandler):
 
     def do_GET(self):
         parsed = urlparse(self.path)
+        if parsed.path == "/api/hermes-integration":
+            if not self.loopback_only():
+                return
+            json_response(self, 200, {**read_snapshots(), "rpc": integration_monitor().snapshot(),
+                "provider_calls": provider_telemetry(tail_text(LOG_DIR / "agent.log", 40000))})
+            return
         if parsed.path == "/api/hermes-state":
             params = parse_qs(parsed.query)
             fixture = params.get("fixture", [None])[0]
@@ -1464,6 +1483,16 @@ class Handler(SimpleHTTPRequestHandler):
 
     def do_POST(self):
         parsed = urlparse(self.path)
+        if parsed.path == "/api/hermes-integration/control":
+            if not self.loopback_only() or not self.same_origin_only():
+                return
+            try:
+                payload = _read_json_body(self, 4096)
+                result = integration_monitor().action(payload)
+            except (ValueError, TypeError, AttributeError):
+                result = {"ok": False, "status": "invalid request"}
+            json_response(self, 200, result)
+            return
         if parsed.path == "/api/provider-route-rail/refresh":
             if not self.loopback_only("Route headroom refresh accepts localhost requests only"):
                 return
