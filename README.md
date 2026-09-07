@@ -254,6 +254,8 @@ policy.
 
 Operator touch now defaults to quiet contact and inspection: drag to guide the eye;
 tap CPU, memory, temperature, a provider, or a bottom status reading for current details.
+The center activity copy remains stationary while the eye changes gaze. Observer-backed work uses
+plain activity labels such as `LIVE · TOOL` instead of exposing internal source identifiers.
 Details close with the close button, Escape, another touch outside, or after 15 seconds.
 Enter/Space opens a focused reading. Touch does not change Hermes's reported activity.
 Family mode keeps playful effects. `touch=fun` explicitly enables those effects in

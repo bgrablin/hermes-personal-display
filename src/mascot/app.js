@@ -2206,7 +2206,7 @@
       const isCurrentWork = Boolean(work.active) && Number.isFinite(Number(work.age_seconds)) && Number(work.age_seconds) <= CURRENT_WORK_MAX_AGE_SECONDS;
       const source = label === 'LOCAL WATCH'
         ? 'LOCAL · WATCH'
-        : activitySourceChip(work.source || work.session_label) || activity.chips[0] || (work.active ? 'LOCAL · ACTIVE' : 'LOCAL · READY');
+        : activitySourceChip(work.source || work.session_label, work.visual_kind || work.kind) || activity.chips[0] || (work.active ? 'LOCAL · ACTIVE' : 'LOCAL · READY');
 
       setConceptBStyleProperty(refs.root, '--cb-accent', instrumentAccent);
       setConceptBDataset(refs.body, 'cbMode', label.toLowerCase().replace(/[^a-z0-9]+/g, '-'));
@@ -2743,7 +2743,6 @@
     const glassSheen = hud.querySelector('.cb-eye-glass-sheen');
     const glassCrescent = hud.querySelector('.cb-eye-glass-crescent');
     const irisLattice = hud.querySelector('.cb-iris-lattice');
-    const activityPanel = document.querySelector('.cb-activity');
     const material = window.HermesPresence.installSurface(hud.querySelector('.cb-presence-surface'));
     // anime.js drives every optic cadence/transition/transient; the RAF flush below stays the
     // single writer of composed transforms so the two engines never fight over an attribute.
@@ -3543,7 +3542,7 @@
         state.x += state.vx * dt;
         state.y += state.vy * dt;
       }
-      renderConceptBEyeMotion({ root, hud, gazeGroup, iris, pupil, pupilGroup, catchlights, glow, glowGradient, scanSweep, core, orbitSpin, eyeRing, lidTop, lidBottom, field, axisNodes, debugOverlay, bgA: bgParallax.a, bgB: bgParallax.b, glassSheen, glassCrescent, irisLattice, activityPanel }, state);
+      renderConceptBEyeMotion({ root, hud, gazeGroup, iris, pupil, pupilGroup, catchlights, glow, glowGradient, scanSweep, core, orbitSpin, eyeRing, lidTop, lidBottom, field, axisNodes, debugOverlay, bgA: bgParallax.a, bgB: bgParallax.b, glassSheen, glassCrescent, irisLattice }, state);
       material.render({ now, mode: state.mode, x: state.x, y: state.y, reduced: prefersReducedMotion, hidden: document.hidden, quiet: hud.dataset.quiet || 'active' });
       state.raf = window.requestAnimationFrame(step);
     };
@@ -3654,7 +3653,6 @@
     }
     setConceptBTransform(parts.bgA, `translate3d(${(x * 0.85).toFixed(2)}px, ${(y * 0.85).toFixed(2)}px, 0)`);
     setConceptBTransform(parts.bgB, `translate3d(${(x * -0.30).toFixed(2)}px, ${(y * -0.22).toFixed(2)}px, 0)`);
-    setConceptBTransform(parts.activityPanel, `translateX(-50%) translate3d(${(-x * 0.10).toFixed(2)}px, ${(-y * 0.08).toFixed(2)}px, 0)`);
     if (parts.debugOverlay) {
       const modeEl = parts.debugOverlay.querySelector('[data-optic-debug-mode]');
       const gazeEl = parts.debugOverlay.querySelector('[data-optic-debug-gaze]');
@@ -4171,9 +4169,13 @@
     return NaN;
   }
 
-  function activitySourceChip(value) {
+  function activitySourceChip(value, kind = '') {
     const text = safeDisplayText(value, 32).toLowerCase();
     if (!text) return '';
+    if (text.includes('hermes_observer') || text.includes('hermes observer')) {
+      const workKind = safeDisplayText(kind, 20).replace(/_/g, ' ').trim().toUpperCase();
+      return workKind ? `LIVE · ${workKind}` : 'LIVE SESSION';
+    }
     if (text.includes('telegram')) return 'TELEGRAM';
     if (text.includes('signal')) return 'SIGNAL';
     if (text.includes('kanban')) return 'KANBAN';

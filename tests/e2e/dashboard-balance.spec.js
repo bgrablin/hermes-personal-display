@@ -166,3 +166,26 @@ test('blue motes remain outside the smaller eye and move smoothly at the expande
   expect(fieldFrames).toBeGreaterThan(eyeFrames * .65);
   expect(fieldFrames).toBeLessThanOrEqual(eyeFrames);
 });
+
+test('observer source copy describes the live work instead of exposing its implementation name', async ({ page }) => {
+  const packet = observation('tool_shell', 'Running the current tool.');
+  packet.live.current_work = {
+    active: true, summary: 'Running the current tool.', detail: 'Running the current tool.',
+    age_seconds: 1, kind: 'tool', source: 'hermes_observer',
+  };
+  await page.route('**/api/hermes-state**', route => route.fulfill({ json: packet }));
+  await page.goto(url + '&live=1');
+  await expect(page.locator('[data-cb-source]')).toHaveText('LIVE · TOOL');
+});
+
+test('activity copy stays fixed while the eye changes gaze', async ({ page }) => {
+  await page.route('**/api/hermes-state**', route => route.fulfill({ json: observation('reasoning') }));
+  await page.goto(url + '&live=1');
+  const activity = page.locator('.cb-activity');
+  const before = await activity.boundingBox();
+  await page.evaluate(() => window.__HERMES_CONCEPT_B_EYE_MOTION.forceGaze('route_right', 2400));
+  await expect.poll(() => page.evaluate(() => Math.abs(window.__HERMES_CONCEPT_B_EYE_MOTION.debug().x))).toBeGreaterThan(12);
+  const during = await activity.boundingBox();
+  expect(Math.abs(during.x - before.x)).toBeLessThanOrEqual(0.1);
+  expect(Math.abs(during.y - before.y)).toBeLessThanOrEqual(0.1);
+});
