@@ -50,6 +50,27 @@ def test_display_observer_plugin_rejects_partial_checkout_ancestor(tmp_path):
         module._resolve_repo_root(copied_entrypoint, partial / "tests")
 
 
+def test_display_observer_plugin_accepts_complete_project_archive(tmp_path):
+    repo = Path(__file__).resolve().parents[2]
+    entrypoint = repo / "integrations/display-observer/__init__.py"
+    spec = importlib.util.spec_from_file_location("display_observer_entrypoint", entrypoint)
+    assert spec is not None and spec.loader is not None
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    archive = tmp_path / "release"
+    for relative in (
+        "package.json",
+        "scripts/verify-project.sh",
+        "scripts/display_state/observer.py",
+        "integrations/display-observer/plugin.yaml",
+    ):
+        path = archive / relative
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.touch()
+    copied_entrypoint = archive / "integrations/display-observer/__init__.py"
+    assert module._resolve_repo_root(copied_entrypoint, archive) == archive
+
+
 def observer_with_background(reason="yielded_to_background"):
     observer = Observer()
     observer.apply("on_session_start", {"session_id": "parent"})

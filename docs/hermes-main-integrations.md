@@ -60,7 +60,7 @@ Keep machine paths, tokens and session IDs outside Git. The example URL is illus
    hermes plugins compat integrations/display-observer
    ```
 
-   Plugin Doctor copies the entrypoint into an isolated home. The entrypoint therefore supports both the live symlink target and repository-root discovery during that isolated validation; a copied standalone plugin remains intentionally unsupported because it would separate the observer from the tested display modules.
+   Plugin Doctor copies the entrypoint into an isolated home. The entrypoint therefore supports the live symlink target, repository-root discovery during isolated validation, and the updater's complete immutable project archives. It rejects partial trees that contain the observer module without the project manifest and verification script; a copied standalone plugin remains intentionally unsupported because it would separate the observer from the tested display modules.
 
 3. Both Hermes and the display must use the same local `HERMES_DISPLAY_INTEGRATION_DIR` when they do not share `~/.hermes/display/integration`. Directory/file modes are 0700/0600. Do not point it at another user's untrusted directory. Old epoch files are retained as stale evidence; archive them deliberately after resolving their outstanding work. Reads are limited to the newest 32 sources and 512 KB per source; each source retains up to 64 sessions and 64 processes/delegations per session. Capacity loss is explicitly reported.
 4. For RPC features, install the optional dependency in the display server's Python environment:

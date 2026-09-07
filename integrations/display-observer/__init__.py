@@ -4,19 +4,23 @@ import sys
 
 
 def _resolve_repo_root(module_file=__file__, cwd=None):
-    """Find the checkout for both a live symlink and Plugin Doctor's copied entrypoint."""
+    """Find a complete source checkout or validated project archive."""
     module = Path(module_file).resolve()
     working = Path(cwd or Path.cwd()).resolve()
     candidates = [module.parents[2], working, *working.parents]
     for candidate in candidates:
+        complete_archive = (
+            (candidate / "package.json").is_file()
+            and (candidate / "scripts/verify-project.sh").is_file()
+        )
         if (
-            (candidate / ".git").exists()
+            ((candidate / ".git").exists() or complete_archive)
             and (candidate / "integrations/display-observer/plugin.yaml").is_file()
             and (candidate / "scripts/display_state/observer.py").is_file()
         ):
             return candidate
     raise ImportError(
-        "display-observer must be symlinked from the hermes-personal-display checkout"
+        "display-observer requires a complete hermes-personal-display source tree"
     )
 
 
