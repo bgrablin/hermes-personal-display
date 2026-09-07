@@ -1,8 +1,4 @@
-"""logs, kanban, gateway, telemetry collectors.
-
-Compatibility shim created to make the display-server application boundary explicit.
-Move code here incrementally; keep hermes_display_server.py as HTTP routing only.
-"""
+"""Telemetry collection, Kanban snapshots, and measurement normalization."""
 from __future__ import annotations
 
 import json

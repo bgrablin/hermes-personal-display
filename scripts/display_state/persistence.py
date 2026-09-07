@@ -6,7 +6,6 @@ import json
 import os
 import tempfile
 from pathlib import Path
-from typing import Any
 
 from .privacy import scrub
 
@@ -29,18 +28,6 @@ def atomic_json_write(path: Path, payload: dict) -> None:
     except Exception as exc:
         detail = f"{exc.__class__.__name__}:{getattr(exc, 'errno', '') or ''}".rstrip(':')
         print(f"Display file-bus write failed for {path.name}: {scrub(detail)}", flush=True)
-
-
-def load_json_dict(path: Path, fallback: dict | None = None) -> dict:
-    if fallback is None:
-        fallback = {}
-    try:
-        if not path.is_file():
-            return dict(fallback)
-        payload = json.loads(path.read_text(encoding="utf-8"))
-        return payload if isinstance(payload, dict) else dict(fallback)
-    except Exception:
-        return dict(fallback)
 
 
 def append_bounded_jsonl(path: Path, record: dict, max_lines: int = 500) -> None:

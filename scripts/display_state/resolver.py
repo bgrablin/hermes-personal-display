@@ -1,8 +1,4 @@
-"""display state priority rules.
-
-Compatibility shim created to make the display-server application boundary explicit.
-Move code here incrementally; keep hermes_display_server.py as HTTP routing only.
-"""
+"""Display-state priority rules and actionable warning classification."""
 from __future__ import annotations
 
 import re
