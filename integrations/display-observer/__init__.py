@@ -2,7 +2,25 @@
 from pathlib import Path
 import sys
 
-_REPO = Path(__file__).resolve().parents[2]
+
+def _resolve_repo_root(module_file=__file__, cwd=None):
+    """Find the checkout for both a live symlink and Plugin Doctor's copied entrypoint."""
+    module = Path(module_file).resolve()
+    working = Path(cwd or Path.cwd()).resolve()
+    candidates = [module.parents[2], working, *working.parents]
+    for candidate in candidates:
+        if (
+            (candidate / ".git").exists()
+            and (candidate / "integrations/display-observer/plugin.yaml").is_file()
+            and (candidate / "scripts/display_state/observer.py").is_file()
+        ):
+            return candidate
+    raise ImportError(
+        "display-observer must be symlinked from the hermes-personal-display checkout"
+    )
+
+
+_REPO = _resolve_repo_root()
 if str(_REPO / 'scripts') not in sys.path:
     sys.path.insert(0, str(_REPO / 'scripts'))
 from display_state.observer import Observer

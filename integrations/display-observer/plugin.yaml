@@ -1,3 +1,13 @@
 name: display-observer
 version: 1.0.0
 description: Local read-only lifecycle and background-work observer for Hermes Display Screen.
+manifest_version: 2
+provides_hooks:
+  - on_session_start
+  - on_session_end
+  - pre_tool_call
+  - post_tool_call
+  - pre_api_request
+  - api_request_error
+  - subagent_start
+  - subagent_stop

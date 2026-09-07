@@ -1,3 +1,4 @@
+import importlib.util
 import json
 import sys
 import threading
@@ -17,6 +18,36 @@ from display_state.integration import (
 )
 from display_state.observer import Observer
 from display_state.rpc_monitor import Connection, Monitor, RpcError
+
+
+def test_display_observer_plugin_resolves_repo_after_doctor_copy(tmp_path):
+    repo = Path(__file__).resolve().parents[2]
+    entrypoint = repo / "integrations/display-observer/__init__.py"
+    spec = importlib.util.spec_from_file_location("display_observer_entrypoint", entrypoint)
+    assert spec is not None and spec.loader is not None
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    copied_entrypoint = tmp_path / "plugins/display-observer/__init__.py"
+    copied_entrypoint.parent.mkdir(parents=True)
+    copied_entrypoint.touch()
+    assert module._resolve_repo_root(copied_entrypoint, repo / "tests") == repo
+
+
+def test_display_observer_plugin_rejects_partial_checkout_ancestor(tmp_path):
+    repo = Path(__file__).resolve().parents[2]
+    entrypoint = repo / "integrations/display-observer/__init__.py"
+    spec = importlib.util.spec_from_file_location("display_observer_entrypoint", entrypoint)
+    assert spec is not None and spec.loader is not None
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    copied_entrypoint = tmp_path / "doctor/plugins/display-observer/__init__.py"
+    copied_entrypoint.parent.mkdir(parents=True)
+    copied_entrypoint.touch()
+    partial = tmp_path / "partial"
+    (partial / "scripts/display_state").mkdir(parents=True)
+    (partial / "scripts/display_state/observer.py").touch()
+    with pytest.raises(ImportError):
+        module._resolve_repo_root(copied_entrypoint, partial / "tests")
 
 
 def observer_with_background(reason="yielded_to_background"):

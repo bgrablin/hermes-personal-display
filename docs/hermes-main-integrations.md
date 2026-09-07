@@ -53,6 +53,15 @@ Keep machine paths, tokens and session IDs outside Git. The example URL is illus
 
    The symlink is intentional: the plugin resolves the repository's tested Python modules. Do not copy only its two entrypoint files. Follow the profile's normal plugin enable/reload process and restart that Hermes process during your maintenance window. No upstream fork is required. The plugin does not load historical work that started before installation.
 
+   Validate the source package from the repository root before enabling it:
+
+   ```bash
+   hermes plugins doctor integrations/display-observer --ci
+   hermes plugins compat integrations/display-observer
+   ```
+
+   Plugin Doctor copies the entrypoint into an isolated home. The entrypoint therefore supports both the live symlink target and repository-root discovery during that isolated validation; a copied standalone plugin remains intentionally unsupported because it would separate the observer from the tested display modules.
+
 3. Both Hermes and the display must use the same local `HERMES_DISPLAY_INTEGRATION_DIR` when they do not share `~/.hermes/display/integration`. Directory/file modes are 0700/0600. Do not point it at another user's untrusted directory. Old epoch files are retained as stale evidence; archive them deliberately after resolving their outstanding work. Reads are limited to the newest 32 sources and 512 KB per source; each source retains up to 64 sessions and 64 processes/delegations per session. Capacity loss is explicitly reported.
 4. For RPC features, install the optional dependency in the display server's Python environment:
 
