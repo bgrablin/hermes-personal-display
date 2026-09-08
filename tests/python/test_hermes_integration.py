@@ -93,7 +93,7 @@ def observer_with_background(reason="yielded_to_background"):
 @pytest.mark.parametrize("reason", ["yielded_to_background", "promoted"])
 def test_background_survives_parent_and_settles_only_from_registry(monkeypatch, reason):
     observer = observer_with_background(reason)
-    process = SimpleNamespace(exited=False, exit_code=None)
+    process = SimpleNamespace(id="process1", exited=False, exit_code=None)
     monkeypatch.setitem(
         sys.modules,
         "tools.process_registry",
@@ -561,3 +561,196 @@ def test_config_errors_are_distinct_safe_and_visible(
     monitor = Monitor()
     assert monitor.snapshot() == {"sessions": [], "status": expected}
     assert "credential-secret" not in monitor.error
+
+
+def test_silent_launch_handoff_parent_end_and_actual_process_exit(monkeypatch):
+    observer = Observer()
+    process = SimpleNamespace(
+        id="proc_handoff",
+        exited=False,
+        exit_code=None,
+        parent_session_id="child",
+        owner_task_id="child-task",
+        session_key="child",
+    )
+    monkeypatch.setitem(
+        sys.modules,
+        "tools.process_registry",
+        SimpleNamespace(process_registry=SimpleNamespace(get=lambda pid: process)),
+    )
+    observer.callback("post_tool_call")(
+        session_id="child",
+        tool_name="terminal",
+        result=json.dumps(
+            {"session_id": process.id, "exit_code": 0, "notify_on_complete": False}
+        ),
+    )
+    hook, event = observer.events.get_nowait()
+    observer.apply(hook, event)
+    process.owner_task_id, process.session_key = "parent-task", "parent"
+    observer.callback("post_tool_call")(
+        session_id="child",
+        tool_name="process_manage",
+        result={"status": "handed_off", "session_id": process.id},
+    )
+    hook, event = observer.events.get_nowait()
+    observer.apply(hook, event)
+    for sid in ("child", "parent"):
+        observer.apply(
+            "on_session_end",
+            {"session_id": sid, "completed": True, "profile": event["profile"]},
+        )
+    observer.refresh_background()
+    row = observer.sessions[(event["profile"], "child")]
+    assert len(row["processes"]) == 1
+    assert row["processes"][0]["reason"] == "handed_off"
+    assert row["processes"][0]["session_key"] == "parent"
+    snapshot = {
+        "sources": [
+            {
+                "sessions": list(observer.sessions.values()),
+                "fresh": True,
+                "age_seconds": 0,
+            }
+        ]
+    }
+    assert observed_work(snapshot)["summary"] == "Command continuing in background"
+    process.exited, process.exit_code = True, 9
+    observer.refresh_background()
+    assert observed_work(snapshot)["state"] == "failed"
+
+
+def test_process_accounting_retains_only_structured_ids():
+    observer = Observer()
+    observer.callback("post_tool_call")(
+        session_id="parent",
+        tool_name="delegate_task",
+        result={
+            "results": [
+                {
+                    "summary": "not an event",
+                    "handed_off_processes": [
+                        {"session_id": "proc_h", "command": "private"}
+                    ],
+                    "orphaned_processes": [{"session_id": "proc_o"}],
+                    "unread_completions": [
+                        {
+                            "session_id": "proc_u",
+                            "output_tail": "private",
+                            "exit_code": 0,
+                        }
+                    ],
+                }
+            ]
+        },
+    )
+    hook, event = observer.events.get_nowait()
+    assert "private" not in json.dumps(event)
+    observer.apply(hook, event)
+    observer.apply(
+        "on_session_end",
+        {"session_id": "parent", "completed": True, "profile": event["profile"]},
+    )
+    observer.refresh_background()
+    row = next(iter(observer.sessions.values()))
+    assert len(row["processes"]) == 3
+    assert all(p["status"] == "unknown" for p in row["processes"])
+    assert (
+        observed_work(
+            {"sources": [{"sessions": [row], "fresh": True, "age_seconds": 0}]}
+        )["state"]
+        == "unknown"
+    )
+
+
+@pytest.mark.parametrize(
+    "mismatch",
+    [None, "id", "owner_task_id", "parent_session_id", "session_key", "expired"],
+)
+def test_retained_receipt_requires_exact_identity_and_fresh_retention(
+    tmp_path, monkeypatch, mismatch
+):
+    from display_state.observer import completed_receipt
+
+    process = {
+        "session_id": "proc_receipt",
+        "owner_task_id": "task",
+        "parent_session_id": "stored",
+        "session_key": "runtime",
+    }
+    record = {
+        "id": process["session_id"],
+        **{k: v for k, v in process.items() if k != "session_id"},
+        "exit_code": 7,
+        "output": "must not enter display snapshot",
+    }
+    if mismatch and mismatch != "expired":
+        record[mismatch] = "foreign"
+    path = tmp_path / "logs/process-results/proc_receipt.json"
+    path.parent.mkdir(parents=True)
+    path.write_text(json.dumps(record))
+    if mismatch == "expired":
+        import os
+
+        os.utime(path, (0, 0))
+    result = completed_receipt(str(tmp_path), process)
+    if mismatch:
+        assert result is None
+    else:
+        assert result == {
+            "status": "exited",
+            "exit_code": 7,
+            "evidence": "retained receipt",
+        }
+        observer = Observer()
+        observer.apply(
+            "on_session_end",
+            {"session_id": "parent", "profile": str(tmp_path), "completed": True},
+        )
+        row = next(iter(observer.sessions.values()))
+        row["processes"] = [{**process, "status": "unknown"}]
+        monkeypatch.setitem(
+            sys.modules,
+            "tools.process_registry",
+            SimpleNamespace(process_registry=SimpleNamespace(get=lambda pid: None)),
+        )
+        observer.refresh_background()
+        assert row["processes"][0]["exit_code"] == 7
+        assert row["processes"][0]["evidence"] == "retained receipt"
+    assert path.exists()  # Observer never prunes or consumes receipts.
+
+
+@pytest.mark.parametrize("split", [False, True])
+def test_default_batch_and_independent_completion_modes(monkeypatch, split):
+    observer = Observer()
+    ids = ["batch-A", "batch-B"] if split else ["batch"]
+    units = [
+        {"delegation_id": uid, "task_indexes": [i] if split else [0, 1]}
+        for i, uid in enumerate(ids)
+    ]
+    observer.apply(
+        "post_tool_call",
+        {
+            "session_id": "parent",
+            "tool_name": "delegate_task",
+            "result": {
+                "status": "dispatched",
+                "delegation_id": "batch",
+                "units": units,
+            },
+        },
+    )
+    records = [{"delegation_id": uid, "status": "running"} for uid in ids]
+    monkeypatch.setitem(
+        sys.modules,
+        "tools.async_delegation",
+        SimpleNamespace(list_async_delegations=lambda: records),
+    )
+    records[0]["status"] = "completed"
+    observer.refresh_background()
+    batch = next(iter(observer.sessions.values()))["delegations"][0]
+    assert batch["settled"] is (not split)
+    for row in records:
+        row["status"] = "completed"
+    observer.refresh_background()
+    assert batch["settled"]

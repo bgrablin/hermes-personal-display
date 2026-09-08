@@ -39,6 +39,10 @@
     integration.hidden = true;
     panel.append(integration);
     let detailRequest = 0;
+    let sessionSelection = null;
+    const sessionKey = row => JSON.stringify(row.source
+      ? ['observer', row.source.owner, row.profile, row.session_id]
+      : ['rpc', row.connection, row.profile, row.session_id, row.stored_session_id]);
     function textNode(tag, text) {
       const node = document.createElement(tag);
       node.textContent = String(text ?? 'Unknown');
@@ -62,20 +66,51 @@
       const select = document.createElement('select');
       select.setAttribute('aria-label', 'Observed Hermes session');
       rows.forEach((row, i) => { const option = textNode('option', row.label); option.value = String(i); select.append(option); });
+      if (sessionSelection !== null) {
+        const index = rows.findIndex(row => sessionKey(row) === sessionSelection);
+        if (index >= 0) select.value = String(index);
+        else {
+          const missing = textNode('option', 'Selected session unavailable');
+          missing.value = ''; missing.selected = true;
+          select.prepend(missing);
+        }
+      }
       const detail = document.createElement('div');
       integration.append(select, detail);
       function show() {
         detail.replaceChildren();
-        const row = rows[Number(select.value)];
+        const row = select.value === '' ? null : rows[Number(select.value)];
         if (!row) {
-          detail.append(textNode('p', `Session coverage unavailable. RPC: ${data.rpc?.status || 'not configured'}.`));
+          detail.append(textNode('p', sessionSelection === null
+            ? `Session coverage unavailable. RPC: ${data.rpc?.status || 'not configured'}.`
+            : 'Selected session is no longer observed. Refresh or explicitly select another session.'));
           return;
         }
-        detail.append(textNode('strong', row.status || (row.available ? 'Automation observed' : 'Control unavailable')));
+        sessionSelection = sessionKey(row);
+        if (!row.source) detail.append(textNode('strong', row.status || (row.available ? 'Automation observed' : 'Control unavailable')));
         if (row.source) {
+          const terminal = new Set(['completed', 'failed', 'interrupted', 'error', 'exited', 'stalled', 'cancelled']);
+          const processes = row.processes || [];
+          const pending = processes.filter(p => !terminal.has(p.status));
+          const units = (row.delegations || []).flatMap(batch => batch.units || []);
+          const unknown = !row.status || row.status === 'unknown' || !row.source.fresh || row.source.dropped_events || pending.some(p => p.status === 'unknown') || units.some(u => u.status === 'unknown');
+          const summary = textNode('div', unknown ? 'Work outcome unknown'
+            : pending.length ? `${pending.length} background command${pending.length === 1 ? '' : 's'} continuing`
+              : units.some(u => !terminal.has(u.status)) ? 'Delegated work continuing'
+                : `Turn ${row.status || 'unknown'}`);
+          summary.className = 'cb-work-summary';
+          summary.dataset.state = unknown ? 'unknown' : pending.length || units.some(u => !terminal.has(u.status)) ? 'active' : 'settled';
+          summary.append(textNode('small', `Turn: ${row.status || 'unknown'} · Processes: ${processes.length} · Delegation units: ${units.length}`));
+          detail.prepend(summary);
           detail.append(textNode('p', `Observation age: ${row.source.age_seconds}s. Turn outcome and background work are separate.`));
           if (row.source.dropped_events) detail.append(textNode('p', 'Observation gap: some events were dropped. Outcomes may be unknown.'));
-          for (const process of row.processes || []) detail.append(textNode('p', `Process ${process.session_id}: ${process.status}${process.exit_code == null ? '' : ` · exit ${process.exit_code}`}`));
+          for (const process of processes) {
+            const card = textNode('p', `Process ${process.session_id}: ${process.status}${process.exit_code == null ? '' : ` · exit ${process.exit_code}`}`);
+            card.className = 'cb-process-detail';
+            if (process.reason === 'handed_off') card.append(textNode('small', `Handed to parent${process.session_key ? ` · ${process.session_key}` : ''}`));
+            if (process.evidence) card.append(textNode('small', `Evidence: ${process.evidence}`));
+            detail.append(card);
+          }
           for (const batch of row.delegations || []) {
             detail.append(textNode('strong', `Delegation ${batch.delegation_id}: ${batch.settled ? 'all units settled' : 'unsettled'}`));
             for (const unit of batch.units) detail.append(textNode('p', `${unit.delegation_id} · group ${unit.group ?? 'ungrouped'} · tasks ${unit.task_indexes?.join(', ')} · ${unit.status}`));
