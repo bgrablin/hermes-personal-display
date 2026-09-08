@@ -3675,6 +3675,10 @@ body.augury-preview .augury-strand[data-populated="true"] { pointer-events: auto
 .cb-integration button { position: static !important; width: auto !important; min-width: 90px; min-height: 44px; margin: 5px; color: #d8e9f8; background: #203448; border: 1px solid #557080; border-radius: 6px; font-size: 14px; }
 .cb-integration p, .cb-integration pre { white-space: pre-wrap; overflow-wrap: anywhere; font: 14px/1.5 monospace; color: #d8e9f8; margin: 6px 0; }
 .cb-integration strong { display: block; font-size: 14px; margin-top: 10px; }
+.cb-work-summary { margin: 12px 0; padding: 14px; border-left: 3px solid #79bcd5; border-radius: 6px; background: #152a37; color: #e0f1f6; font: 500 18px/1.4 system-ui, sans-serif; }
+.cb-work-summary[data-state="unknown"] { border-color: #d4b477; background: #2b2923; }
+.cb-work-summary small, .cb-process-detail small { display: block; margin-top: 6px; letter-spacing: .02em; line-height: 1.5; }
+.cb-integration .cb-process-detail { padding: 10px 12px; background: #13232e; border-radius: 6px; }
 
 .cb-inspector[data-integration="true"]:not([hidden]) { display: flex; flex-direction: column; height: min(900px, 80vh); max-height: 80vh; bottom: 10vh; overflow: hidden; }
 .cb-inspector[data-integration="true"] > strong { font-size: 24px; margin: 8px 0; }

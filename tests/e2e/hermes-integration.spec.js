@@ -25,6 +25,7 @@ test('private integration shows background units, exact controls and literal tex
   await expect(panel).toContainText('Process proc-A: running');
   await expect(panel).toContainText('unit-B');
   await expect(panel).toContainText('serving-provider');
+  await page.screenshot({ path: `test-results/background-work-${info.project.name}.png`, animations: 'disabled' });
   await page.getByLabel('Observed Hermes session').selectOption('1');
   await expect(panel).toContainText('<img src=x onerror=alert(1)>');
   await expect(panel.locator('img')).toHaveCount(0);
@@ -50,4 +51,27 @@ test('family mode does not request operator integration', async ({ page }) => {
   await page.goto('/src/character-runtime.html?kiosk=1&family=1');
   await page.waitForTimeout(400);
   expect(requests).toEqual([]);
+});
+
+test('refresh preserves exact session and never substitutes a missing owner', async ({ page }) => {
+  let data = structuredClone(snapshot);
+  await page.route('**/api/hermes-integration', route => route.fulfill({ json: data }));
+  await page.goto('/src/character-runtime.html?kiosk=1&orientation=landscape&mode=reasoning');
+  await page.locator('.cb-bottom-rail .cb-cell').last().press('Enter');
+  const panel = page.locator('.cb-integration');
+  await expect(panel.locator('.cb-work-summary')).toContainText('1 background command continuing');
+  await page.getByLabel('Observed Hermes session').selectOption('1');
+  data.sources.unshift({ owner: 'new-owner', fresh: true, age_seconds: 0, sessions: [{ session_id: 'new', status: 'running' }] });
+  await panel.getByRole('button', { name: 'Refresh details' }).click();
+  await expect(page.getByLabel('Observed Hermes session')).toHaveValue('2');
+  await expect(panel).toContainText('cached observation');
+  data.rpc.sessions[0].stored_session_id = 'replacement-owner';
+  await panel.getByRole('button', { name: 'Refresh details' }).click();
+  await expect(panel).toContainText('Selected session is no longer observed');
+  await expect(panel.getByRole('button', { name: 'pause goal', exact: true })).toHaveCount(0);
+  await page.getByLabel('Observed Hermes session').selectOption('1');
+  data.sources[1].fresh = false;
+  await panel.getByRole('button', { name: 'Refresh details' }).click();
+  await expect(panel.locator('.cb-work-summary')).toHaveAttribute('data-state', 'unknown');
+  await expect(panel.locator('.cb-work-summary')).toContainText('Work outcome unknown');
 });
