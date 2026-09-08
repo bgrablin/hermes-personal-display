@@ -217,11 +217,14 @@ test('provider marks sit before each name and inherit the route state color', as
       iconColor: getComputedStyle(icon).color,
       rowColor: getComputedStyle(row).color,
       iconBeforeLabel: Boolean(icon.compareDocumentPosition(label) & Node.DOCUMENT_POSITION_FOLLOWING),
+      iconGap: label.getBoundingClientRect().left - icon.getBoundingClientRect().right,
     };
   }));
   expect(marks.map(mark => mark.icon)).toEqual(['✦', '✧', '✺', '⌘', '𝕏']);
   for (const mark of marks) {
     expect(mark.iconBeforeLabel).toBe(true);
     expect(mark.iconColor).toBe(mark.rowColor);
+    expect(mark.iconGap).toBeGreaterThanOrEqual(8);
+    expect(mark.iconGap).toBeLessThanOrEqual(16);
   }
 });

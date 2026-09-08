@@ -2199,6 +2199,7 @@ body.kiosk-mode.kiosk-landscape.claude-concept-b .cb-route-provider-icon {
 
 body.kiosk-mode.kiosk-landscape.claude-concept-b .cb-route-label strong {
   grid-column: 2;
+  justify-self: start;
   color: currentColor;
   font: 820 24px/1 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
   letter-spacing: 0.09em;
