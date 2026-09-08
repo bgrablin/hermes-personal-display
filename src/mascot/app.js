@@ -1512,12 +1512,23 @@
     const heading = document.createElement('h2');
     heading.className = 'augury-heading';
     heading.textContent = 'AUGURY · ACTIVITY';
+    const holdButton = document.createElement('button');
+    holdButton.className = 'augury-hold';
+    holdButton.type = 'button';
+    holdButton.textContent = 'Hold rows';
+    holdButton.setAttribute('aria-pressed', 'false');
+    holdButton.title = 'Hold displayed rows for reading. Live monitoring continues.';
+    const holdNote = document.createElement('small');
+    holdNote.className = 'augury-hold-note';
+    holdNote.id = 'augury-hold-note';
+    holdNote.textContent = 'Live monitoring continues';
+    holdButton.setAttribute('aria-describedby', holdNote.id);
     const list = document.createElement('div');
     list.className = 'augury-list';
     const feedStatus = document.createElement('div');
     feedStatus.className = 'augury-feed-status';
     feedStatus.textContent = 'AWAITING OBSERVATIONS';
-    root.append(heading, list, feedStatus);
+    root.append(heading, holdButton, holdNote, list, feedStatus);
     document.body.appendChild(root);
     if (proofEnabled) {
       const proof = document.createElement('div');
@@ -1613,20 +1624,32 @@
     };
 
     let observationPinned = false;
+    let readingHeld = false;
     let pendingRows = null;
-    window.addEventListener('hermes-observation-pin', event => {
-      observationPinned = event.detail === true;
-      root.dataset.pinned = String(observationPinned);
-      heading.textContent = observationPinned ? 'AUGURY · HELD' : 'AUGURY · ACTIVITY';
-      if (!observationPinned && pendingRows) {
+    function updateRowHold() {
+      const held = observationPinned || readingHeld;
+      root.dataset.pinned = String(held);
+      heading.textContent = held ? 'AUGURY · HELD' : 'AUGURY · ACTIVITY';
+      holdButton.textContent = readingHeld ? 'Resume rows' : 'Hold rows';
+      holdButton.setAttribute('aria-pressed', String(readingHeld));
+      if (!held && pendingRows) {
         const pending = pendingRows;
         pendingRows = null;
         renderRows(...pending);
       }
+    }
+    holdButton.addEventListener('click', () => {
+      readingHeld = !readingHeld;
+      updateRowHold();
+    });
+    window.addEventListener('hermes-observation-pin', event => {
+      observationPinned = event.detail === true;
+      updateRowHold();
     });
     let lastAugurySignature = '';
     const renderRows = (items, source, trustSafe = false) => {
-      if (observationPinned) { pendingRows = [items, source, trustSafe]; return; }
+      // Keep only the latest pending snapshot; holding rows never pauses polling,
+      // feed-health updates, the eye, or the independent excerpt inspector.
       const safe = sanitizeItems(items, trustSafe).slice(0, MAX_STRANDS);
       const signature = safe.slice(0, 3).map((item) => `${item.kind}:${item.title}:${item.text}`).join('|');
       if (signature && lastAugurySignature && signature !== lastAugurySignature) {
@@ -1638,6 +1661,7 @@
         }
       }
       if (signature) lastAugurySignature = signature;
+      if (observationPinned || readingHeld) { pendingRows = [items, source, trustSafe]; return; }
       // Only populate strands with real items; never echo/duplicate rows to fill the field.
       // Empty strands stay unpopulated so on-glass density matches actual log volume.
       const visible = safe;
