@@ -36,9 +36,9 @@ Current capabilities include:
 
 - Assistant state: idle, active, waiting, finalizing, complete, blocked, degraded.
 - Tool activity hints: shell, Python, file reads, search, patch/write, browser, web, planning.
-- Provider/model route rail for quick visibility into active backend routing.
+- Provider/model route rail for quick visibility into active backend routing, with compact provider marks that inherit each route's live state color.
 - Health rails for display feed freshness, local service state, and degraded conditions.
-- A character runtime with gaze, blink, mouth, status badges, touch effects, and motion states.
+- A character runtime with gaze, blink, mouth, status badges, touch effects, bounded task-linked pupil dilation, and motion states.
 - Local touch/entertainment hooks for physical-display experiments.
 - A loopback-first avatar event bus contract for safe lifecycle events.
 

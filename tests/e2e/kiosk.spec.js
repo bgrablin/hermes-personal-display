@@ -784,6 +784,18 @@ test.describe('Hermes kiosk smoke and visual regression anchors', () => {
     expect(state.idle.attracted).toBe(0);
   });
 
+  test('Concept B optic pupil dilates for cognitive work while idle remains restrained', async ({ page }, testInfo) => {
+    await page.goto(runtimeUrl('idle_watch', testInfo));
+    await page.waitForFunction(() => Boolean(window.__HERMES_CONCEPT_B_EYE_MOTION?.debug));
+    const idle = await page.evaluate(() => window.__HERMES_CONCEPT_B_EYE_MOTION.debug());
+    await page.goto(runtimeUrl('reasoning', testInfo));
+    await page.waitForFunction(() => window.__HERMES_CONCEPT_B_EYE_MOTION?.debug?.().mode === 'reasoning');
+    await expect.poll(() => page.evaluate(() => window.__HERMES_CONCEPT_B_EYE_MOTION.debug().pupil), { timeout: 1500 }).toBeGreaterThan(idle.pupil + 0.08);
+    const reasoning = await page.evaluate(() => window.__HERMES_CONCEPT_B_EYE_MOTION.debug());
+    expect(reasoning.pupil).toBeLessThanOrEqual(1.35);
+    expect(idle.pupil).toBeLessThanOrEqual(1.12);
+  });
+
   test('Concept B optic vitals: hippus wanders when alive and parks in stopped modes', async ({ page }, testInfo) => {
     await page.goto(runtimeUrl('idle_watch', testInfo));
     await page.waitForFunction(() => Boolean(window.__HERMES_CONCEPT_B_EYE_MOTION?.debug));

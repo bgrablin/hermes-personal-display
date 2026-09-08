@@ -189,3 +189,39 @@ test('activity copy stays fixed while the eye changes gaze', async ({ page }) =>
   expect(Math.abs(during.x - before.x)).toBeLessThanOrEqual(0.1);
   expect(Math.abs(during.y - before.y)).toBeLessThanOrEqual(0.1);
 });
+
+test('provider marks sit before each name and inherit the route state color', async ({ page }, info) => {
+  let polls = 0;
+  const packet = observation('idle_watch');
+  packet.live.route_rail = {
+    as_of_ms: Date.now(), age_seconds: 0, active_provider_id: 'openai-codex',
+    providers: [
+      { id: 'openai-codex', label: 'CHATGPT', state: polls < 2 ? 'confirmed' : 'error', headroom: 0.76, reachable: true },
+      { id: 'anthropic', label: 'CLAUDE', state: 'inferred', headroom: 0.54, reachable: true },
+      { id: 'google', label: 'GEMINI', state: 'stale', headroom: 0.25, reachable: true, stale_age_s: 670 },
+      { id: 'copilot', label: 'COPILOT', state: 'unknown', headroom: null, reachable: true },
+      { id: 'xai-oauth', label: 'XAI', state: 'disabled', headroom: null, reachable: false },
+    ],
+  };
+  await page.route('**/api/hermes-state**', route => {
+    polls += 1;
+    return route.fulfill({ json: packet });
+  });
+  await page.goto(url);
+  await expect.poll(() => polls, { timeout: 8000 }).toBeGreaterThan(1);
+  const marks = await page.locator('.cb-route-row').evaluateAll(rows => rows.map(row => {
+    const icon = row.querySelector('[data-route-icon]');
+    const label = row.querySelector('[data-route-label]');
+    return {
+      icon: icon.textContent,
+      iconColor: getComputedStyle(icon).color,
+      rowColor: getComputedStyle(row).color,
+      iconBeforeLabel: Boolean(icon.compareDocumentPosition(label) & Node.DOCUMENT_POSITION_FOLLOWING),
+    };
+  }));
+  expect(marks.map(mark => mark.icon)).toEqual(['✦', '✧', '✺', '⌘', '𝕏']);
+  for (const mark of marks) {
+    expect(mark.iconBeforeLabel).toBe(true);
+    expect(mark.iconColor).toBe(mark.rowColor);
+  }
+});

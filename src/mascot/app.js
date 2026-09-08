@@ -59,8 +59,8 @@
     // Involuntary "alive" signals layered under the intentional gaze/posture system.
     // Hippus: continuous low-amplitude pupillary unrest. Parked (0) in the same stopped
     // modes as the iris lattice so a halted optic reads as machinery stopped, not asleep.
-    hippusAmp: 0.022,
-    hippusQuietScale: 0.6,
+    hippusAmp: 0.032,
+    hippusQuietScale: 0.75,
     // Occasional second blink right after the first — human blinks come in pairs sometimes.
     doubleBlinkChance: 0.14,
     doubleBlinkGapMs: 170,
@@ -74,7 +74,7 @@
     // that acknowledges you rather than instrumentation that happens to be on.
     regardMinGapMs: 26000,
     regardMaxGapMs: 64000,
-    regardPupil: 0.07,
+    regardPupil: 0.10,
     regardMs: 1600,
     // Spark: during reasoning/planning, a moment where a thought lands — pupil flash,
     // lattice flare, single blink.
@@ -2349,7 +2349,7 @@
       row.className = 'cb-route-row';
       row.dataset.index = String(i);
       row.innerHTML = `
-        <div class="cb-route-label"><strong data-route-label>—</strong><span data-route-value>—</span><em data-route-tier></em></div>
+        <div class="cb-route-label"><i class="cb-route-provider-icon" data-route-icon aria-hidden="true">○</i><strong data-route-label>—</strong><span data-route-value>—</span><em data-route-tier></em></div>
         <div class="cb-route-track" aria-hidden="true"></div>
         <div class="cb-route-whisker"></div>
         <i class="cb-route-node" aria-hidden="true"></i>
@@ -2401,12 +2401,14 @@
     if (!root) return;
     const allowedStates = new Set(['confirmed', 'inferred', 'stale', 'unknown', 'error', 'disabled']);
     const glyphs = { confirmed: '●', inferred: '◉', stale: '◐', unknown: '○', error: '!', disabled: '×' };
+    const providerIcons = { 'openai-codex': '✦', anthropic: '✧', google: '✺', nous: '✺', 'google-gemini-cli': '✺', copilot: '⌘', 'xai-oauth': '𝕏' };
     const rows = root.__cbRouteRows ||= Array.from(root.querySelectorAll('.cb-route-row')).map((row) => ({
       row,
       labelWrap: row.querySelector('.cb-route-label'),
       label: row.querySelector('[data-route-label]'),
       value: row.querySelector('[data-route-value]'),
       tier: row.querySelector('[data-route-tier]'),
+      icon: row.querySelector('[data-route-icon]'),
       glyph: row.querySelector('[data-route-glyph]'),
     }));
     const source = Array.isArray(rail?.providers) ? rail : defaultConceptBRouteRail();
@@ -2495,6 +2497,7 @@
           { opacity: 1, transform: 'translateY(0)' },
         ], 360);
       }
+      setConceptBText(entry.icon, providerIcons[provider.id] || '○');
       setConceptBText(entry.label, safeDisplayText(provider.label || 'ROUTE', 8).toUpperCase());
       const unknownRouteCopy = state === 'disabled' ? 'OFF' : state === 'error' ? 'ERR' : 'UNK';
       const creditsUsedSummary = knownCreditsUsed ? `${formatRouteCredits(creditsUsed)}` : '';
@@ -3144,11 +3147,11 @@
     };
     const FOCUS_PROFILES = {
       idle_watch: { pupil: 1.00, iris: 1.00, lid: 0.06, upperBias: 0.03, lowerBias: 0.00, blinkMs: 7400, ringMs: 150000, breathMs: 7600 },
-      reasoning: { pupil: 0.90, iris: 0.98, lid: 0.13, upperBias: 0.10, lowerBias: 0.02, blinkMs: 8600, ringMs: 190000, breathMs: 7800 },
-      planning: { pupil: 0.94, iris: 0.99, lid: 0.10, upperBias: 0.08, lowerBias: 0.01, blinkMs: 8000, ringMs: 160000, breathMs: 7600 },
-      tool_shell: { pupil: 0.96, iris: 1.01, lid: 0.09, upperBias: 0.06, lowerBias: 0.02, blinkMs: 6500, ringMs: 100000, breathMs: 6800 },
-      writing: { pupil: 0.98, iris: 1.00, lid: 0.08, upperBias: 0.05, lowerBias: 0.01, blinkMs: 6800, ringMs: 120000, breathMs: 7000 },
-      reading: { pupil: 0.98, iris: 1.00, lid: 0.08, upperBias: 0.05, lowerBias: 0.01, blinkMs: 6400, ringMs: 120000, breathMs: 7000 },
+      reasoning: { pupil: 1.10, iris: 0.98, lid: 0.13, upperBias: 0.10, lowerBias: 0.02, blinkMs: 8600, ringMs: 190000, breathMs: 7800 },
+      planning: { pupil: 1.08, iris: 0.99, lid: 0.10, upperBias: 0.08, lowerBias: 0.01, blinkMs: 8000, ringMs: 160000, breathMs: 7600 },
+      tool_shell: { pupil: 1.08, iris: 1.01, lid: 0.09, upperBias: 0.06, lowerBias: 0.02, blinkMs: 6500, ringMs: 100000, breathMs: 6800 },
+      writing: { pupil: 1.06, iris: 1.00, lid: 0.08, upperBias: 0.05, lowerBias: 0.01, blinkMs: 6800, ringMs: 120000, breathMs: 7000 },
+      reading: { pupil: 1.06, iris: 1.00, lid: 0.08, upperBias: 0.05, lowerBias: 0.01, blinkMs: 6400, ringMs: 120000, breathMs: 7000 },
       searching: { pupil: 1.08, iris: 1.03, lid: 0.03, upperBias: 0.00, lowerBias: 0.00, blinkMs: 4800, ringMs: 42000, breathMs: 5600 },
       listening: { pupil: 1.14, iris: 1.04, lid: 0.02, upperBias: 0.00, lowerBias: 0.00, blinkMs: 5200, ringMs: 90000, breathMs: 5200 },
       waiting_user: { pupil: 1.10, iris: 1.01, lid: 0.03, upperBias: 0.00, lowerBias: 0.00, blinkMs: 7200, ringMs: 170000, breathMs: 7800 },
