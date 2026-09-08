@@ -673,7 +673,7 @@ def test_retained_receipt_requires_exact_identity_and_fresh_retention(
     from display_state.observer import completed_receipt
 
     process = {
-        "session_id": "proc_receipt",
+        "session_id": "proc_receipt-name",
         "owner_task_id": "task",
         "parent_session_id": "stored",
         "session_key": "runtime",
@@ -686,7 +686,7 @@ def test_retained_receipt_requires_exact_identity_and_fresh_retention(
     }
     if mismatch and mismatch != "expired":
         record[mismatch] = "foreign"
-    path = tmp_path / "logs/process-results/proc_receipt.json"
+    path = tmp_path / "logs/process-results/proc_receipt-name.json"
     path.parent.mkdir(parents=True)
     path.write_text(json.dumps(record))
     if mismatch == "expired":
@@ -718,6 +718,41 @@ def test_retained_receipt_requires_exact_identity_and_fresh_retention(
         assert row["processes"][0]["exit_code"] == 7
         assert row["processes"][0]["evidence"] == "retained receipt"
     assert path.exists()  # Observer never prunes or consumes receipts.
+
+
+def test_unknown_process_clears_stale_completion_fields(monkeypatch):
+    observer = observer_with_background()
+    session = next(iter(observer.sessions.values()))
+    process = session["processes"][0]
+    process.update(exit_code=7, evidence="old registry receipt")
+    monkeypatch.setitem(
+        sys.modules,
+        "tools.process_registry",
+        SimpleNamespace(process_registry=SimpleNamespace(get=lambda pid: None)),
+    )
+    observer.refresh_background()
+    assert process["status"] == "unknown"
+    assert "exit_code" not in process
+    assert "evidence" not in process
+
+
+def test_unknown_process_clears_stale_fields_on_owner_mismatch(monkeypatch):
+    observer = observer_with_background()
+    session = next(iter(observer.sessions.values()))
+    process = session["processes"][0]
+    process.update(parent_session_id="parent", exit_code=7, evidence="old registry receipt")
+    replacement = SimpleNamespace(
+        id="process1", parent_session_id="replacement", owner_task_id="task", session_key="runtime"
+    )
+    monkeypatch.setitem(
+        sys.modules,
+        "tools.process_registry",
+        SimpleNamespace(process_registry=SimpleNamespace(get=lambda pid: replacement)),
+    )
+    observer.refresh_background()
+    assert process["status"] == "unknown"
+    assert "exit_code" not in process
+    assert "evidence" not in process
 
 
 @pytest.mark.parametrize("split", [False, True])

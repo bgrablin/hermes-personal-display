@@ -27,7 +27,7 @@ def process_identity(process):
 def completed_receipt(profile, process):
     """Exact, bounded, owner-pinned read. Never prune files or consume delivery."""
     pid = process["session_id"]
-    if not re.fullmatch(r"proc_[\w]+", pid) or not Path(profile).is_absolute():
+    if not re.fullmatch(r"proc_[A-Za-z0-9_-]+", pid) or not Path(profile).is_absolute():
         return None
     if not process.get("parent_session_id") or not process.get("owner_task_id"):
         return None
@@ -279,6 +279,8 @@ class Observer:
                     or getattr(process, "id", None) != p["session_id"]
                 ):
                     p["status"] = "unknown"
+                    p.pop("exit_code", None)
+                    p.pop("evidence", None)
                     receipt = completed_receipt(s["profile"], p)
                     if receipt:
                         p.update(receipt)
@@ -289,6 +291,8 @@ class Observer:
                         and identity["parent_session_id"] != p["parent_session_id"]
                     ):
                         p["status"] = "unknown"
+                        p.pop("exit_code", None)
+                        p.pop("evidence", None)
                         continue
                     p.update(identity)
                     p["status"] = "exited" if process.exited else "running"
