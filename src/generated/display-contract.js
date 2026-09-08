@@ -690,7 +690,7 @@
         "iris_scale": 0.96,
         "lid": 0.18,
         "lid_open": 0.82,
-        "pupil_scale": 1.02
+        "pupil_scale": 1.11
       },
       "gaze": {
         "jitter": 0.0,
@@ -739,7 +739,7 @@
         "iris_scale": 0.9,
         "lid": 0.3,
         "lid_open": 0.7,
-        "pupil_scale": 1.1
+        "pupil_scale": 1.18
       },
       "gaze": {
         "jitter": 0.0,
@@ -837,7 +837,7 @@
         "iris_scale": 1.0,
         "lid": 0.1,
         "lid_open": 0.9,
-        "pupil_scale": 1.08
+        "pupil_scale": 1.14
       },
       "gaze": {
         "jitter": 0.0,

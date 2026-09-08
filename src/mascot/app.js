@@ -3147,11 +3147,11 @@
     };
     const FOCUS_PROFILES = {
       idle_watch: { pupil: 1.00, iris: 1.00, lid: 0.06, upperBias: 0.03, lowerBias: 0.00, blinkMs: 7400, ringMs: 150000, breathMs: 7600 },
-      reasoning: { pupil: 1.10, iris: 0.98, lid: 0.13, upperBias: 0.10, lowerBias: 0.02, blinkMs: 8600, ringMs: 190000, breathMs: 7800 },
-      planning: { pupil: 1.08, iris: 0.99, lid: 0.10, upperBias: 0.08, lowerBias: 0.01, blinkMs: 8000, ringMs: 160000, breathMs: 7600 },
-      tool_shell: { pupil: 1.08, iris: 1.01, lid: 0.09, upperBias: 0.06, lowerBias: 0.02, blinkMs: 6500, ringMs: 100000, breathMs: 6800 },
-      writing: { pupil: 1.06, iris: 1.00, lid: 0.08, upperBias: 0.05, lowerBias: 0.01, blinkMs: 6800, ringMs: 120000, breathMs: 7000 },
-      reading: { pupil: 1.06, iris: 1.00, lid: 0.08, upperBias: 0.05, lowerBias: 0.01, blinkMs: 6400, ringMs: 120000, breathMs: 7000 },
+      reasoning: { pupil: 1.18, iris: 0.98, lid: 0.13, upperBias: 0.10, lowerBias: 0.02, blinkMs: 8600, ringMs: 190000, breathMs: 7800 },
+      planning: { pupil: 1.15, iris: 0.99, lid: 0.10, upperBias: 0.08, lowerBias: 0.01, blinkMs: 8000, ringMs: 160000, breathMs: 7600 },
+      tool_shell: { pupil: 1.14, iris: 1.01, lid: 0.09, upperBias: 0.06, lowerBias: 0.02, blinkMs: 6500, ringMs: 100000, breathMs: 6800 },
+      writing: { pupil: 1.11, iris: 1.00, lid: 0.08, upperBias: 0.05, lowerBias: 0.01, blinkMs: 6800, ringMs: 120000, breathMs: 7000 },
+      reading: { pupil: 1.11, iris: 1.00, lid: 0.08, upperBias: 0.05, lowerBias: 0.01, blinkMs: 6400, ringMs: 120000, breathMs: 7000 },
       searching: { pupil: 1.08, iris: 1.03, lid: 0.03, upperBias: 0.00, lowerBias: 0.00, blinkMs: 4800, ringMs: 42000, breathMs: 5600 },
       listening: { pupil: 1.14, iris: 1.04, lid: 0.02, upperBias: 0.00, lowerBias: 0.00, blinkMs: 5200, ringMs: 90000, breathMs: 5200 },
       waiting_user: { pupil: 1.10, iris: 1.01, lid: 0.03, upperBias: 0.00, lowerBias: 0.00, blinkMs: 7200, ringMs: 170000, breathMs: 7800 },
