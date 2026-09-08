@@ -3187,6 +3187,39 @@ body.augury-preview .augury-heading {
   letter-spacing: .14em;
   white-space: nowrap;
 }
+body.augury-preview .augury-hold {
+  position: absolute;
+  left: 92px;
+  top: 34px;
+  min-width: 116px;
+  min-height: 44px;
+  padding: 8px 12px;
+  border: 1px solid #91bdb54d;
+  border-radius: 8px;
+  color: #c6ddd7;
+  background: #0b2028;
+  font: 14px/1.2 ui-monospace, monospace;
+  cursor: pointer;
+  pointer-events: auto;
+  touch-action: manipulation;
+}
+body.augury-preview .augury-hold[aria-pressed="true"] {
+  border-color: #9cdae0;
+  background: #163640;
+  color: #e0f5f4;
+}
+body.augury-preview .augury-hold:focus-visible {
+  outline: 2px solid #a5e3d7;
+  outline-offset: 4px;
+}
+body.augury-preview .augury-hold-note {
+  position: absolute;
+  left: 225px;
+  right: 40px;
+  top: 41px;
+  color: #a8c1bb;
+  font: 12px/1.4 ui-monospace, monospace;
+}
 body.augury-preview .augury-ambient::before {
   content: '';
   position: absolute;
@@ -3200,7 +3233,7 @@ body.augury-preview .augury-list {
   position: absolute;
   left: 92px;
   right: 40px;
-  top: 64px;
+  top: 102px;
   bottom: 62px;
   display: flex;
   flex-direction: column;
