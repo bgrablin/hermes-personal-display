@@ -24,6 +24,7 @@ check_file docs/project-manifest.md
 check_file src/character-runtime.html
 check_file src/mascot-debug.html
 check_file src/styles.css
+check_file src/subagent-cards.css
 check_file src/state.js
 check_file src/generated/display-contract.js
 check_file src/mascot/states.js

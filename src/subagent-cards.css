@@ -1,0 +1,24 @@
+/* Operator-only observed subagent cards. Kept separate from the optic stylesheet. */
+.cb-subagent-detail {
+  margin: 8px 0;
+  padding: 12px;
+  border: 1px solid #36586a;
+  border-left: 3px solid #62a8ce;
+  border-radius: 7px;
+  background: linear-gradient(135deg, #132735, #101d29);
+}
+.cb-subagent-detail[data-status="completed"] { border-left-color: #77b99e; }
+.cb-subagent-detail[data-status="failed"],
+.cb-subagent-detail[data-status="error"],
+.cb-subagent-detail[data-status="interrupted"] { border-left-color: #d4a16f; }
+.cb-subagent-detail > strong {
+  margin-top: 0;
+  color: #e6f5fb;
+  font-size: 15px;
+}
+.cb-subagent-detail > p { color: #a8c8d5; }
+.cb-subagent-detail > small {
+  display: block;
+  line-height: 1.5;
+  letter-spacing: .02em;
+}

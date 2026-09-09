@@ -1,8 +1,8 @@
 # Hermes main integrations
 
-Implementation baseline: display `main` **1865dff8121e435cb27615ae1894f49d4f780613**.
-Upstream contracts inspected: Hermes `main` **693641aa8b4359c602283bdbbc14041e03bc47bc**.
-Branch: `feat/hermes-main-integrations`. This document describes proposed repository behavior, not the deployed display.
+Current follow-up baseline: display `main` **cefe1d646162b0b43aa5d9e92fbba6d508fe4222**.
+Upstream contracts inspected through Hermes `main` **4a39a3ff8bea45ab5a6b646ce26ced88a8fed079**.
+Branch: `feat/observed-subagent-cards`. This document describes repository behavior, including the proposed follow-up, not the deployed display.
 
 ## Merged capability inventory
 
@@ -16,6 +16,7 @@ Branch: `feat/hermes-main-integrations`. This document describes proposed reposi
 | Delegation completion units | Preserve explicit `units[].delegation_id`, group and task indexes; overall settlement requires all expected units terminal | [028fe2c](https://github.com/NousResearch/hermes-agent/commit/028fe2c4c857710ab335a8455f5cbbcc52cbf795), `tools/delegate_tool_dispatch.py` |
 | Existing reconnect settling error | `4009` disables controls, retains the last snapshot and retries only reads; no automatic prompt or mutation replay | `tui_gateway` RPC error contract |
 | Existing lifecycle observers | In-process plugin observes tool/API/turn hooks across CLI and gateway; keeps source epoch, profile and session identity | `hermes_cli/plugins.py`, `model_tools.py`, hooks documentation |
+| Subagent lifecycle hooks | Keep a bounded, credential-redacted task name and exact child session/subagent identity from `subagent_start`; settle only the matching child session on `subagent_stop` | `tools/delegate_tool.py`, `tools/delegate_tool_results.py` |
 
 Rechecked September 7: #103954 (overview), #103950 (compression rollback), #103961 and #101911 (Kanban restart ownership), #104189 (reconnect sentinel repair), and #91475 (durable turn receipts) remain open/unmerged. Their proposed APIs are not implemented. Compression events do not trigger a success claim. Observed hook `turn_id` may be retained, but is not treated as a durable receipt.
 
@@ -31,13 +32,19 @@ The optional RPC monitor connects only to explicitly configured local WebSocket 
 
 RPC reads continue after `message.complete`. Revision equality deduplicates identical control snapshots. Matching sequenced `session.control.update` events invalidate the exact target; serialized periodic reads hydrate it again. Events do not overwrite in-flight reads. Reconnection clears event watermarks and hydrates from the owning process. This is polling with event invalidation, not an assertion of a globally ordered event log.
 
+### September 9 subagent contract decision
+
+Hermes main now has `subagent.list`, `subagent.tail`, `subagent.steer` and `subagent.interrupt` for TUI and Desktop clients. The roster and tail are useful, but the server intentionally grants them only to a transport already attached to the exact live session. The display monitor is a separate passive transport and does not call `session.resume`, because attaching would update session membership/liveness and cancel orphan cleanup. This follow-up therefore does not call those RPCs or expose steer/interrupt. It uses the stable observer hooks already invoked by CLI, gateway, TUI and Desktop execution instead.
+
+The merged upstream implementation is [8b01df9](https://github.com/NousResearch/hermes-agent/commit/8b01df963d2e121ce800bccece3d750002c24ffd), with ownership/progress hardening in [924c5de](https://github.com/NousResearch/hermes-agent/commit/924c5ded2eca54070e1e1e239ea8d6a1540aa064) and shared-transport authority in [68ed3ff](https://github.com/NousResearch/hermes-agent/commit/68ed3ffd105faebeec7f0022f1438b80a704d860). A future passive-reader contract must identify the owner and generation without making the display a session member. Until then, the live transcript and action controls remain intentionally absent.
+
 ## Touch and interaction specification
 
-Tap a provider rail row or the Tasks cell to open **Sessions & automation**. Choose a source-qualified session. Inspect background processes, dispatch units, automation state and cached MCP health. Provider call details appear beneath the selected session. The panel stays open and scrolls; Refresh updates the snapshot. Escape and Close dismiss it. All action targets are at least 44 px tall. Existing eye drag, blue motes, Augury pinning, palette and family interactions remain intact.
+Tap a provider rail row or the Tasks cell to open **Sessions & automation**. Choose a source-qualified session. Inspect background processes, dispatch units, observed subagent cards, automation state and cached MCP health. A subagent card shows the bounded task name, role, exact subagent and child-session IDs, observed status and duration when available. Provider call details appear beneath the selected session. The panel stays open and scrolls; Refresh updates the snapshot. Escape and Close dismiss it. All action targets are at least 44 px tall. Existing smaller eye, blue motes, eye drag, Augury pinning, palette and family interactions remain intact.
 
 When enabled for that exact configured target, pause/resume buttons are available for configured goal, loop and heartbeat entities. Feedback distinguishes applied, changed revision, unavailable, rejected and unknown outcome. Buttons disable after a click until details are refreshed. POST requires loopback plus same-origin. The backend re-reads owner identity and revision before dispatch. Queued requests expire; disconnect rejects queued requests. A transmitted action is never retried automatically. Upstream does not offer atomic revision compare-and-set: the read-before-action check narrows, but cannot eliminate, the race. These limited pause/resume operations avoid arbitrary commands and destructive automation edits.
 
-Interrupt, redirect, execution approvals, gate execution, clear/stop, and subgoal mutations are deliberately not exposed as touch commands in this PR. The merged state for those objects is readable. Pause automation is not Stop agent.
+Interrupt, redirect, execution approvals, gate execution, clear/stop, subagent steer/interrupt, and subgoal mutations are deliberately not exposed as touch commands in this PR. The merged state for those objects is readable. Pause automation is not Stop agent.
 
 ## Install and configure
 
@@ -82,7 +89,13 @@ R03/R05 gain authoritative background-state handling; R04 gains useful operation
 
 To disable integration, remove the observer symlink and restart the affected Hermes process; unset `HERMES_DISPLAY_RPC_CONFIG` and restart the display server. Archive observer snapshot files if you want the legacy collector restored immediately rather than showing stale unsettled work. To roll back code, revert the integration PR, regenerate the build identity, rebuild and restart the display using its existing deployment procedure. No upstream state files are modified by observation. Applied automation changes persist upstream; reverse them explicitly in Hermes if needed.
 
-Process/async registry observations are best effort, tied to the pinned upstream version, and cannot reconstruct every event lost during a crash. Missing entities and previous epochs stay unknown. RPC session status currently returns text; exact durable-ID line verification fails closed if that contract changes. No global gateway inventory or cross-process command router is invented. Poll latency grows with configured targets; old rows disable controls at 20 seconds. Credential patterns cannot prove arbitrary upstream prose secret-free. Validate the actual profile/host topology, auth setup, long-running command completion and physical touch before deployment acceptance.
+Process/async registry and subagent lifecycle observations are best effort, tied to the pinned upstream version, and cannot reconstruct every event lost during a crash. A `subagent_stop` without its earlier start is explicitly labeled instead of being joined by role or order. Missing entities and previous epochs stay unknown. RPC session status currently returns text; exact durable-ID line verification fails closed if that contract changes. No global gateway inventory or cross-process command router is invented. Poll latency grows with configured targets; old rows disable controls at 20 seconds. Credential patterns cannot prove arbitrary upstream prose secret-free. Validate the actual profile/host topology, auth setup, long-running command completion and physical touch before deployment acceptance.
+
+### Follow-up verification, September 9
+
+- Hermes plugin compatibility scan reports zero deprecated imports for `integrations/display-observer`; the observer is not disabled by the September 14 compatibility cutoff.
+- Subagent regression coverage includes exact start/stop identity, useful task/path preservation, credential masking, unmatched-stop labeling, family projection isolation and inert markup rendering.
+- [Synthetic subagent-card preview](observed-subagent-cards-2026-09-09.svg) shows the proposed operator-only hierarchy and state colors. It is a layout preview, not a physical-panel photograph.
 
 ### Local verification, September 7
 

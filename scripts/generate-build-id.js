@@ -17,6 +17,7 @@ const HASH_LENGTH = 12;
 
 const STATIC_RUNTIME_FILES = [
   'src/styles.css',
+  'src/subagent-cards.css',
   'src/generated/display-contract.js',
   'src/state.js',
   'src/mascot/sanitize.js',

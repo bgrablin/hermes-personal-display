@@ -4,7 +4,8 @@ const snapshot = {
   schema_version: 1, coverage: 'observed',
   sources: [{ owner: 'observer-1', fresh: true, age_seconds: 2, sessions: [{ session_id: 'parent', status: 'completed',
     processes: [{ session_id: 'proc-A', status: 'running' }], delegations: [{ delegation_id: 'batch', settled: false,
-      units: [{ delegation_id: 'unit-A', task_indexes: [0], status: 'completed' }, { delegation_id: 'unit-B', task_indexes: [1], status: 'running' }] }] }] }],
+      units: [{ delegation_id: 'unit-A', task_indexes: [0], status: 'completed' }, { delegation_id: 'unit-B', task_indexes: [1], status: 'running' }] }],
+    subagents: [{ subagent_id: 'child-1', child_session_id: 'child-session', role: 'leaf', goal: 'Review <img src=x onerror=alert(1)> optic spacing', status: 'running' }] }] }],
   rpc: { status: 'configured', sessions: [{ connection: 'home', profile: 'default', session_id: 'runtime', stored_session_id: 'stored', available: true,
     control: { revision: 'rev1', goal: { title: '<img src=x onerror=alert(1)>', status: 'active' }, loop: null, heartbeat: null }, actions: ['goal.pause'],
     mcp: { checked_at: 123, servers: [{ name: 'context7', status: 'configured', transport: 'stdio', tools: 0 }] } }] },
@@ -24,6 +25,9 @@ test('private integration shows background units, exact controls and literal tex
   await expect(panel).toBeVisible();
   await expect(panel).toContainText('Process proc-A: running');
   await expect(panel).toContainText('unit-B');
+  await expect(panel).toContainText('OBSERVED SUBAGENTS');
+  await expect(panel).toContainText('Review <img src=x onerror=alert(1)> optic spacing');
+  await expect(panel.locator('img')).toHaveCount(0);
   await expect(panel).toContainText('serving-provider');
   await page.screenshot({ path: `test-results/background-work-${info.project.name}.png`, animations: 'disabled' });
   await page.getByLabel('Observed Hermes session').selectOption('1');

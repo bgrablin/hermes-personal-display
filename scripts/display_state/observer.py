@@ -79,9 +79,16 @@ class Observer:
                     "child_session_id",
                     "child_subagent_id",
                     "child_status",
+                    "child_role",
+                    "child_goal",
+                    "parent_subagent_id",
+                    "parent_turn_id",
+                    "duration_ms",
                 )
                 if key in kwargs
             }
+            if event.get("child_goal"):
+                event["child_goal"] = clean(event["child_goal"])[:240]
             try:
                 from hermes_constants import get_hermes_home
 
@@ -159,6 +166,10 @@ class Observer:
                     if s["status"] in TERMINAL
                     and all(p["status"] in TERMINAL for p in s["processes"])
                     and all(d.get("settled") for d in s["delegations"])
+                    and all(
+                        a.get("status") in TERMINAL
+                        for a in s.get("subagents", [])
+                    )
                 ),
                 None,
             )
@@ -175,6 +186,7 @@ class Observer:
                 "status": "unknown",
                 "processes": [],
                 "delegations": [],
+                "subagents": [],
             },
         )
         s["last_event_at"] = time.time()
@@ -197,6 +209,10 @@ class Observer:
             s["turn_id"] = event[
                 "turn_id"
             ]  # Observed identity, never a durable receipt claim.
+        if hook == "subagent_start":
+            self.track_subagent_start(s, event)
+        elif hook == "subagent_stop":
+            self.track_subagent_stop(s, event)
         raw = event.get("result") or {}
         if (
             hook == "post_tool_call"
@@ -244,6 +260,78 @@ class Observer:
                     }
                 )
         # Child stop is not unit completion. Only the registry settles exact dispatch units.
+
+    def track_subagent_start(self, session, event):
+        child_session_id = event.get("child_session_id")
+        subagent_id = event.get("child_subagent_id")
+        if not isinstance(subagent_id, str) or not subagent_id:
+            return
+        existing = next(
+            (
+                row
+                for row in session["subagents"]
+                if row.get("subagent_id") == subagent_id
+                and row.get("child_session_id") == child_session_id
+            ),
+            None,
+        )
+        if existing is None:
+            if len(session["subagents"]) >= 64:
+                settled = next(
+                    (
+                        row
+                        for row in session["subagents"]
+                        if row.get("status") in TERMINAL
+                    ),
+                    None,
+                )
+                if settled is None:
+                    self.dropped += 1
+                    return
+                session["subagents"].remove(settled)
+            existing = {"subagent_id": subagent_id}
+            session["subagents"].append(existing)
+        existing.update(
+            child_session_id=child_session_id,
+            role=event.get("child_role"),
+            goal=event.get("child_goal"),
+            parent_subagent_id=event.get("parent_subagent_id"),
+            parent_turn_id=event.get("parent_turn_id"),
+            status="running",
+            observed_started_at=time.time(),
+        )
+        session["status"] = "running"
+
+    def track_subagent_stop(self, session, event):
+        child_session_id = event.get("child_session_id")
+        if not isinstance(child_session_id, str) or not child_session_id:
+            return
+        existing = next(
+            (
+                row
+                for row in session["subagents"]
+                if row.get("child_session_id") == child_session_id
+            ),
+            None,
+        )
+        if existing is None:
+            if len(session["subagents"]) >= 64:
+                self.dropped += 1
+                return
+            existing = {
+                "subagent_id": child_session_id,
+                "child_session_id": child_session_id,
+                "evidence": "stop observed without matching start",
+            }
+            session["subagents"].append(existing)
+        existing.update(
+            status=event.get("child_status") or "unknown",
+            role=event.get("child_role") or existing.get("role"),
+            observed_finished_at=time.time(),
+        )
+        duration = event.get("duration_ms")
+        if isinstance(duration, int) and duration >= 0:
+            existing["duration_ms"] = duration
 
     def track_process(self, session, pid, reason, identity=None):
         existing = next(
