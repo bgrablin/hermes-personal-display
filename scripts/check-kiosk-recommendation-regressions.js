@@ -172,7 +172,7 @@ requireAll(entertainmentSource, [
   'function installTouchControls(options = {})',
   "window.addEventListener('hermes-touch-gesture'",
   'routeEntertainmentGesture',
-  "touchMode() !== 'off'",
+  "touchMode() === 'fun'",
 ], 'Entertainment module must subscribe to semantic touch gestures, own JSON-backed sequences, server-backed TTS/line calls, browser fallback speech, and SFX');
 if (/addEventListener\(['"]pointer(?:down|move|up|cancel|leave)['"]/.test(entertainmentSource)) {
   fail('Entertainment module must not own pointer events in normal mode; touch-fx.js emits hermes-touch-gesture events.');

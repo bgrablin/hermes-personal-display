@@ -68,11 +68,11 @@
 
   const params = new URLSearchParams(window.location.search || '');
   const on = (value) => ['1', 'true', 'yes'].includes(String(value || '').toLowerCase());
-  const touchMode = () => String(params.get('touch') || 'fun').toLowerCase();
   const debugEnabled = () => on(params.get('debug'));
   const kioskEnabled = () => on(params.get('kiosk'));
+  const touchMode = () => String(params.get('touch') || (!kioskEnabled() ? 'off' : document.body.dataset.audience === 'family' ? 'fun' : 'inspect')).toLowerCase();
   const allowMouseTouchTest = () => on(params.get('touchtest'));
-  const entertainmentEnabled = () => state.enabled && touchMode() !== 'off' && !(touchMode() === 'legacy' && debugEnabled());
+  const entertainmentEnabled = () => state.enabled && touchMode() === 'fun';
   const reducedMotion = () => window.matchMedia?.('(prefers-reduced-motion: reduce)')?.matches === true;
 
   function cleanText(text, max = MAX_TTS_TEXT_CHARS) {

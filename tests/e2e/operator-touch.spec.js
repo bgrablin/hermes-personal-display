@@ -2,6 +2,14 @@ import { test, expect } from '@playwright/test';
 
 const url = '/src/character-runtime.html?kiosk=1&orientation=landscape&mode=reasoning';
 
+test('operator kiosk keeps entertainment disabled unless fun touch mode is explicit', async ({ page }, info) => {
+  test.skip(info.project.name !== 'minix-sf10t-landscape', 'Physical display geometry');
+  await page.goto(url);
+  await expect.poll(() => page.evaluate(() => window.HermesEntertainment?.getDebugState?.().enabled)).toBe(false);
+  await page.goto(`${url}&touch=fun`);
+  await expect.poll(() => page.evaluate(() => window.HermesEntertainment?.getDebugState?.().enabled)).toBe(true);
+});
+
 test('operator drag follows contact, returns to work, and never starts entertainment', async ({ page }, info) => {
   test.skip(info.project.name !== 'minix-sf10t-landscape', 'Physical display geometry');
   const requests = [];
