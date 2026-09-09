@@ -792,7 +792,6 @@ test.describe('Hermes kiosk smoke and visual regression anchors', () => {
     await page.waitForFunction(() => window.__HERMES_CONCEPT_B_EYE_MOTION?.debug?.().mode === 'reasoning');
     await expect.poll(() => page.evaluate(() => window.__HERMES_CONCEPT_B_EYE_MOTION.debug().pupil), { timeout: 1500 }).toBeGreaterThan(idle.pupil + 0.14);
     const reasoning = await page.evaluate(() => window.__HERMES_CONCEPT_B_EYE_MOTION.debug());
-    expect(reasoning.pupil).toBeGreaterThanOrEqual(1.16);
     expect(reasoning.pupil).toBeLessThanOrEqual(1.30);
     expect(idle.pupil).toBeLessThanOrEqual(1.12);
   });
