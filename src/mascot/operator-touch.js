@@ -93,14 +93,17 @@
           const processes = row.processes || [];
           const pending = processes.filter(p => !terminal.has(p.status));
           const units = (row.delegations || []).flatMap(batch => batch.units || []);
-          const unknown = !row.status || row.status === 'unknown' || !row.source.fresh || row.source.dropped_events || pending.some(p => p.status === 'unknown') || units.some(u => u.status === 'unknown');
+          const subagents = row.subagents || [];
+          const pendingSubagents = subagents.filter(subagent => !terminal.has(subagent.status));
+          const unknown = !row.status || row.status === 'unknown' || !row.source.fresh || row.source.dropped_events || pending.some(p => p.status === 'unknown') || units.some(u => u.status === 'unknown') || pendingSubagents.some(subagent => subagent.status === 'unknown');
           const summary = textNode('div', unknown ? 'Work outcome unknown'
             : pending.length ? `${pending.length} background command${pending.length === 1 ? '' : 's'} continuing`
               : units.some(u => !terminal.has(u.status)) ? 'Delegated work continuing'
+                : pendingSubagents.length ? `${pendingSubagents.length} subagent${pendingSubagents.length === 1 ? '' : 's'} working`
                 : `Turn ${row.status || 'unknown'}`);
           summary.className = 'cb-work-summary';
-          summary.dataset.state = unknown ? 'unknown' : pending.length || units.some(u => !terminal.has(u.status)) ? 'active' : 'settled';
-          summary.append(textNode('small', `Turn: ${row.status || 'unknown'} · Processes: ${processes.length} · Delegation units: ${units.length}`));
+          summary.dataset.state = unknown ? 'unknown' : pending.length || units.some(u => !terminal.has(u.status)) || pendingSubagents.length ? 'active' : 'settled';
+          summary.append(textNode('small', `Turn: ${row.status || 'unknown'} · Processes: ${processes.length} · Delegation units: ${units.length} · Subagents: ${subagents.length}`));
           detail.prepend(summary);
           detail.append(textNode('p', `Observation age: ${row.source.age_seconds}s. Turn outcome and background work are separate.`));
           if (row.source.dropped_events) detail.append(textNode('p', 'Observation gap: some events were dropped. Outcomes may be unknown.'));
@@ -114,6 +117,16 @@
           for (const batch of row.delegations || []) {
             detail.append(textNode('strong', `Delegation ${batch.delegation_id}: ${batch.settled ? 'all units settled' : 'unsettled'}`));
             for (const unit of batch.units) detail.append(textNode('p', `${unit.delegation_id} · group ${unit.group ?? 'ungrouped'} · tasks ${unit.task_indexes?.join(', ')} · ${unit.status}`));
+          }
+          if (subagents.length) detail.append(textNode('strong', 'OBSERVED SUBAGENTS'));
+          for (const subagent of subagents) {
+            const card = document.createElement('article');
+            card.className = 'cb-subagent-detail';
+            card.dataset.status = String(subagent.status || 'unknown');
+            card.append(textNode('strong', subagent.goal || `Subagent ${subagent.subagent_id}`));
+            card.append(textNode('p', `${subagent.status || 'unknown'} · ${subagent.role || 'role unknown'}${subagent.duration_ms == null ? '' : ` · ${Math.round(subagent.duration_ms / 1000)}s`}`));
+            card.append(textNode('small', `ID ${subagent.subagent_id}${subagent.child_session_id ? ` · session ${subagent.child_session_id}` : ''}${subagent.evidence ? ` · ${subagent.evidence}` : ''}`));
+            detail.append(card);
           }
         }
         if (row.control) {

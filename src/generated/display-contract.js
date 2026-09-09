@@ -1134,6 +1134,10 @@
                     },
                     "status": {
                       "type": "string"
+                    },
+                    "subagents": {
+                      "maxItems": 64,
+                      "type": "array"
                     }
                   },
                   "required": [

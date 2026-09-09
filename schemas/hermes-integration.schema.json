@@ -78,6 +78,10 @@
                 "delegations": {
                   "type": "array",
                   "maxItems": 64
+                },
+                "subagents": {
+                  "type": "array",
+                  "maxItems": 64
                 }
               }
             }

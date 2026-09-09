@@ -61,7 +61,7 @@ test('a live turn interrupts automatic idle entertainment', async ({ page }) => 
   await page.route('**/avatar-events/stream**', route => route.fulfill({ contentType: 'text/event-stream', body: '' }));
   await page.route('**/api/hermes-state**', route => route.fulfill({ json: packet(mode) }));
   await page.route('**/api/watch-animation-log', route => route.fulfill({ json: { ok: true } }));
-  await page.goto(url);
+  await page.goto(`${url}&touch=fun`);
   await expect(page.locator('[data-cb-feed]')).toContainText('FRESH');
   await page.waitForFunction(() => window.HermesEntertainment?.ids().includes('aurora_breath'));
   expect(await page.evaluate(() => window.HermesEntertainment.playSequence('aurora_breath', { trigger: 'idle:attract' }))).toBe(true);

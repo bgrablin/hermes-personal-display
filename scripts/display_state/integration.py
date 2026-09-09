@@ -118,7 +118,14 @@ def observed_work(snapshot):
                 for u in d.get("units", [])
                 if u.get("status") not in TERMINAL
             ]
-            active = session.get("status") in ACTIVE or bool(pending or units)
+            subagents = [
+                a
+                for a in session.get("subagents", [])
+                if a.get("status") not in TERMINAL
+            ]
+            active = session.get("status") in ACTIVE or bool(
+                pending or units or subagents
+            )
             if not active:
                 continue
             fresh = source["fresh"] and not source.get("dropped_events")
@@ -127,16 +134,24 @@ def observed_work(snapshot):
                 if pending
                 else "Delegated work continuing"
                 if units
+                else "Subagent work continuing"
+                if subagents
                 else "Hermes turn active"
             )
-            if not fresh or any(p.get("status") == "unknown" for p in pending + units):
+            if not fresh or any(
+                p.get("status") == "unknown" for p in pending + units + subagents
+            ):
                 summary = "Work outcome unknown; observation unavailable"
             return {
                 "active": fresh
-                and not any(p.get("status") == "unknown" for p in pending + units),
+                and not any(
+                    p.get("status") == "unknown" for p in pending + units + subagents
+                ),
                 "state": "active"
                 if fresh
-                and not any(p.get("status") == "unknown" for p in pending + units)
+                and not any(
+                    p.get("status") == "unknown" for p in pending + units + subagents
+                )
                 else "unknown",
                 "kind": "tool",
                 "summary": summary,
@@ -163,6 +178,10 @@ def observed_work(snapshot):
                     or any(
                         p.get("exit_code") not in (None, 0)
                         for p in session.get("processes", [])
+                    )
+                    or any(
+                        a.get("status") not in ("completed",)
+                        for a in session.get("subagents", [])
                     )
                 )
                 summary = (

@@ -162,6 +162,67 @@ def test_explicit_delegation_units_not_child_stop_or_suffix(monkeypatch):
     assert batch["settled"]
 
 
+def test_subagent_hooks_preserve_named_activity_and_exact_stop_identity():
+    observer = Observer()
+    observer.callback("subagent_start")(
+        parent_session_id="parent",
+        parent_turn_id="turn-1",
+        child_session_id="child-session",
+        child_subagent_id="child-1",
+        child_role="leaf",
+        child_goal="Review /home/brian/display and api_key=secret-value",
+    )
+    hook, event = observer.events.get_nowait()
+    assert hook == "subagent_start"
+    assert "/home/brian/display" in event["child_goal"]
+    assert "secret-value" not in event["child_goal"]
+    observer.apply(hook, event)
+    row = next(iter(observer.sessions.values()))
+    assert row["subagents"][0]["status"] == "running"
+    assert row["subagents"][0]["parent_turn_id"] == "turn-1"
+    assert observed_work(
+        {"sources": [{"sessions": [row], "fresh": True, "age_seconds": 0}]}
+    )["summary"] == "Subagent work continuing"
+
+    observer.callback("subagent_stop")(
+        parent_session_id="parent",
+        parent_turn_id="turn-1",
+        child_session_id="child-session",
+        child_role="leaf",
+        child_status="completed",
+        duration_ms=2100,
+    )
+    hook, event = observer.events.get_nowait()
+    observer.apply(hook, event)
+    observer.apply(
+        "on_session_end",
+        {"session_id": "parent", "profile": event["profile"], "completed": True},
+    )
+    assert len(row["subagents"]) == 1
+    assert row["subagents"][0]["status"] == "completed"
+    assert row["subagents"][0]["duration_ms"] == 2100
+    assert observed_work(
+        {"sources": [{"sessions": [row], "fresh": True, "age_seconds": 0}]}
+    )["state"] == "recent_activity"
+
+
+def test_unmatched_subagent_stop_is_labeled_without_guessing():
+    observer = Observer()
+    observer.apply(
+        "subagent_stop",
+        {
+            "parent_session_id": "parent",
+            "child_session_id": "child-session",
+            "child_status": "failed",
+            "profile": "home",
+        },
+    )
+    row = observer.sessions[("home", "parent")]["subagents"][0]
+    assert row["subagent_id"] == "child-session"
+    assert row["status"] == "failed"
+    assert row["evidence"] == "stop observed without matching start"
+
+
 def test_profile_isolation():
     o = Observer()
     for profile in ("a", "b"):

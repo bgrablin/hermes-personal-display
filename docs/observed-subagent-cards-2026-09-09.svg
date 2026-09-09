@@ -1,0 +1,50 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="760" viewBox="0 0 1200 760" role="img" aria-labelledby="title desc">
+  <title id="title">Synthetic Hermes observed subagent card preview</title>
+  <desc id="desc">A dark operator inspector with a work summary and three blue, green, and amber subagent lifecycle cards.</desc>
+  <defs>
+    <radialGradient id="bg" cx="46%" cy="45%" r="74%"><stop stop-color="#102431"/><stop offset="1" stop-color="#020609"/></radialGradient>
+    <linearGradient id="card" x1="0" x2="1"><stop stop-color="#132735"/><stop offset="1" stop-color="#101d29"/></linearGradient>
+    <filter id="glow"><feGaussianBlur stdDeviation="7"/></filter>
+  </defs>
+  <rect width="1200" height="760" fill="url(#bg)"/>
+  <g opacity=".45" fill="#64b7dc"><circle cx="95" cy="108" r="3"/><circle cx="1085" cy="128" r="4"/><circle cx="1040" cy="655" r="3"/><circle cx="135" cy="610" r="3"/></g>
+  <circle cx="177" cy="375" r="96" fill="none" stroke="#6687d0" stroke-opacity=".32"/><circle cx="177" cy="375" r="68" fill="#061016" stroke="#8aa0db" stroke-opacity=".55"/><circle cx="177" cy="375" r="24" fill="#02060a" stroke="#c0a371"/>
+  <circle cx="177" cy="375" r="7" fill="#83a7ff" filter="url(#glow)" opacity=".8"/>
+  <g font-family="ui-monospace, SFMono-Regular, Menlo, monospace">
+    <text x="58" y="62" fill="#dbeaf0" font-size="23" letter-spacing="6">HERMES</text>
+    <text x="58" y="91" fill="#7f9898" font-size="15" letter-spacing="4">LOCAL OPERATOR</text>
+    <text x="58" y="708" fill="#78938f" font-size="13" letter-spacing="2">SYNTHETIC PREVIEW</text>
+  </g>
+  <g transform="translate(350 44)">
+    <rect width="790" height="672" rx="18" fill="#08121a" stroke="#395765" stroke-width="2"/>
+    <text x="34" y="46" fill="#8ca6ac" font-family="ui-monospace, monospace" font-size="13" letter-spacing="2">HERMES CONNECTION</text>
+    <text x="34" y="83" fill="#edf7fa" font-family="system-ui, sans-serif" font-size="28" font-weight="650">Sessions &amp; automation</text>
+    <text x="34" y="111" fill="#8fa8ad" font-family="system-ui, sans-serif" font-size="15">Observed lifecycle details · no session attach · no worker controls</text>
+    <rect x="34" y="136" width="722" height="88" rx="8" fill="#152a37" stroke="#79bcd5" stroke-width="0 0 0 3"/>
+    <rect x="34" y="136" width="4" height="88" rx="2" fill="#79bcd5"/>
+    <text x="56" y="174" fill="#e0f1f6" font-family="system-ui, sans-serif" font-size="21" font-weight="600">1 subagent working</text>
+    <text x="56" y="203" fill="#8faab3" font-family="ui-monospace, monospace" font-size="13">Turn: running · Processes: 0 · Delegation units: 1 · Subagents: 3</text>
+    <text x="34" y="260" fill="#b7ced5" font-family="ui-monospace, monospace" font-size="15" font-weight="700" letter-spacing="1.5">OBSERVED SUBAGENTS</text>
+    <g transform="translate(34 280)">
+      <rect width="722" height="106" rx="8" fill="url(#card)" stroke="#36586a"/>
+      <rect width="4" height="106" rx="2" fill="#62a8ce"/>
+      <text x="22" y="31" fill="#e6f5fb" font-family="system-ui, sans-serif" font-size="17" font-weight="650">Review optic spacing and route alignment</text>
+      <text x="22" y="60" fill="#a8c8d5" font-family="ui-monospace, monospace" font-size="14">running · leaf</text>
+      <text x="22" y="87" fill="#7899a7" font-family="ui-monospace, monospace" font-size="12">ID child-1 · session child-session-1</text>
+    </g>
+    <g transform="translate(34 400)">
+      <rect width="722" height="106" rx="8" fill="url(#card)" stroke="#36586a"/>
+      <rect width="4" height="106" rx="2" fill="#77b99e"/>
+      <text x="22" y="31" fill="#e6f5fb" font-family="system-ui, sans-serif" font-size="17" font-weight="650">Validate background handoff accounting</text>
+      <text x="22" y="60" fill="#a8c8d5" font-family="ui-monospace, monospace" font-size="14">completed · leaf · 12s</text>
+      <text x="22" y="87" fill="#7899a7" font-family="ui-monospace, monospace" font-size="12">ID child-2 · session child-session-2</text>
+    </g>
+    <g transform="translate(34 520)">
+      <rect width="722" height="106" rx="8" fill="url(#card)" stroke="#36586a"/>
+      <rect width="4" height="106" rx="2" fill="#d4a16f"/>
+      <text x="22" y="31" fill="#e6f5fb" font-family="system-ui, sans-serif" font-size="17" font-weight="650">Check physical touch target evidence</text>
+      <text x="22" y="60" fill="#a8c8d5" font-family="ui-monospace, monospace" font-size="14">interrupted · orchestrator · 8s</text>
+      <text x="22" y="87" fill="#7899a7" font-family="ui-monospace, monospace" font-size="12">ID child-3 · session child-session-3</text>
+    </g>
+  </g>
+</svg>
