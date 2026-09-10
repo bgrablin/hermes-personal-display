@@ -95,8 +95,11 @@
           const units = (row.delegations || []).flatMap(batch => batch.units || []);
           const subagents = row.subagents || [];
           const pendingSubagents = subagents.filter(subagent => !terminal.has(subagent.status));
-          const unknown = !row.status || row.status === 'unknown' || !row.source.fresh || row.source.dropped_events || pending.some(p => p.status === 'unknown') || units.some(u => u.status === 'unknown') || pendingSubagents.some(subagent => subagent.status === 'unknown');
-          const summary = textNode('div', unknown ? 'Work outcome unknown'
+          const toolOutcome = row.tool_outcome || null;
+          const uncertainTool = toolOutcome?.status === 'unknown';
+          const unknown = uncertainTool || !row.status || row.status === 'unknown' || !row.source.fresh || row.source.dropped_events || pending.some(p => p.status === 'unknown') || units.some(u => u.status === 'unknown') || pendingSubagents.some(subagent => subagent.status === 'unknown');
+          const summary = textNode('div', uncertainTool ? 'Tool outcome uncertain'
+            : unknown ? 'Work outcome unknown'
             : pending.length ? `${pending.length} background command${pending.length === 1 ? '' : 's'} continuing`
               : units.some(u => !terminal.has(u.status)) ? 'Delegated work continuing'
                 : pendingSubagents.length ? `${pendingSubagents.length} subagent${pendingSubagents.length === 1 ? '' : 's'} working`
@@ -107,6 +110,15 @@
           detail.prepend(summary);
           detail.append(textNode('p', `Observation age: ${row.source.age_seconds}s. Turn outcome and background work are separate.`));
           if (row.source.dropped_events) detail.append(textNode('p', 'Observation gap: some events were dropped. Outcomes may be unknown.'));
+          if (toolOutcome) {
+            const card = document.createElement('article');
+            card.className = 'cb-tool-outcome-detail';
+            card.dataset.status = String(toolOutcome.status || 'unknown');
+            card.append(textNode('strong', 'OUTCOME NEEDS VERIFICATION'));
+            card.append(textNode('p', `${toolOutcome.tool_name || 'Tool'} · ${toolOutcome.status || 'unknown'}`));
+            card.append(textNode('small', toolOutcome.message || 'Inspect external state before retrying.'));
+            detail.append(card);
+          }
           for (const process of processes) {
             const card = textNode('p', `Process ${process.session_id}: ${process.status}${process.exit_code == null ? '' : ` · exit ${process.exit_code}`}`);
             card.className = 'cb-process-detail';

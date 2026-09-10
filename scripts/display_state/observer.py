@@ -115,6 +115,7 @@ class Observer:
                             "delegation_id",
                             "units",
                             "count",
+                            "outcome_uncertain",
                         )
                         if k in raw
                     }
@@ -205,6 +206,19 @@ class Observer:
             s["tool"] = event.get("tool_name")
         elif hook == "api_request_error":
             s["request_status"] = "error; turn outcome pending"
+        elif (
+            hook == "post_tool_call"
+            and (event.get("result") or {}).get("outcome_uncertain") is True
+        ):
+            raw = event["result"]
+            s["tool_outcome"] = {
+                "status": "unknown",
+                "tool_name": event.get("tool_name") or "tool",
+                "tool_call_id": event.get("tool_call_id"),
+                "message": raw.get("error")
+                or "The operation may have completed; inspect external state before retrying.",
+                "observed_at": time.time(),
+            }
         if event.get("turn_id"):
             s["turn_id"] = event[
                 "turn_id"

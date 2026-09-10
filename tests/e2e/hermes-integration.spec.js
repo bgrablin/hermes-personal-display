@@ -12,8 +12,14 @@ const snapshot = {
   provider_calls: [{ model: 'test-model', provider: 'route', upstream: 'serving-provider', latency_seconds: 1.5, cache_write: 100, response_id: 'req-test' }],
 };
 
+const uncertainSnapshot = structuredClone(snapshot);
+uncertainSnapshot.sources[0].sessions[0].tool_outcome = {
+  status: 'unknown', tool_name: 'mcp.crm.update',
+  message: 'Operation may have completed; inspect <img src=x onerror=alert(2)> before retrying.',
+};
+
 test('private integration shows background units, exact controls and literal text', async ({ page }, info) => {
-  await page.route('**/api/hermes-integration', route => route.fulfill({ json: snapshot }));
+  await page.route('**/api/hermes-integration', route => route.fulfill({ json: uncertainSnapshot }));
   let sent;
   await page.route('**/api/hermes-integration/control', async route => {
     sent = route.request().postDataJSON();
@@ -26,6 +32,9 @@ test('private integration shows background units, exact controls and literal tex
   await expect(panel).toContainText('Process proc-A: running');
   await expect(panel).toContainText('unit-B');
   await expect(panel).toContainText('OBSERVED SUBAGENTS');
+  await expect(panel).toContainText('OUTCOME NEEDS VERIFICATION');
+  await expect(panel).toContainText('mcp.crm.update · unknown');
+  await expect(panel).toContainText('inspect <img src=x onerror=alert(2)> before retrying');
   await expect(panel).toContainText('Review <img src=x onerror=alert(1)> optic spacing');
   await expect(panel.locator('img')).toHaveCount(0);
   await expect(panel).toContainText('serving-provider');

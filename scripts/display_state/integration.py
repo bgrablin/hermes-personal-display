@@ -107,6 +107,8 @@ def observed_work(snapshot):
                 "age_seconds": source["age_seconds"],
             }
         for session in source.get("sessions", []):
+            tool_outcome = session.get("tool_outcome") or {}
+            tool_unknown = tool_outcome.get("status") == "unknown"
             pending = [
                 p
                 for p in session.get("processes", [])
@@ -142,13 +144,17 @@ def observed_work(snapshot):
                 p.get("status") == "unknown" for p in pending + units + subagents
             ):
                 summary = "Work outcome unknown; observation unavailable"
+            if tool_unknown:
+                summary = "Tool outcome uncertain; inspect before retrying"
             return {
-                "active": fresh
+                "active": not tool_unknown
+                and fresh
                 and not any(
                     p.get("status") == "unknown" for p in pending + units + subagents
                 ),
                 "state": "active"
-                if fresh
+                if not tool_unknown
+                and fresh
                 and not any(
                     p.get("status") == "unknown" for p in pending + units + subagents
                 )
@@ -167,6 +173,22 @@ def observed_work(snapshot):
             continue
         for session in source.get("sessions", []):
             age = max(0, time.time() - session.get("last_event_at", 0))
+            tool_outcome = session.get("tool_outcome") or {}
+            if (
+                session.get("status") in TERMINAL
+                and tool_outcome.get("status") == "unknown"
+            ):
+                return {
+                    "active": False,
+                    "state": "unknown",
+                    "kind": "tool",
+                    "summary": "Tool outcome uncertain; inspect before retrying",
+                    "detail": tool_outcome.get("message")
+                    or "External state must be verified before retrying.",
+                    "source": "hermes_observer",
+                    "session_id": session["session_id"],
+                    "age_seconds": age,
+                }
             if session.get("status") in TERMINAL and age < 30:
                 failed = (
                     session["status"] != "completed"

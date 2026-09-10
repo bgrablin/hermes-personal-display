@@ -223,6 +223,42 @@ def test_unmatched_subagent_stop_is_labeled_without_guessing():
     assert row["evidence"] == "stop observed without matching start"
 
 
+def test_uncertain_tool_result_survives_turn_completion_without_success_claim():
+    observer = Observer()
+    observer.callback("post_tool_call")(
+        session_id="parent",
+        tool_call_id="call-1",
+        tool_name="mcp.crm.update",
+        result=json.dumps(
+            {
+                "outcome_uncertain": True,
+                "error": (
+                    "Operation may have completed for /home/brian/customer; "
+                    "api_key=secret-value. Do not retry automatically."
+                ),
+            }
+        ),
+    )
+    hook, event = observer.events.get_nowait()
+    assert event["result"]["outcome_uncertain"] is True
+    assert "secret-value" not in event["result"]["error"]
+    observer.apply(hook, event)
+    observer.apply(
+        "on_session_end",
+        {"session_id": "parent", "profile": event["profile"], "completed": True},
+    )
+    row = next(iter(observer.sessions.values()))
+    assert row["tool_outcome"]["tool_call_id"] == "call-1"
+    assert row["tool_outcome"]["status"] == "unknown"
+    row["last_event_at"] = time.time() - 31
+    outcome = observed_work(
+        {"sources": [{"sessions": [row], "fresh": True, "age_seconds": 0}]}
+    )
+    assert outcome["state"] == "unknown"
+    assert outcome["summary"] == "Tool outcome uncertain; inspect before retrying"
+    assert "/home/brian/customer" in outcome["detail"]
+
+
 def test_profile_isolation():
     o = Observer()
     for profile in ("a", "b"):

@@ -1138,6 +1138,39 @@
                     "subagents": {
                       "maxItems": 64,
                       "type": "array"
+                    },
+                    "tool_outcome": {
+                      "additionalProperties": false,
+                      "properties": {
+                        "message": {
+                          "maxLength": 800,
+                          "type": "string"
+                        },
+                        "observed_at": {
+                          "type": "number"
+                        },
+                        "status": {
+                          "const": "unknown"
+                        },
+                        "tool_call_id": {
+                          "maxLength": 800,
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        },
+                        "tool_name": {
+                          "maxLength": 800,
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "status",
+                        "tool_name",
+                        "message",
+                        "observed_at"
+                      ],
+                      "type": "object"
                     }
                   },
                   "required": [

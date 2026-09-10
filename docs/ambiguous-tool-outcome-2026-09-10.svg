@@ -1,0 +1,43 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="760" viewBox="0 0 1200 760" role="img" aria-labelledby="title desc">
+  <title id="title">Synthetic Hermes ambiguous tool-outcome preview</title>
+  <desc id="desc">The private operator inspector shows an amber outcome-verification card after a tool transport is lost.</desc>
+  <defs>
+    <radialGradient id="bg" cx="43%" cy="43%" r="76%"><stop stop-color="#102431"/><stop offset="1" stop-color="#020609"/></radialGradient>
+    <linearGradient id="warn" x1="0" x2="1"><stop stop-color="#402a1d"/><stop offset="1" stop-color="#191c1f"/></linearGradient>
+    <filter id="glow"><feGaussianBlur stdDeviation="8"/></filter>
+  </defs>
+  <rect width="1200" height="760" fill="url(#bg)"/>
+  <g opacity=".5" fill="#64b7dc"><circle cx="92" cy="114" r="3"/><circle cx="1090" cy="124" r="4"/><circle cx="1035" cy="660" r="3"/><circle cx="138" cy="612" r="3"/></g>
+  <circle cx="177" cy="375" r="96" fill="none" stroke="#6687d0" stroke-opacity=".32"/>
+  <circle cx="177" cy="375" r="68" fill="#061016" stroke="#8aa0db" stroke-opacity=".55"/>
+  <circle cx="177" cy="375" r="24" fill="#02060a" stroke="#c0a371"/>
+  <circle cx="177" cy="375" r="7" fill="#83a7ff" filter="url(#glow)" opacity=".8"/>
+  <g font-family="ui-monospace, SFMono-Regular, Menlo, monospace">
+    <text x="58" y="62" fill="#dbeaf0" font-size="23" letter-spacing="6">HERMES</text>
+    <text x="58" y="91" fill="#7f9898" font-size="15" letter-spacing="4">LOCAL OPERATOR</text>
+    <text x="58" y="708" fill="#78938f" font-size="13" letter-spacing="2">SYNTHETIC PREVIEW</text>
+  </g>
+  <g transform="translate(350 58)">
+    <rect width="790" height="642" rx="18" fill="#08121a" stroke="#395765" stroke-width="2"/>
+    <text x="34" y="45" fill="#8ca6ac" font-family="ui-monospace, monospace" font-size="13" letter-spacing="2">HERMES CONNECTION</text>
+    <text x="34" y="82" fill="#edf7fa" font-family="system-ui, sans-serif" font-size="28" font-weight="650">Sessions &amp; automation</text>
+    <text x="34" y="110" fill="#8fa8ad" font-family="system-ui, sans-serif" font-size="15">Private observation · commands and paths remain useful</text>
+    <rect x="34" y="138" width="722" height="88" rx="8" fill="#2b251f" stroke="#d4a16f" stroke-opacity=".72"/>
+    <rect x="34" y="138" width="4" height="88" rx="2" fill="#d4a16f"/>
+    <text x="56" y="176" fill="#f3e7d7" font-family="system-ui, sans-serif" font-size="21" font-weight="650">Tool outcome uncertain</text>
+    <text x="56" y="204" fill="#bfae99" font-family="ui-monospace, monospace" font-size="13">Turn: completed · external effect: unknown · automatic retry: blocked</text>
+    <g transform="translate(34 258)">
+      <rect width="722" height="174" rx="9" fill="url(#warn)" stroke="#d4a16f" stroke-opacity=".52"/>
+      <rect width="4" height="174" rx="2" fill="#d4a16f"/>
+      <text x="24" y="36" fill="#f3ca94" font-family="ui-monospace, monospace" font-size="13" font-weight="700" letter-spacing="2">OUTCOME NEEDS VERIFICATION</text>
+      <text x="24" y="76" fill="#f3e7d7" font-family="system-ui, sans-serif" font-size="19" font-weight="620">mcp.home-assistant.call_service · unknown</text>
+      <text x="24" y="111" fill="#cbbca9" font-family="system-ui, sans-serif" font-size="15">The operation may have completed after the stdio transport closed.</text>
+      <text x="24" y="140" fill="#cbbca9" font-family="system-ui, sans-serif" font-size="15">Inspect the target system before retrying.</text>
+    </g>
+    <text x="34" y="478" fill="#9bb2b8" font-family="ui-monospace, monospace" font-size="13" letter-spacing="1.5">WHY AMBER?</text>
+    <text x="34" y="511" fill="#d8e6e8" font-family="system-ui, sans-serif" font-size="16">Not success. Not confirmed failure. Hermes deliberately did not replay.</text>
+    <line x1="34" y1="548" x2="756" y2="548" stroke="#29414c"/>
+    <text x="34" y="582" fill="#819da5" font-family="system-ui, sans-serif" font-size="14">No retry control is exposed on the display.</text>
+    <text x="34" y="610" fill="#819da5" font-family="system-ui, sans-serif" font-size="14">Credential values remain redacted; useful local paths and task names remain visible.</text>
+  </g>
+</svg>
