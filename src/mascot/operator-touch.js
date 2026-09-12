@@ -43,6 +43,11 @@
     const sessionKey = row => JSON.stringify(row.source
       ? ['observer', row.source.owner, row.profile, row.session_id]
       : ['rpc', row.connection, row.profile, row.session_id, row.stored_session_id]);
+    const profileLabel = (profile, collidingNames = new Set()) => {
+      const full = String(profile || 'unknown profile');
+      const compact = full.split(/[\\/]/).filter(Boolean).at(-1) || full;
+      return collidingNames.has(compact) ? full : compact;
+    };
     function textNode(tag, text) {
       const node = document.createElement(tag);
       node.textContent = String(text ?? 'Unknown');
@@ -57,9 +62,16 @@
       refreshButton.addEventListener('click', loadIntegration);
       integration.append(refreshButton);
       const rows = [];
+      const observedProfiles = (data.sources || []).flatMap(source => (source.sessions || []).map(session => String(session.profile || 'unknown profile')));
+      const profileNameCounts = observedProfiles.reduce((counts, profile) => {
+        const compact = profileLabel(profile);
+        counts.set(compact, (counts.get(compact) || 0) + 1);
+        return counts;
+      }, new Map());
+      const collidingProfileNames = new Set([...profileNameCounts].filter(([, count]) => count > 1).map(([name]) => name));
       for (const source of data.sources || []) {
         for (const session of source.sessions || []) rows.push({ ...session, source,
-          label: `${session.session_id} · ${source.fresh ? 'observed' : 'stale'} · ${source.owner.slice(0, 8)}` });
+          label: `${profileLabel(session.profile, collidingProfileNames)} / ${session.session_id} · ${source.fresh ? 'observed' : 'stale'} · ${source.owner.slice(0, 8)}` });
       }
       for (const row of data.rpc?.sessions || []) rows.push({ ...row,
         label: `${row.connection} / ${row.profile} / ${row.session_id}` });
@@ -87,6 +99,15 @@
           return;
         }
         sessionSelection = sessionKey(row);
+        const identity = document.createElement('div');
+        identity.className = 'cb-owner-scope-detail';
+        identity.dataset.state = row.source ? (row.source.fresh ? 'observed' : 'stale') : (row.available ? 'verified' : 'unavailable');
+        identity.append(textNode('strong', row.source ? `OBSERVED PROFILE${row.source.fresh ? '' : ' · STALE'}` : row.available ? 'RPC OWNER VERIFIED' : 'RPC OWNER UNAVAILABLE'));
+        identity.append(textNode('p', `Profile ${row.profile || 'unknown'}`));
+        identity.append(textNode('small', row.source
+          ? `Session ${row.session_id} · observer ${row.source.owner}`
+          : `Connection ${row.connection} · runtime ${row.session_id} · stored ${row.stored_session_id}`));
+        detail.append(identity);
         if (!row.source) detail.append(textNode('strong', row.status || (row.available ? 'Automation observed' : 'Control unavailable')));
         if (row.source) {
           const terminal = new Set(['completed', 'failed', 'interrupted', 'error', 'exited', 'stalled', 'cancelled']);
@@ -107,7 +128,7 @@
           summary.className = 'cb-work-summary';
           summary.dataset.state = unknown ? 'unknown' : pending.length || units.some(u => !terminal.has(u.status)) || pendingSubagents.length ? 'active' : 'settled';
           summary.append(textNode('small', `Turn: ${row.status || 'unknown'} · Processes: ${processes.length} · Delegation units: ${units.length} · Subagents: ${subagents.length}`));
-          detail.prepend(summary);
+          detail.append(summary);
           detail.append(textNode('p', `Observation age: ${row.source.age_seconds}s. Turn outcome and background work are separate.`));
           if (row.source.dropped_events) detail.append(textNode('p', 'Observation gap: some events were dropped. Outcomes may be unknown.'));
           if (toolOutcome) {
@@ -232,7 +253,7 @@
     });
     document.querySelectorAll('.cb-route-row').forEach(node => {
       const label = read(node.querySelector('.cb-route-label strong')) || 'Provider';
-      bind(node, label, 'Available headroom from local provider monitors. Unknown means no verified measurement.', () => read(node));
+      bind(node, label, 'Remaining quota from local provider monitors. Unknown means no verified measurement.', () => read(node));
     });
 
     function refresh() {

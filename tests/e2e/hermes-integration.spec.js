@@ -2,7 +2,7 @@ import { test, expect } from '@playwright/test';
 
 const snapshot = {
   schema_version: 1, coverage: 'observed',
-  sources: [{ owner: 'observer-1', fresh: true, age_seconds: 2, sessions: [{ session_id: 'parent', status: 'completed',
+  sources: [{ owner: 'observer-1', fresh: true, age_seconds: 2, sessions: [{ profile: '/home/brian/.hermes', session_id: 'parent', status: 'completed',
     processes: [{ session_id: 'proc-A', status: 'running' }], delegations: [{ delegation_id: 'batch', settled: false,
       units: [{ delegation_id: 'unit-A', task_indexes: [0], status: 'completed' }, { delegation_id: 'unit-B', task_indexes: [1], status: 'running' }] }],
     subagents: [{ subagent_id: 'child-1', child_session_id: 'child-session', role: 'leaf', goal: 'Review <img src=x onerror=alert(1)> optic spacing', status: 'running' }] }] }],
@@ -29,6 +29,10 @@ test('private integration shows background units, exact controls and literal tex
   await page.locator('.cb-bottom-rail .cb-cell').last().press('Enter');
   const panel = page.locator('.cb-integration');
   await expect(panel).toBeVisible();
+  await expect(page.getByLabel('Observed Hermes session').locator('option').first()).toHaveText(/\.hermes \/ parent/);
+  await expect(panel.locator('.cb-owner-scope-detail')).toContainText('OBSERVED PROFILE');
+  await expect(panel.locator('.cb-owner-scope-detail')).toContainText('Profile /home/brian/.hermes');
+  await expect(panel.locator(':scope > div > :first-child')).toHaveClass(/cb-owner-scope-detail/);
   await expect(panel).toContainText('Process proc-A: running');
   await expect(panel).toContainText('unit-B');
   await expect(panel).toContainText('OBSERVED SUBAGENTS');
@@ -40,6 +44,8 @@ test('private integration shows background units, exact controls and literal tex
   await expect(panel).toContainText('serving-provider');
   await page.screenshot({ path: `test-results/background-work-${info.project.name}.png`, animations: 'disabled' });
   await page.getByLabel('Observed Hermes session').selectOption('1');
+  await expect(panel.locator('.cb-owner-scope-detail')).toContainText('RPC OWNER VERIFIED');
+  await expect(panel.locator('.cb-owner-scope-detail')).toContainText('Connection home · runtime runtime · stored stored');
   await expect(panel).toContainText('<img src=x onerror=alert(1)>');
   await expect(panel.locator('img')).toHaveCount(0);
   await expect(panel).toContainText('cached observation');
@@ -87,4 +93,27 @@ test('refresh preserves exact session and never substitutes a missing owner', as
   await panel.getByRole('button', { name: 'Refresh details' }).click();
   await expect(panel.locator('.cb-work-summary')).toHaveAttribute('data-state', 'unknown');
   await expect(panel.locator('.cb-work-summary')).toContainText('Work outcome unknown');
+  await expect(panel.locator('.cb-owner-scope-detail')).toHaveAttribute('data-state', 'stale');
+  await expect(panel.locator('.cb-owner-scope-detail')).toContainText('OBSERVED PROFILE · STALE');
+  data.rpc.sessions[0] = { ...data.rpc.sessions[0], available: false, actions: [], error: 'cached observation' };
+  await panel.getByRole('button', { name: 'Refresh details' }).click();
+  await page.getByLabel('Observed Hermes session').selectOption('2');
+  await expect(panel.locator('.cb-owner-scope-detail')).toHaveAttribute('data-state', 'unavailable');
+  await expect(panel.locator('.cb-owner-scope-detail')).toContainText('RPC OWNER UNAVAILABLE');
+});
+
+test('same session id in two profiles remains visibly distinguishable', async ({ page }) => {
+  const data = structuredClone(snapshot);
+  data.sources[0].sessions.push({ ...structuredClone(data.sources[0].sessions[0]), profile: '/srv/other/.hermes', processes: [], delegations: [], subagents: [] });
+  await page.route('**/api/hermes-integration', route => route.fulfill({ json: data }));
+  await page.goto('/src/character-runtime.html?kiosk=1&orientation=landscape&mode=reasoning');
+  await page.locator('.cb-bottom-rail .cb-cell').last().press('Enter');
+  const select = page.getByLabel('Observed Hermes session');
+  await expect(select.locator('option')).toHaveText([
+    /\/home\/brian\/\.hermes \/ parent · observed/,
+    /\/srv\/other\/\.hermes \/ parent · observed/,
+    /home \/ default \/ runtime/,
+  ]);
+  await select.selectOption('1');
+  await expect(page.locator('.cb-owner-scope-detail')).toContainText('Profile /srv/other/.hermes');
 });

@@ -877,7 +877,7 @@ test.describe('Hermes kiosk smoke and visual regression anchors', () => {
     test.skip(testInfo.project.name !== 'minix-sf10t-landscape', 'MINIX-only landscape project');
     await page.goto(runtimeUrl('idle_watch', testInfo));
     await expect(page.locator('.cb-route-rail')).toBeVisible();
-    await expect(page.locator('.cb-route-title')).toHaveText('ROUTE · HEADROOM');
+    await expect(page.locator('.cb-route-title')).toHaveText('ROUTE · PROVIDERS');
     await expect(page.locator('.cb-route-standby')).toHaveText('ROUTE UNKNOWN');
     const rows = page.locator('.cb-route-row');
     await expect(rows).toHaveCount(5);

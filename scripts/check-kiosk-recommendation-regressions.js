@@ -532,7 +532,7 @@ if (/safe\[idx\s*%\s*safe\.length\]/.test(appSource)) {
 }
 requireAll(cssSource, ['.cb-arc-label', 'font: 600 16px/1', 'fill: var(--cb-fg-1)'], 'Concept B telemetry arc labels must stay desk-readable and metric-identifying.');
 requireAll(appSource, [
-  'ROUTE · HEADROOM',
+  'ROUTE · PROVIDERS',
   "const unknownRouteCopy = state === 'disabled' ? 'OFF' : state === 'error' ? 'ERR' : 'UNK'",
   "{ id: 'xai-oauth', label: 'XAI'",
   'for (let i = 0; i < 5; i += 1)',

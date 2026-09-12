@@ -2335,7 +2335,7 @@
     root.className = 'cb-route-rail';
     root.setAttribute('aria-label', 'Subscription model route status');
     root.innerHTML = `
-      <div class="cb-route-title">ROUTE · HEADROOM</div>
+      <div class="cb-route-title">ROUTE · PROVIDERS</div>
       <div class="cb-route-spine" aria-hidden="true"></div>
       <div class="cb-route-active-hairline" aria-hidden="true"><span></span></div>
       <div class="cb-route-rows"></div>
