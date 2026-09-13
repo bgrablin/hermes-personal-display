@@ -23,15 +23,63 @@ from display_state.rpc_monitor import Connection, Monitor, RpcError
 def test_rpc_snapshot_reports_server_relative_age_without_mutating_cache(monkeypatch):
     c, target = connection()
     c.rows['runtime'] = {**target, 'available': True, 'observed_at': 100, 'actions': ['goal.pause']}
-    monkeypatch.setattr(time, 'time', lambda: 115)
+    c.observed_monotonic['runtime'] = 100
+    monkeypatch.setattr(time, 'monotonic', lambda: 115)
     assert c.snapshot()[0]['age_seconds'] == 15
     assert c.snapshot()[0]['available']
-    monkeypatch.setattr(time, 'time', lambda: 121)
+    monkeypatch.setattr(time, 'monotonic', lambda: 121)
     row = c.snapshot()[0]
     assert row['age_seconds'] == 21
     assert not row['available'] and row['actions'] == []
     assert 'age_seconds' not in c.rows['runtime']
     assert c.rows['runtime']['available']
+
+
+def test_rpc_snapshot_missing_age_fails_closed_without_epoch_fallback(monkeypatch):
+    c, target = connection()
+    c.rows['runtime'] = {**target, 'available': True, 'actions': ['goal.pause']}
+    monkeypatch.setattr(time, 'monotonic', lambda: 115)
+    row = c.snapshot()[0]
+    assert row['age_seconds'] is None
+    assert not row['available'] and row['actions'] == []
+
+
+@pytest.mark.parametrize(
+    'observed_at',
+    [
+        pytest.param(None, id='null'),
+        pytest.param('invalid', id='text'),
+        pytest.param(True, id='boolean'),
+        pytest.param(float('nan'), id='nan'),
+        pytest.param(float('inf'), id='infinity'),
+        pytest.param(10**5000, id='oversized-integer'),
+    ],
+)
+def test_rpc_snapshot_invalid_age_fails_closed(observed_at, monkeypatch):
+    c, target = connection()
+    c.rows['runtime'] = {
+        **target,
+        'available': True,
+        'observed_at': observed_at,
+        'actions': ['goal.pause'],
+    }
+    monkeypatch.setattr(time, 'monotonic', lambda: 115)
+    row = c.snapshot()[0]
+    assert row['age_seconds'] is None
+    assert not row['available'] and row['actions'] == []
+    json.dumps(row, allow_nan=False)
+
+
+def test_rpc_snapshot_uses_monotonic_age_after_wall_clock_rollback(monkeypatch):
+    c, target = connection()
+    c.rows['runtime'] = {**target, 'available': True, 'observed_at': 121, 'actions': ['goal.pause']}
+    c.observed_monotonic['runtime'] = 100
+    # The wall clock moved backward from 121 to 115; monotonic age remains 21s.
+    monkeypatch.setattr(time, 'time', lambda: 115)
+    monkeypatch.setattr(time, 'monotonic', lambda: 121)
+    row = c.snapshot()[0]
+    assert row['age_seconds'] == 21
+    assert not row['available'] and row['actions'] == []
 
 
 def test_display_observer_plugin_resolves_repo_after_doctor_copy(tmp_path):
@@ -340,13 +388,16 @@ def test_rpc_revision_identity_and_4009_retains_state():
         else {"control": {"revision": "r1", "goal": {"status": "active"}}}
     )
     assert c.hydrate(target)["available"]
+    assert "runtime" in c.observed_monotonic
     c.call = lambda *args: (_ for _ in ()).throw(RpcError(4009))
     row = c.hydrate(target)
     assert not row["available"] and not row["actions"]
+    assert "runtime" in c.observed_monotonic
     assert row["control"]["revision"] == "r1"
     assert row["error"] == "control temporarily unavailable"
     c.call = lambda *args: {"output": "Session ID: someone-else"}
     assert not c.hydrate(target)["available"]
+    assert "runtime" not in c.observed_monotonic
 
 
 def test_mutation_revision_conflict_and_no_retry():

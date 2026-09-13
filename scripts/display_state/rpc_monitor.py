@@ -5,7 +5,9 @@ Never resumes/activates a session, submits prompts, acknowledges approvals, or r
 
 from __future__ import annotations
 
+import copy
 import json
+import math
 import os
 import queue
 import threading
@@ -20,6 +22,16 @@ ACTIONS = frozenset(
     for kind in ("goal", "loop", "heartbeat")
     for action in ("pause", "resume")
 )
+
+
+def _finite_float(value):
+    if isinstance(value, bool) or not isinstance(value, (int, float)):
+        return None
+    try:
+        number = float(value)
+    except (OverflowError, TypeError, ValueError):
+        return None
+    return number if math.isfinite(number) else None
 
 
 class ConfigError(ValueError):
@@ -37,6 +49,7 @@ class Connection:
         self.jobs = queue.Queue(maxsize=8)
         self.lock = threading.Lock()
         self.rows = {}
+        self.observed_monotonic = {}
         self.counter = 0
         self.ws = None
         self.watermarks = {}
@@ -105,6 +118,8 @@ class Connection:
             "connection": self.config["name"],
             "available": False,
         }
+        observation_monotonic = None
+        clear_observation = False
         try:
             # Verify durable identity without resuming/reattaching or stealing another client transport.
             status = self.call("session.status", params)
@@ -115,6 +130,7 @@ class Connection:
             if not isinstance(control, dict):
                 raise RpcError("invalid_snapshot")
             self.set_control(row, control)
+            observation_monotonic = time.monotonic()
             row.update(
                 available=True,
                 observed_at=time.time(),
@@ -127,6 +143,7 @@ class Connection:
             if exc.code != 4009:
                 # Failed verification invalidates cached details and their timestamps.
                 row = {**owner, "available": False}
+                clear_observation = True
             else:
                 row["last_known"] = True
             row.update(
@@ -137,6 +154,10 @@ class Connection:
             )
         with self.lock:
             self.rows[sid] = row
+            if observation_monotonic is not None:
+                self.observed_monotonic[sid] = observation_monotonic
+            elif clear_observation:
+                self.observed_monotonic.pop(sid, None)
         return row
 
     def mutate(self, job):
@@ -247,12 +268,29 @@ class Connection:
                 time.sleep(5)
 
     def snapshot(self):
+        now = _finite_float(time.monotonic())
         with self.lock:
-            rows = json.loads(json.dumps(list(self.rows.values())))
+            rows = copy.deepcopy(list(self.rows.values()))
+            observed_monotonic = dict(self.observed_monotonic)
         for row in rows:
-            # Server-relative age avoids comparing browser and host wall clocks.
-            row["age_seconds"] = max(0, time.time() - row.get("observed_at", 0))
-            if row["age_seconds"] > 20:
+            # Monotonic age avoids comparing browser and host wall clocks.
+            observed_at = _finite_float(row.get("observed_at"))
+            observation_started = _finite_float(
+                observed_monotonic.get(row.get("session_id"))
+            )
+            if observed_at is None:
+                row["observed_at"] = None
+            if now is None or observed_at is None or observation_started is None:
+                row["age_seconds"] = None
+                row.update(available=False, actions=[])
+                continue
+            age_seconds = now - observation_started
+            if _finite_float(age_seconds) is None or age_seconds < 0:
+                row["age_seconds"] = None
+                row.update(available=False, actions=[])
+                continue
+            row["age_seconds"] = age_seconds
+            if age_seconds > 20:
                 row.update(available=False, actions=[])
         return rows
 
