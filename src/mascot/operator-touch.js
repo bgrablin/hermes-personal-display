@@ -39,6 +39,7 @@
     integration.hidden = true;
     panel.append(integration);
     let detailRequest = 0;
+    let refreshDetailAge = () => {};
     let sessionSelection = null;
     const sessionKey = row => JSON.stringify(row.source
       ? ['observer', row.source.owner, row.profile, row.session_id]
@@ -53,7 +54,7 @@
       node.textContent = String(text ?? 'Unknown');
       return node;
     }
-    function renderIntegration(data) {
+    function renderIntegration(data, readStarted) {
       integration.replaceChildren();
       const status = textNode('small', 'LOCAL OPERATOR · OBSERVED SOURCES');
       integration.append(status);
@@ -61,6 +62,17 @@
       refreshButton.type = 'button';
       refreshButton.addEventListener('click', loadIntegration);
       integration.append(refreshButton);
+      const snapshotFreshness = document.createElement('div');
+      snapshotFreshness.className = 'cb-snapshot-freshness';
+      const snapshotLabel = textNode('strong', 'SNAPSHOT');
+      snapshotLabel.setAttribute('role', 'status');
+      const snapshotAge = textNode('small', '');
+      snapshotFreshness.append(snapshotLabel, snapshotAge);
+      integration.append(snapshotFreshness);
+      // Include request time conservatively. Wall elapsed covers a sleeping tablet;
+      // monotonic elapsed protects against a backwards wall-clock adjustment.
+      const elapsed = () => Math.max(0, performance.now() - readStarted.monotonic,
+        Date.now() - readStarted.wall) / 1000;
       const rows = [];
       const observedProfiles = (data.sources || []).flatMap(source => (source.sessions || []).map(session => String(session.profile || 'unknown profile')));
       const profileNameCounts = observedProfiles.reduce((counts, profile) => {
@@ -90,14 +102,17 @@
       const detail = document.createElement('div');
       integration.append(select, detail);
       function show() {
+        refreshDetailAge = () => {};
         detail.replaceChildren();
         const row = select.value === '' ? null : rows[Number(select.value)];
         if (!row) {
+          snapshotFreshness.hidden = true;
           detail.append(textNode('p', sessionSelection === null
             ? `Session coverage unavailable. RPC: ${data.rpc?.status || 'not configured'}.`
             : 'Selected session is no longer observed. Refresh or explicitly select another session.'));
           return;
         }
+        snapshotFreshness.hidden = false;
         sessionSelection = sessionKey(row);
         const identity = document.createElement('div');
         identity.className = 'cb-owner-scope-detail';
@@ -129,7 +144,7 @@
           summary.dataset.state = unknown ? 'unknown' : pending.length || units.some(u => !terminal.has(u.status)) || pendingSubagents.length ? 'active' : 'settled';
           summary.append(textNode('small', `Turn: ${row.status || 'unknown'} · Processes: ${processes.length} · Delegation units: ${units.length} · Subagents: ${subagents.length}`));
           detail.append(summary);
-          detail.append(textNode('p', `Observation age: ${row.source.age_seconds}s. Turn outcome and background work are separate.`));
+          detail.append(textNode('p', 'Turn outcome and background work are separate. Details below are snapshot observations.'));
           if (row.source.dropped_events) detail.append(textNode('p', 'Observation gap: some events were dropped. Outcomes may be unknown.'));
           if (toolOutcome) {
             const card = document.createElement('article');
@@ -173,6 +188,8 @@
               const button = textNode('button', `${action} ${kind}`);
               button.type = 'button';
               button.addEventListener('click', async () => {
+                // Check at dispatch too: background-tab timers may have been throttled.
+                if (!refreshDetailAge() || button.disabled) return;
                 detail.querySelectorAll('button').forEach(b => { b.disabled = true; });
                 const feedback = textNode('p', `Sending ${name} to ${row.label}…`);
                 detail.append(feedback);
@@ -194,6 +211,35 @@
           detail.append(textNode('p', `Checked at: ${row.mcp.checked_at ?? 'unknown'}. This does not probe connectivity.`));
           for (const server of row.mcp.servers || []) detail.append(textNode('p', `${server.name}: ${server.status} · ${server.transport} · ${server.tools} tools`));
         }
+        const baseAge = row.source ? row.source.age_seconds : row.age_seconds;
+        const hasAge = Number.isFinite(baseAge) && baseAge >= 0;
+        let expired = false;
+        let paintedExpired = false;
+        refreshDetailAge = () => {
+          const age = hasAge ? baseAge + elapsed() : null;
+          expired ||= !hasAge || age > 20 || !(row.source ? row.source.fresh : row.available);
+          snapshotFreshness.dataset.state = expired ? 'stale' : 'fresh';
+          const label = expired ? 'LAST-KNOWN SNAPSHOT' : 'SNAPSHOT · NOT A LIVE VIEW';
+          // Announce transitions, not the once-per-second age tick.
+          if (snapshotLabel.textContent !== label) snapshotLabel.textContent = label;
+          snapshotAge.textContent = `${age === null ? 'Age unavailable' : `Observation age: ${Math.floor(age)}s`} · ${expired
+            ? 'Refresh to verify. Details retained for reading; controls disabled.'
+            : 'Ages out after 20s. Refresh details to read again.'}`;
+          if (expired && !paintedExpired) {
+            paintedExpired = true;
+            identity.dataset.state = row.source ? 'stale' : 'unavailable';
+            identity.querySelector('strong').textContent = row.source ? 'OBSERVED PROFILE · STALE'
+              : row.available ? 'RPC OWNER · LAST-KNOWN' : 'RPC OWNER UNAVAILABLE';
+            const summary = detail.querySelector('.cb-work-summary');
+            if (summary) {
+              summary.dataset.state = 'unknown';
+              summary.firstChild.textContent = 'Last-known work · refresh to verify';
+            }
+            detail.querySelectorAll('button').forEach(button => { button.disabled = true; });
+          }
+          return !expired;
+        };
+        refreshDetailAge();
       }
       select.addEventListener('change', show);
       show();
@@ -203,13 +249,15 @@
     }
     async function loadIntegration() {
       const request = ++detailRequest;
+      refreshDetailAge = () => {};
+      const readStarted = { monotonic: performance.now(), wall: Date.now() };
       integration.hidden = false;
       integration.replaceChildren(textNode('p', 'Reading Hermes observations…'));
       try {
         const response = await fetch('/api/hermes-integration', { cache: 'no-store' });
         if (!response.ok) throw new Error('unavailable');
         const data = await response.json();
-        if (request === detailRequest && selected) renderIntegration(data);
+        if (request === detailRequest && selected) renderIntegration(data, readStarted);
       } catch {
         if (request === detailRequest) integration.replaceChildren(textNode('p', 'Hermes integration unavailable. Existing display readings remain visible.'));
       }
@@ -258,6 +306,7 @@
 
     function refresh() {
       if (!selected) return;
+      refreshDetailAge();
       title.textContent = selected.integration ? 'HERMES CONNECTION' : selected.label;
       value.textContent = selected.integration ? 'Sessions & automation' : selected.readValue() || 'Unknown';
       context.textContent = selected.integration ? 'Select an observed session for background work, automation, and connection details.' : selected.detail;
@@ -272,6 +321,7 @@
       panel.hidden = true;
       integration.hidden = true;
       ++detailRequest;
+      refreshDetailAge = () => {};
       selected = null;
       window.clearTimeout(dismissTimer);
       window.clearInterval(refreshTimer);

@@ -6,7 +6,7 @@ const snapshot = {
     processes: [{ session_id: 'proc-A', status: 'running' }], delegations: [{ delegation_id: 'batch', settled: false,
       units: [{ delegation_id: 'unit-A', task_indexes: [0], status: 'completed' }, { delegation_id: 'unit-B', task_indexes: [1], status: 'running' }] }],
     subagents: [{ subagent_id: 'child-1', child_session_id: 'child-session', role: 'leaf', goal: 'Review <img src=x onerror=alert(1)> optic spacing', status: 'running' }] }] }],
-  rpc: { status: 'configured', sessions: [{ connection: 'home', profile: 'default', session_id: 'runtime', stored_session_id: 'stored', available: true,
+  rpc: { status: 'configured', sessions: [{ connection: 'home', profile: 'default', session_id: 'runtime', stored_session_id: 'stored', available: true, age_seconds: 2,
     control: { revision: 'rev1', goal: { title: '<img src=x onerror=alert(1)>', status: 'active' }, loop: null, heartbeat: null }, actions: ['goal.pause'],
     mcp: { checked_at: 123, servers: [{ name: 'context7', status: 'configured', transport: 'stdio', tools: 0 }] } }] },
   provider_calls: [{ model: 'test-model', provider: 'route', upstream: 'serving-provider', latency_seconds: 1.5, cache_write: 100, response_id: 'req-test' }],
@@ -32,7 +32,7 @@ test('private integration shows background units, exact controls and literal tex
   await expect(page.getByLabel('Observed Hermes session').locator('option').first()).toHaveText(/\.hermes \/ parent/);
   await expect(panel.locator('.cb-owner-scope-detail')).toContainText('OBSERVED PROFILE');
   await expect(panel.locator('.cb-owner-scope-detail')).toContainText('Profile /home/brian/.hermes');
-  await expect(panel.locator(':scope > div > :first-child')).toHaveClass(/cb-owner-scope-detail/);
+  await expect(panel.locator(':scope > select + div > :first-child')).toHaveClass(/cb-owner-scope-detail/);
   await expect(panel).toContainText('Process proc-A: running');
   await expect(panel).toContainText('unit-B');
   await expect(panel).toContainText('OBSERVED SUBAGENTS');
@@ -92,7 +92,7 @@ test('refresh preserves exact session and never substitutes a missing owner', as
   data.sources[1].fresh = false;
   await panel.getByRole('button', { name: 'Refresh details' }).click();
   await expect(panel.locator('.cb-work-summary')).toHaveAttribute('data-state', 'unknown');
-  await expect(panel.locator('.cb-work-summary')).toContainText('Work outcome unknown');
+  await expect(panel.locator('.cb-work-summary')).toContainText('Last-known work · refresh to verify');
   await expect(panel.locator('.cb-owner-scope-detail')).toHaveAttribute('data-state', 'stale');
   await expect(panel.locator('.cb-owner-scope-detail')).toContainText('OBSERVED PROFILE · STALE');
   data.rpc.sessions[0] = { ...data.rpc.sessions[0], available: false, actions: [], error: 'cached observation' };
@@ -116,4 +116,66 @@ test('same session id in two profiles remains visibly distinguishable', async ({
   ]);
   await select.selectOption('1');
   await expect(page.locator('.cb-owner-scope-detail')).toContainText('Profile /srv/other/.hermes');
+});
+
+test('held details expire in place and require an explicit fresh read', async ({ page }, info) => {
+  await page.clock.install();
+  let reads = 0;
+  let writes = 0;
+  await page.route('**/api/hermes-integration', route => { reads++; return route.fulfill({ json: snapshot }); });
+  await page.route('**/api/hermes-integration/control', route => { writes++; return route.fulfill({ json: { status: 'applied' } }); });
+  await page.goto('/src/character-runtime.html?kiosk=1&orientation=landscape&mode=reasoning');
+  await page.locator('.cb-bottom-rail .cb-cell').last().press('Enter');
+  const panel = page.locator('.cb-integration');
+  const select = page.getByLabel('Observed Hermes session');
+  await select.selectOption('1');
+  const pause = panel.getByRole('button', { name: 'pause goal', exact: true });
+  await expect(pause).toBeEnabled();
+  await expect(panel.locator('.cb-snapshot-freshness')).toContainText('SNAPSHOT');
+  await pause.focus();
+  const node = await panel.locator('.cb-owner-scope-detail').elementHandle();
+  await page.clock.fastForward(21_000);
+  await expect(panel.locator('.cb-snapshot-freshness')).toContainText('LAST-KNOWN');
+  await expect(panel.locator('.cb-owner-scope-detail')).toContainText('RPC OWNER · LAST-KNOWN');
+  await expect(pause).toBeDisabled();
+  expect(await node.evaluate(el => el.isConnected)).toBe(true);
+  // A programmatic late click also checks expiry before dispatch, even if timers were suspended.
+  await pause.dispatchEvent('click');
+  expect(writes).toBe(0);
+  await select.selectOption('0');
+  await expect(panel.locator('.cb-work-summary')).toContainText('Last-known work · refresh to verify');
+  await expect(panel.locator('.cb-owner-scope-detail')).toHaveAttribute('data-state', 'stale');
+  await expect(panel).toContainText('Process proc-A: running');
+  await select.selectOption('1');
+  await expect(pause).toBeDisabled();
+  expect(reads).toBe(1);
+  await panel.getByRole('button', { name: 'Refresh details' }).click();
+  await expect(select).toHaveValue('1');
+  await expect(pause).toBeEnabled();
+  expect(reads).toBe(2);
+  // Advance the wall clock without running intervals. The dispatch-time check
+  // must catch staleness before the next UI timer (e.g. a suspended tablet).
+  await page.clock.setSystemTime(new Date(await page.evaluate(() => Date.now()) + 21_000));
+  await pause.dispatchEvent('click');
+  await expect(pause).toBeDisabled();
+  await panel.evaluate(el => { el.scrollTop = 0; });
+  await page.screenshot({ path: `test-results/snapshot-expiry-${info.project.name}.png`, animations: 'disabled' });
+  await page.keyboard.press('Escape');
+  await page.clock.fastForward(30_000);
+  expect(reads).toBe(2);
+  expect(writes).toBe(0);
+});
+
+test('unknown or already old ages never enable snapshot controls', async ({ page }) => {
+  const data = structuredClone(snapshot);
+  delete data.rpc.sessions[0].age_seconds;
+  data.sources[0].age_seconds = 25;
+  await page.route('**/api/hermes-integration', route => route.fulfill({ json: data }));
+  await page.goto('/src/character-runtime.html?kiosk=1&orientation=landscape&mode=reasoning');
+  await page.locator('.cb-bottom-rail .cb-cell').last().press('Enter');
+  const panel = page.locator('.cb-integration');
+  await expect(panel.locator('.cb-snapshot-freshness')).toContainText('LAST-KNOWN');
+  await page.getByLabel('Observed Hermes session').selectOption('1');
+  await expect(panel.locator('.cb-snapshot-freshness')).toContainText('Age unavailable');
+  await expect(panel.getByRole('button', { name: 'pause goal', exact: true })).toBeDisabled();
 });

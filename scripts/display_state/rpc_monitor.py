@@ -250,7 +250,9 @@ class Connection:
         with self.lock:
             rows = json.loads(json.dumps(list(self.rows.values())))
         for row in rows:
-            if time.time() - row.get("observed_at", 0) > 20:
+            # Server-relative age avoids comparing browser and host wall clocks.
+            row["age_seconds"] = max(0, time.time() - row.get("observed_at", 0))
+            if row["age_seconds"] > 20:
                 row.update(available=False, actions=[])
         return rows
 

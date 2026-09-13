@@ -20,6 +20,20 @@ from display_state.observer import Observer
 from display_state.rpc_monitor import Connection, Monitor, RpcError
 
 
+def test_rpc_snapshot_reports_server_relative_age_without_mutating_cache(monkeypatch):
+    c, target = connection()
+    c.rows['runtime'] = {**target, 'available': True, 'observed_at': 100, 'actions': ['goal.pause']}
+    monkeypatch.setattr(time, 'time', lambda: 115)
+    assert c.snapshot()[0]['age_seconds'] == 15
+    assert c.snapshot()[0]['available']
+    monkeypatch.setattr(time, 'time', lambda: 121)
+    row = c.snapshot()[0]
+    assert row['age_seconds'] == 21
+    assert not row['available'] and row['actions'] == []
+    assert 'age_seconds' not in c.rows['runtime']
+    assert c.rows['runtime']['available']
+
+
 def test_display_observer_plugin_resolves_repo_after_doctor_copy(tmp_path):
     repo = Path(__file__).resolve().parents[2]
     entrypoint = repo / "integrations/display-observer/__init__.py"

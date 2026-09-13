@@ -1,8 +1,9 @@
 # Hermes main integrations
 
-Current follow-up baseline: display `main` **cefe1d646162b0b43aa5d9e92fbba6d508fe4222**.
-Upstream contracts inspected through Hermes `main` **4a39a3ff8bea45ab5a6b646ce26ced88a8fed079**.
-Branch: `feat/observed-subagent-cards`. This document describes repository behavior, including the proposed follow-up, not the deployed display.
+Current follow-up baseline: display `main` **f171618b37536f77d112198c2a75cb8409e66973**.
+Upstream contracts inspected through Hermes `main` **205645ee424163c7b6cfc032c331c3557797497b**.
+Branch: `feat/inspector-snapshot-expiry`. This document describes repository behavior, including the proposed follow-up, not the deployed display.
+Latest source-review and implementation checkpoint: [September 13](checkpoints/2026-09-13.md).
 
 ## Merged capability inventory
 
@@ -40,6 +41,16 @@ Hermes main now has `subagent.list`, `subagent.tail`, `subagent.steer` and `suba
 The merged upstream implementation is [8b01df9](https://github.com/NousResearch/hermes-agent/commit/8b01df963d2e121ce800bccece3d750002c24ffd), with ownership/progress hardening in [924c5de](https://github.com/NousResearch/hermes-agent/commit/924c5ded2eca54070e1e1e239ea8d6a1540aa064) and shared-transport authority in [68ed3ff](https://github.com/NousResearch/hermes-agent/commit/68ed3ffd105faebeec7f0022f1438b80a704d860). A future passive-reader contract must identify the owner and generation without making the display a session member. Until then, the live transcript and action controls remain intentionally absent.
 
 ## Touch and interaction specification
+
+### Inspector snapshot freshness
+
+The inspector is a manual snapshot, not a live subscription. A visible age card turns amber and says **LAST-KNOWN SNAPSHOT** when the selected observation exceeds 20 seconds, is unavailable, or has no valid age. Owner verification and work summaries also become explicitly last-known; existing details remain readable. Pause/resume controls disable, including a dispatch-time age check for suspended/throttled browser timers. Switching sessions does not reset snapshot age. Only an explicit **Refresh details** can load a fresh owner-checked snapshot; there is no automatic read, attach, mutation, or replay.
+
+RPC snapshots now supply server-relative `age_seconds`, avoiding comparison of browser and host wall clocks. The browser conservatively includes request elapsed time and uses monotonic/wall elapsed time to age held data. Older servers without this age field retain readable details but cannot enable browser controls. This supplements, not replaces, server-side owner/revision checks. The underlying observer remains best effort, including the known upstream hook-drop limitation.
+
+After an approved merge, deploy the browser build and restart the display server together for the age field. No Hermes observer change or durable-state migration is needed. Reverting this follow-up and rebuilding restores the former inspector.
+
+Synthetic browser previews: [1920×1280](snapshot-expiry-landscape-2026-09-13.png), [320×480](snapshot-expiry-compact-2026-09-13.png). Literal markup in the example goal is an inert-text regression fixture, not production data.
 
 Tap a provider rail row or the Tasks cell to open **Sessions & automation**. Choose a source-qualified session. Inspect background processes, dispatch units, observed subagent cards, automation state and cached MCP health. A subagent card shows the bounded task name, role, exact subagent and child-session IDs, observed status and duration when available. Provider call details appear beneath the selected session. The panel stays open and scrolls; Refresh updates the snapshot. Escape and Close dismiss it. All action targets are at least 44 px tall. Existing smaller eye, blue motes, eye drag, Augury pinning, palette and family interactions remain intact.
 
