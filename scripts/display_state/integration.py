@@ -190,10 +190,10 @@ def observed_work(snapshot):
                     "age_seconds": age,
                 }
             if session.get("status") in TERMINAL and age < 30:
-                failed = (
-                    session["status"] != "completed"
+                hard_failed = (
+                    session["status"] in {"failed", "error", "stalled"}
                     or any(
-                        u.get("status") != "completed"
+                        u.get("status") in {"failed", "error", "stalled"}
                         for d in session.get("delegations", [])
                         for u in d.get("units", [])
                     )
@@ -202,18 +202,32 @@ def observed_work(snapshot):
                         for p in session.get("processes", [])
                     )
                     or any(
-                        a.get("status") not in ("completed",)
+                        a.get("status") in {"failed", "error", "stalled"}
+                        for a in session.get("subagents", [])
+                    )
+                )
+                interrupted = (
+                    session["status"] in {"interrupted", "cancelled"}
+                    or any(
+                        u.get("status") in {"interrupted", "cancelled"}
+                        for d in session.get("delegations", [])
+                        for u in d.get("units", [])
+                    )
+                    or any(
+                        a.get("status") in {"interrupted", "cancelled"}
                         for a in session.get("subagents", [])
                     )
                 )
                 summary = (
-                    "Observed work ended with an error or interruption"
-                    if failed
+                    "Observed work ended with an error"
+                    if hard_failed
+                    else "Observed turn was interrupted"
+                    if interrupted
                     else "Observed turn and background work settled"
                 )
                 return {
                     "active": False,
-                    "state": "failed" if failed else "recent_activity",
+                    "state": "failed" if hard_failed else "recent_activity",
                     "kind": "tool",
                     "summary": summary,
                     "detail": summary,

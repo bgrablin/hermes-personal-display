@@ -69,6 +69,7 @@ class Observer:
                 for key in (
                     "session_id",
                     "parent_session_id",
+                    "session_key",
                     "turn_id",
                     "tool_call_id",
                     "tool_name",
@@ -84,6 +85,9 @@ class Observer:
                     "parent_subagent_id",
                     "parent_turn_id",
                     "duration_ms",
+                    "platform",
+                    "reason",
+                    "invalidation_reason",
                 )
                 if key in kwargs
             }
@@ -155,7 +159,11 @@ class Observer:
         return receive
 
     def apply(self, hook, event):
-        sid = event.get("parent_session_id") or event.get("session_id")
+        sid = (
+            event.get("parent_session_id")
+            or event.get("session_id")
+            or event.get("session_key")
+        )
         if not sid:
             return
         key = (event.get("profile", "unknown"), sid)
@@ -193,6 +201,7 @@ class Observer:
         s["last_event_at"] = time.time()
         if hook == "on_session_start":
             s["status"] = "running"
+            s.pop("interruption", None)
         elif hook == "on_session_end":
             s["status"] = (
                 "interrupted"
@@ -201,9 +210,21 @@ class Observer:
                 if event.get("completed")
                 else "failed"
             )
+        elif hook == "agent_loop_stopped":
+            # Immediate identity-bearing evidence for /stop, /new's running-agent
+            # path, and TUI/Desktop session.interrupt. It settles only the parent
+            # turn; background work retains its independently observed state.
+            s["status"] = "interrupted"
+            s["interruption"] = {
+                key: event.get(key)
+                for key in ("reason", "invalidation_reason", "platform")
+                if event.get(key)
+            }
+            s["interruption"]["observed_at"] = time.time()
         elif hook in ("pre_tool_call", "pre_api_request"):
             s["status"] = "running"
             s["tool"] = event.get("tool_name")
+            s.pop("interruption", None)
         elif hook == "api_request_error":
             s["request_status"] = "error; turn outcome pending"
         elif (

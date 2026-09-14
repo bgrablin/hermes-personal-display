@@ -18,6 +18,13 @@ uncertainSnapshot.sources[0].sessions[0].tool_outcome = {
   message: 'Operation may have completed; inspect <img src=x onerror=alert(2)> before retrying.',
 };
 
+const interruptedSnapshot = structuredClone(snapshot);
+interruptedSnapshot.sources[0].sessions[0] = {
+  profile: '/home/brian/.hermes', session_id: 'parent', status: 'interrupted',
+  interruption: { reason: 'user_stop', invalidation_reason: 'session_interrupt', platform: 'tui' },
+  processes: [], delegations: [], subagents: [],
+};
+
 test('private integration shows background units, exact controls and literal text', async ({ page }, info) => {
   await page.route('**/api/hermes-integration', route => route.fulfill({ json: uncertainSnapshot }));
   let sent;
@@ -70,6 +77,20 @@ test('family mode does not request operator integration', async ({ page }) => {
   await page.goto('/src/character-runtime.html?kiosk=1&family=1');
   await page.waitForTimeout(400);
   expect(requests).toEqual([]);
+});
+
+test('interrupted turn has a distinct readable outcome card', async ({ page }, info) => {
+  await page.route('**/api/hermes-integration', route => route.fulfill({ json: interruptedSnapshot }));
+  await page.goto('/src/character-runtime.html?kiosk=1&orientation=landscape&mode=completed');
+  await page.locator('.cb-bottom-rail .cb-cell').last().press('Enter');
+  const panel = page.locator('.cb-integration');
+  const card = panel.locator('.cb-interruption-detail');
+  await expect(panel.locator('.cb-work-summary')).toContainText('Turn interrupted');
+  await expect(card).toContainText('TURN INTERRUPTED');
+  await expect(card).toContainText('Stopped by user request');
+  await expect(card).toContainText('Surface tui · Reason session_interrupt');
+  await expect(card).toBeInViewport();
+  await page.screenshot({ path: `test-results/interrupted-turn-${info.project.name}.png`, animations: 'disabled' });
 });
 
 test('refresh preserves exact session and never substitutes a missing owner', async ({ page }) => {

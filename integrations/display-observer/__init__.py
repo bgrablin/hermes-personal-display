@@ -36,6 +36,7 @@ def register(ctx):
     global _observer
     _observer = Observer()
     for hook in ('on_session_start', 'on_session_end', 'pre_tool_call', 'post_tool_call',
-                 'pre_api_request', 'api_request_error', 'subagent_start', 'subagent_stop'):
+                 'pre_api_request', 'api_request_error', 'subagent_start', 'subagent_stop',
+                 'agent_loop_stopped'):
         ctx.register_hook(hook, _observer.callback(hook))
     _observer.start()

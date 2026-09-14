@@ -1,9 +1,9 @@
 # Hermes main integrations
 
-Current follow-up baseline: display `main` **f171618b37536f77d112198c2a75cb8409e66973**.
-Upstream contracts inspected through Hermes `main` **205645ee424163c7b6cfc032c331c3557797497b**.
-Branch: `feat/inspector-snapshot-expiry`. This document describes repository behavior, including the proposed follow-up, not the deployed display.
-Latest source-review and implementation checkpoint: [September 13](checkpoints/2026-09-13.md).
+Current follow-up baseline: display `main` **dc0a64aa7526c1bee78c60cfa7d43b7fbf3789bc**.
+Upstream contracts inspected through Hermes `main` **afe06f21f45f476c25034c4529818d9a2f9fdf1c**.
+Branch: `feat/interrupted-turn-observation`. This document describes repository behavior, including the proposed follow-up, not the deployed display.
+Latest source-review and implementation checkpoint: [September 14](checkpoints/2026-09-14.md).
 
 ## Merged capability inventory
 
@@ -17,6 +17,7 @@ Latest source-review and implementation checkpoint: [September 13](checkpoints/2
 | Delegation completion units | Preserve explicit `units[].delegation_id`, group and task indexes; overall settlement requires all expected units terminal | [028fe2c](https://github.com/NousResearch/hermes-agent/commit/028fe2c4c857710ab335a8455f5cbbcc52cbf795), `tools/delegate_tool_dispatch.py` |
 | Existing reconnect settling error | `4009` disables controls, retains the last snapshot and retries only reads; no automatic prompt or mutation replay | `tui_gateway` RPC error contract |
 | Existing lifecycle observers | In-process plugin observes tool/API/turn hooks across CLI and gateway; keeps source epoch, profile and session identity | `hermes_cli/plugins.py`, `model_tools.py`, hooks documentation |
+| Immediate running-turn interruption | Consume exact `session_key` evidence from `agent_loop_stopped`; mark the parent turn interrupted while independently observed process, delegation and subagent work remains unsettled | [gateway `f361971e`](https://github.com/NousResearch/hermes-agent/commit/f361971eedd2e7d59da34414172d87fb58f7e354), [TUI/Desktop `d3202bbc`](https://github.com/NousResearch/hermes-agent/commit/d3202bbc8dbaf8c8c605c059679156db61570031) |
 | Subagent lifecycle hooks | Keep a bounded, credential-redacted task name and exact child session/subagent identity from `subagent_start`; settle only the matching child session on `subagent_stop` | `tools/delegate_tool.py`, `tools/delegate_tool_results.py` |
 | Ambiguous tool outcome | Preserve structured `outcome_uncertain: true` from completed tool calls, keep the dashboard state unknown after turn completion, and require external verification before retry | [144b86e](https://github.com/NousResearch/hermes-agent/commit/144b86ef48b5a3859a238fc45e7596c8aacd4e0e), [73c104e](https://github.com/NousResearch/hermes-agent/commit/73c104ee35656a818898c1cb26cfc49afbdf4294), [cff103a](https://github.com/NousResearch/hermes-agent/commit/cff103a8b7d041f07e5cddb17ec6c9281045fa31) |
 
@@ -26,7 +27,7 @@ Rechecked September 7: #103954 (overview), #103950 (compression rollback), #1039
 
 The optional `integrations/display-observer` plugin runs inside the actual Hermes process. Hook callbacks extract bounded metadata into a queue. A daemon snapshots it every two seconds into private, atomic per-process files. It reads the existing process registry without calling `poll`, `wait`, or draining completion notifications. Delegations use the upstream read-only registry snapshot and exact dispatch-unit IDs. A child stop is never interpreted as a batch stop.
 
-The display collector reads these snapshots without importing Hermes or launching an agent. Positive observed work drives the existing resolver and eye/headline contract. A background command survives parent completion. Missing registry entities, stale process epochs, and event loss produce unknown rather than idle or successful completion. Sources older than 20 seconds are stale. The latest terminal observation is presented briefly; failed/interrupted work gets attention, rather than a successful-completion presentation. A process exit code is separate from the parent outcome.
+The display collector reads these snapshots without importing Hermes or launching an agent. Positive observed work drives the existing resolver and eye/headline contract. A background command survives parent completion or interruption. Missing registry entities, stale process epochs, and event loss produce unknown rather than idle or successful completion. Sources older than 20 seconds are stale. The latest terminal observation is presented briefly. A deliberate interruption is amber and distinct from a hard failure; an explicit failed/error/stalled state or nonzero process exit still gets failure attention. A process exit code is separate from the parent outcome.
 
 The private endpoint `/api/hermes-integration` contains lifecycle sources, RPC inspection and recent provider telemetry. It accepts loopback requests only. Its schema lives in `schemas/hermes-integration.schema.json` and is included in generated browser/Python contracts. Private details are not added to the family state projection or public avatar-event bus. Strings use the existing credential-only private redactor before bounding; the browser inserts them as text. Provider telemetry is explicitly a recent log observation, not a current route, cumulative billing figure, or quota estimate. Missing cache values remain unknown.
 
@@ -51,6 +52,14 @@ RPC snapshots now supply server-relative `age_seconds`, avoiding comparison of b
 After an approved merge, deploy the browser build and restart the display server together for the age field. No Hermes observer change or durable-state migration is needed. Reverting this follow-up and rebuilding restores the former inspector.
 
 Synthetic browser previews: [1920×1280](snapshot-expiry-landscape-2026-09-13.png), [320×480](snapshot-expiry-compact-2026-09-13.png). Literal markup in the example goal is an inert-text regression fixture, not production data.
+
+### Interrupted-turn reaction
+
+Hermes main now fires `agent_loop_stopped` immediately for an active messaging-gateway `/stop` or running-agent `/new`, and for TUI/Desktop `session.interrupt`. The observer keys the event by the supplied `session_key` inside the current profile scope and records only the bounded platform and interruption reasons. It does not infer an interrupt from prose or a disconnected transport.
+
+The parent turn changes to `interrupted` immediately. The ambient display reports a recent interruption instead of painting an error, and private touch inspection adds an amber **TURN INTERRUPTED** card. Processes, delegation units and subagents keep their own states, so an interrupted parent can still truthfully say that background work continues. A later `on_session_end` is compatible and a new turn clears the old interruption detail. No stop button, attach, retry, replay or new authority is added. [Synthetic preview](interrupted-turn-observation-2026-09-14.svg).
+
+This hook was merged to Hermes `main` after v2026.9.11. The branch's plugin manifest therefore requires a Hermes revision containing `f361971e` for gateway coverage and `d3202bbc` for TUI/Desktop coverage; v2026.9.11 cannot provide the event and its Plugin Doctor will report the hook name as unknown. Keep the display PR undeployed until Hermes is upgraded and the observer passes Plugin Doctor on the actual host.
 
 Tap a provider rail row or the Tasks cell to open **Sessions & automation**. Choose a source-qualified session. Inspect background processes, dispatch units, observed subagent cards, automation state and cached MCP health. A subagent card shows the bounded task name, role, exact subagent and child-session IDs, observed status and duration when available. Provider call details appear beneath the selected session. The panel stays open and scrolls; Refresh updates the snapshot. Escape and Close dismiss it. All action targets are at least 44 px tall. Existing smaller eye, blue motes, eye drag, Augury pinning, palette and family interactions remain intact.
 

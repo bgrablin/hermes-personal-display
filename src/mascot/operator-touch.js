@@ -132,6 +132,7 @@
           const subagents = row.subagents || [];
           const pendingSubagents = subagents.filter(subagent => !terminal.has(subagent.status));
           const toolOutcome = row.tool_outcome || null;
+          const interruption = row.interruption || null;
           const uncertainTool = toolOutcome?.status === 'unknown';
           const unknown = uncertainTool || !row.status || row.status === 'unknown' || !row.source.fresh || row.source.dropped_events || pending.some(p => p.status === 'unknown') || units.some(u => u.status === 'unknown') || pendingSubagents.some(subagent => subagent.status === 'unknown');
           const summary = textNode('div', uncertainTool ? 'Tool outcome uncertain'
@@ -146,6 +147,17 @@
           detail.append(summary);
           detail.append(textNode('p', 'Turn outcome and background work are separate. Details below are snapshot observations.'));
           if (row.source.dropped_events) detail.append(textNode('p', 'Observation gap: some events were dropped. Outcomes may be unknown.'));
+          if (row.status === 'interrupted') {
+            const card = document.createElement('article');
+            card.className = 'cb-interruption-detail';
+            card.append(textNode('strong', 'TURN INTERRUPTED'));
+            card.append(textNode('p', interruption?.reason === 'user_stop' ? 'Stopped by user request' : 'The active turn stopped'));
+            card.append(textNode('small', [
+              interruption?.platform ? `Surface ${interruption.platform}` : null,
+              interruption?.invalidation_reason ? `Reason ${interruption.invalidation_reason}` : null,
+            ].filter(Boolean).join(' · ') || 'Observed from the Hermes interrupt lifecycle hook'));
+            detail.append(card);
+          }
           if (toolOutcome) {
             const card = document.createElement('article');
             card.className = 'cb-tool-outcome-detail';

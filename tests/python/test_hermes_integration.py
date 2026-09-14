@@ -95,6 +95,23 @@ def test_display_observer_plugin_resolves_repo_after_doctor_copy(tmp_path):
     assert module._resolve_repo_root(copied_entrypoint, repo / "tests") == repo
 
 
+def test_display_observer_plugin_registers_interrupt_hook(monkeypatch):
+    repo = Path(__file__).resolve().parents[2]
+    entrypoint = repo / "integrations/display-observer/__init__.py"
+    spec = importlib.util.spec_from_file_location("display_observer_registration", entrypoint)
+    assert spec is not None and spec.loader is not None
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    registered = []
+    fake_observer = SimpleNamespace(
+        callback=lambda hook: hook,
+        start=lambda: None,
+    )
+    monkeypatch.setattr(module, "Observer", lambda: fake_observer)
+    module.register(SimpleNamespace(register_hook=lambda hook, callback: registered.append((hook, callback))))
+    assert ("agent_loop_stopped", "agent_loop_stopped") in registered
+
+
 def test_display_observer_plugin_rejects_partial_checkout_ancestor(tmp_path):
     repo = Path(__file__).resolve().parents[2]
     entrypoint = repo / "integrations/display-observer/__init__.py"
@@ -150,6 +167,52 @@ def observer_with_background(reason="yielded_to_background"):
     )
     observer.apply("on_session_end", {"session_id": "parent", "completed": True})
     return observer
+
+
+def test_agent_loop_stopped_marks_exact_turn_interrupted_without_settling_background():
+    observer = observer_with_background()
+    observer.callback("agent_loop_stopped")(
+        session_key="parent",
+        platform="tui",
+        reason="user_stop",
+        invalidation_reason="session_interrupt",
+    )
+    hook, event = observer.events.get_nowait()
+    assert hook == "agent_loop_stopped"
+    assert event["session_key"] == "parent"
+    observer.apply(hook, event)
+    session = next(iter(observer.sessions.values()))
+    assert session["status"] == "interrupted"
+    assert session["interruption"] == {
+        "reason": "user_stop",
+        "invalidation_reason": "session_interrupt",
+        "platform": "tui",
+        "observed_at": session["interruption"]["observed_at"],
+    }
+    active = observed_work(
+        {"sources": [{"sessions": [session], "fresh": True, "age_seconds": 0}]}
+    )
+    assert active["active"]
+    assert active["summary"] == "Command continuing in background"
+
+    session["processes"][0].update(status="exited", exit_code=0)
+    settled = observed_work(
+        {"sources": [{"sessions": [session], "fresh": True, "age_seconds": 0}]}
+    )
+    assert settled["state"] == "recent_activity"
+    assert settled["summary"] == "Observed turn was interrupted"
+
+
+def test_new_turn_clears_previous_interrupt_detail():
+    observer = Observer()
+    observer.apply(
+        "agent_loop_stopped",
+        {"session_key": "parent", "reason": "user_stop", "platform": "tui"},
+    )
+    observer.apply("on_session_start", {"session_id": "parent"})
+    session = next(iter(observer.sessions.values()))
+    assert session["status"] == "running"
+    assert "interruption" not in session
 
 
 @pytest.mark.parametrize("reason", ["yielded_to_background", "promoted"])
