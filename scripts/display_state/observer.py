@@ -225,6 +225,9 @@ class Observer:
             explicit_status = event.get("status")
             if explicit_status in {"failed", "error", "stalled"}:
                 s["status"] = explicit_status
+                # An explicit hard failure supersedes a recorded interruption;
+                # keeping both would produce contradictory snapshot metadata.
+                s.pop("interruption", None)
             elif event.get("interrupted"):
                 s["status"] = "interrupted"
             elif event.get("completed"):
@@ -356,7 +359,9 @@ class Observer:
             status="running",
             observed_started_at=time.time(),
         )
-        session["status"] = "running"
+        if session["status"] != "interrupted":
+            # A late or racing child start must not erase an observed interruption.
+            session["status"] = "running"
 
     def track_subagent_stop(self, session, event):
         child_session_id = event.get("child_session_id")

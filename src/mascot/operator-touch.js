@@ -151,11 +151,13 @@
             const card = document.createElement('article');
             card.className = 'cb-interruption-detail';
             card.append(textNode('strong', 'TURN INTERRUPTED'));
-            card.append(textNode('p', interruption?.reason === 'user_stop' ? 'Stopped by user request' : 'The active turn stopped'));
+            // Preserve the observed reason verbatim; only user_stop is humanized.
+            card.append(textNode('p', interruption?.reason === 'user_stop' ? 'Stopped by user request'
+              : interruption?.reason ? `Interrupted: ${interruption.reason}` : 'The active turn stopped'));
             card.append(textNode('small', [
               interruption?.platform ? `Surface ${interruption.platform}` : null,
               interruption?.invalidation_reason ? `Reason ${interruption.invalidation_reason}` : null,
-            ].filter(Boolean).join(' · ') || 'Observed from the Hermes interrupt lifecycle hook'));
+            ].filter(Boolean).join(' · ') || (interruption?.reason ? `Reason ${interruption.reason}` : 'Observed from the Hermes interrupt lifecycle hook')));
             detail.append(card);
             // The identity and summary remain above for context, but the outcome
             // itself must be visible without a blind swipe on a landscape kiosk.

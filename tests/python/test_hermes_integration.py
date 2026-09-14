@@ -239,7 +239,8 @@ def test_agent_loop_stopped_resolves_distinct_observed_session_key_alias():
     assert session["status"] == "interrupted"
 
 
-def test_reduced_session_finalizer_preserves_observed_interruption():
+@pytest.mark.parametrize("explicit_status", ["failed", "error", "stalled"])
+def test_reduced_session_finalizer_clears_stale_interruption_metadata(explicit_status):
     observer = Observer()
     observer.apply(
         "agent_loop_stopped", {"session_key": "parent", "reason": "user_stop"}
@@ -248,9 +249,63 @@ def test_reduced_session_finalizer_preserves_observed_interruption():
     assert observer.sessions[("unknown", "parent")]["status"] == "interrupted"
 
     observer.apply(
-        "on_session_end", {"session_id": "parent", "status": "failed"}
+        "on_session_end", {"session_id": "parent", "status": explicit_status}
     )
-    assert observer.sessions[("unknown", "parent")]["status"] == "failed"
+    row = observer.sessions[("unknown", "parent")]
+    assert row["status"] == explicit_status
+    # A hard failure wins; the interruption record must not survive as metadata.
+    assert "interruption" not in row
+
+
+def test_late_subagent_start_does_not_erase_observed_interruption():
+    observer = Observer()
+    observer.apply(
+        "agent_loop_stopped", {"session_key": "parent", "reason": "user_stop"}
+    )
+    observer.apply(
+        "subagent_start",
+        {
+            "parent_session_id": "parent",
+            "child_session_id": "child",
+            "child_subagent_id": "child-1",
+        },
+    )
+    row = observer.sessions[("unknown", "parent")]
+    assert row["status"] == "interrupted"
+    assert row["interruption"]["reason"] == "user_stop"
+
+
+def test_late_subagent_start_via_session_key_alias_preserves_interruption():
+    observer = Observer()
+    observer.apply(
+        "on_session_start",
+        {
+            "profile": "home",
+            "session_id": "stored-session-id",
+            "session_key": "agent:main:tui:dm:s1",
+        },
+    )
+    observer.apply(
+        "agent_loop_stopped",
+        {
+            "profile": "home",
+            "session_key": "agent:main:tui:dm:s1",
+            "reason": "user_stop",
+        },
+    )
+    observer.apply(
+        "subagent_start",
+        {
+            "profile": "home",
+            "parent_session_id": "stored-session-id",
+            "child_session_id": "child",
+            "child_subagent_id": "child-1",
+        },
+    )
+    row = observer.sessions[("home", "stored-session-id")]
+    assert row["status"] == "interrupted"
+    assert row["interruption"]["reason"] == "user_stop"
+    assert row["subagents"][0]["status"] == "running"
 
 
 @pytest.mark.parametrize("process_status", ["failed", "error", "stalled"])

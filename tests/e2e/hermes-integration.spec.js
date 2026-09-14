@@ -25,6 +25,27 @@ interruptedSnapshot.sources[0].sessions[0] = {
   processes: [], delegations: [], subagents: [],
 };
 
+// A non-user interruption reason must remain readable verbatim, not humanized.
+const gatewayInterruptSnapshot = structuredClone(interruptedSnapshot);
+gatewayInterruptSnapshot.sources[0].sessions[0].interruption = {
+  reason: 'tool_invalidation', platform: 'gateway',
+};
+
+test('non-user interruption reason stays readable without an invalidation reason', async ({ page }) => {
+  await page.route('**/api/hermes-integration', route => route.fulfill({ json: gatewayInterruptSnapshot }));
+  await page.goto('/src/character-runtime.html?kiosk=1&orientation=landscape&mode=completed');
+  await page.locator('.cb-bottom-rail .cb-cell').last().press('Enter');
+  const panel = page.locator('.cb-integration');
+  const card = panel.locator('.cb-interruption-detail');
+  await expect(card).toContainText('TURN INTERRUPTED');
+  await expect(card).toContainText('Interrupted: tool_invalidation');
+  await expect(card).toContainText('Surface gateway');
+  // The observed reason is rendered in the card body; the small line omits the
+  // missing invalidation_reason rather than leaving an empty Reason entry.
+  await expect(card).not.toContainText('Reason undefined');
+  await expect(card).not.toContainText('Reason null');
+});
+
 test('private integration shows background units, exact controls and literal text', async ({ page }, info) => {
   await page.route('**/api/hermes-integration', route => route.fulfill({ json: uncertainSnapshot }));
   let sent;
@@ -90,6 +111,47 @@ test('interrupted turn has a distinct readable outcome card', async ({ page }, i
   await expect(card).toContainText('Stopped by user request');
   await expect(card).toContainText('Surface tui · Reason session_interrupt');
   await expect(card).toBeInViewport();
+  // The visual contract is "the eye moves, the words don't": the centered
+  // operator activity copy must stay stationary when the card scrolls.
+  // Baseline the panel, re-run the scoping operation, and require the activity
+  // copy's frame geometry to be identical to home across the card operation.
+  const captured = await page.evaluate(() => {
+    const read = () => {
+      const activity = document.querySelector('.cb-activity');
+      const panel = document.querySelector('.cb-integration');
+      return {
+        activityBefore: activity?.getBoundingClientRect(),
+        activityTransform: activity ? getComputedStyle(activity).transform : null,
+        panelComputedTransform: panel ? getComputedStyle(panel).transform : null,
+        activityText: (activity?.textContent || '').trim(),
+      };
+    };
+    const home = read();
+    const card = document.querySelector('.cb-interruption-detail');
+    const before = card?.getBoundingClientRect();
+    if (before) card.scrollIntoView({ block: 'nearest', inline: 'nearest' });
+    const after = card?.getBoundingClientRect();
+    const cardDelta = before && after
+      ? Math.hypot(after.top - before.top, after.left - before.left)
+      : null;
+    const moved = read();
+    return { home, moved, cardDelta };
+  });
+  expect(captured.home.activityText.length).toBeGreaterThan(0);
+  expect(captured.home.activityBefore.width).toBeGreaterThan(0);
+  expect(captured.home.activityBefore.height).toBeGreaterThan(0);
+  // The panel's own translateX(-50%) centering transform is fixed CSS, not a
+  // scroll effect; require identical computed values across the card operation.
+  expect(captured.moved.activityTransform).toBe(captured.home.activityTransform);
+  expect(captured.moved.panelComputedTransform).toBe(captured.home.panelComputedTransform);
+  // Before/after geometry is identical, not merely nonzero.
+  expect(Math.hypot(
+    captured.moved.activityBefore.right - captured.home.activityBefore.right,
+    captured.moved.activityBefore.bottom - captured.home.activityBefore.bottom,
+    captured.moved.activityBefore.top - captured.home.activityBefore.top,
+    captured.moved.activityBefore.left - captured.home.activityBefore.left,
+  )).toBe(0);
+  expect(captured.cardDelta).toBeLessThanOrEqual(0.001);
   await page.screenshot({ path: `test-results/interrupted-turn-${info.project.name}.png`, animations: 'disabled' });
 });
 
