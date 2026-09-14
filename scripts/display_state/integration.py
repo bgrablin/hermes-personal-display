@@ -198,7 +198,8 @@ def observed_work(snapshot):
                         for u in d.get("units", [])
                     )
                     or any(
-                        p.get("exit_code") not in (None, 0)
+                        p.get("status") in {"failed", "error", "stalled"}
+                        or p.get("exit_code") not in (None, 0)
                         for p in session.get("processes", [])
                     )
                     or any(

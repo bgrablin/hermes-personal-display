@@ -215,6 +215,61 @@ def test_new_turn_clears_previous_interrupt_detail():
     assert "interruption" not in session
 
 
+def test_agent_loop_stopped_resolves_distinct_observed_session_key_alias():
+    observer = Observer()
+    observer.apply(
+        "on_session_start",
+        {
+            "profile": "home",
+            "session_id": "stored-session-id",
+            "session_key": "agent:main:tui:dm:s1",
+        },
+    )
+    observer.apply(
+        "agent_loop_stopped",
+        {
+            "profile": "home",
+            "session_key": "agent:main:tui:dm:s1",
+            "reason": "user_stop",
+        },
+    )
+    assert list(observer.sessions) == [("home", "stored-session-id")]
+    session = observer.sessions[("home", "stored-session-id")]
+    assert session["session_key"] == "agent:main:tui:dm:s1"
+    assert session["status"] == "interrupted"
+
+
+def test_reduced_session_finalizer_preserves_observed_interruption():
+    observer = Observer()
+    observer.apply(
+        "agent_loop_stopped", {"session_key": "parent", "reason": "user_stop"}
+    )
+    observer.apply("on_session_end", {"session_id": "parent"})
+    assert observer.sessions[("unknown", "parent")]["status"] == "interrupted"
+
+    observer.apply(
+        "on_session_end", {"session_id": "parent", "status": "failed"}
+    )
+    assert observer.sessions[("unknown", "parent")]["status"] == "failed"
+
+
+@pytest.mark.parametrize("process_status", ["failed", "error", "stalled"])
+def test_explicit_terminal_process_status_is_a_hard_failure(process_status):
+    session = {
+        "session_id": "parent",
+        "status": "completed",
+        "last_event_at": time.time(),
+        "processes": [{"session_id": "process1", "status": process_status}],
+        "delegations": [],
+        "subagents": [],
+    }
+    outcome = observed_work(
+        {"sources": [{"sessions": [session], "fresh": True, "age_seconds": 0}]}
+    )
+    assert outcome["state"] == "failed"
+    assert outcome["summary"] == "Observed work ended with an error"
+
+
 @pytest.mark.parametrize("reason", ["yielded_to_background", "promoted"])
 def test_background_survives_parent_and_settles_only_from_registry(monkeypatch, reason):
     observer = observer_with_background(reason)

@@ -1122,6 +1122,30 @@
                       "maxItems": 64,
                       "type": "array"
                     },
+                    "interruption": {
+                      "additionalProperties": false,
+                      "properties": {
+                        "invalidation_reason": {
+                          "maxLength": 800,
+                          "type": "string"
+                        },
+                        "observed_at": {
+                          "type": "number"
+                        },
+                        "platform": {
+                          "maxLength": 800,
+                          "type": "string"
+                        },
+                        "reason": {
+                          "maxLength": 800,
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "observed_at"
+                      ],
+                      "type": "object"
+                    },
                     "processes": {
                       "maxItems": 64,
                       "type": "array"
@@ -1130,6 +1154,10 @@
                       "type": "string"
                     },
                     "session_id": {
+                      "type": "string"
+                    },
+                    "session_key": {
+                      "maxLength": 800,
                       "type": "string"
                     },
                     "status": {

@@ -65,6 +65,10 @@
                 "session_id": {
                   "type": "string"
                 },
+                "session_key": {
+                  "type": "string",
+                  "maxLength": 800
+                },
                 "profile": {
                   "type": "string"
                 },
@@ -108,6 +112,30 @@
                       "maxLength": 800
                     },
                     "message": {
+                      "type": "string",
+                      "maxLength": 800
+                    },
+                    "observed_at": {
+                      "type": "number"
+                    }
+                  }
+                },
+                "interruption": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": [
+                    "observed_at"
+                  ],
+                  "properties": {
+                    "reason": {
+                      "type": "string",
+                      "maxLength": 800
+                    },
+                    "invalidation_reason": {
+                      "type": "string",
+                      "maxLength": 800
+                    },
+                    "platform": {
                       "type": "string",
                       "maxLength": 800
                     },

@@ -159,14 +159,31 @@ class Observer:
         return receive
 
     def apply(self, hook, event):
-        sid = (
-            event.get("parent_session_id")
-            or event.get("session_id")
-            or event.get("session_key")
-        )
+        profile = event.get("profile", "unknown")
+        session_key = event.get("session_key")
+        sid = event.get("parent_session_id") or event.get("session_id")
+        key = None
+        if hook == "agent_loop_stopped" and session_key:
+            # Gateway/TUI interruption events identify the transport session key,
+            # which can differ from the stored session ID used by lifecycle hooks.
+            # Resolve only an alias observed on that exact profile; never guess
+            # between concurrently running sessions.
+            matches = [
+                candidate
+                for candidate, row in self.sessions.items()
+                if candidate[0] == profile
+                and (
+                    row.get("session_key") == session_key
+                    or row.get("session_id") == session_key
+                )
+            ]
+            if len(matches) == 1:
+                key = matches[0]
+                sid = self.sessions[key]["session_id"]
+        sid = sid or session_key
         if not sid:
             return
-        key = (event.get("profile", "unknown"), sid)
+        key = key or (profile, sid)
         if key not in self.sessions and len(self.sessions) >= 64:
             settled = next(
                 (
@@ -199,17 +216,21 @@ class Observer:
             },
         )
         s["last_event_at"] = time.time()
+        if session_key and hook != "agent_loop_stopped":
+            s["session_key"] = session_key
         if hook == "on_session_start":
             s["status"] = "running"
             s.pop("interruption", None)
         elif hook == "on_session_end":
-            s["status"] = (
-                "interrupted"
-                if event.get("interrupted")
-                else "completed"
-                if event.get("completed")
-                else "failed"
-            )
+            explicit_status = event.get("status")
+            if explicit_status in {"failed", "error", "stalled"}:
+                s["status"] = explicit_status
+            elif event.get("interrupted"):
+                s["status"] = "interrupted"
+            elif event.get("completed"):
+                s["status"] = "completed"
+            elif s.get("status") != "interrupted":
+                s["status"] = "failed"
         elif hook == "agent_loop_stopped":
             # Immediate identity-bearing evidence for /stop, /new's running-agent
             # path, and TUI/Desktop session.interrupt. It settles only the parent
