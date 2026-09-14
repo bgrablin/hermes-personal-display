@@ -24,8 +24,6 @@ import sys
 import time
 from pathlib import Path
 from typing import Any
-import urllib.error
-import urllib.parse
 import urllib.request
 
 HOME = Path(os.path.expanduser("~"))
@@ -33,13 +31,6 @@ PROJECT_ROOT = Path(__file__).resolve().parents[1]
 LOG_PATH = HOME / ".hermes/logs/agent.log"
 OUT_PATH = HOME / ".hermes/display/provider_route_rail.json"
 CCUSAGE_BIN = Path(os.environ.get("HERMES_DISPLAY_CCUSAGE_BIN", PROJECT_ROOT / "node_modules/.bin/ccusage"))
-GH_BIN = Path(os.environ.get("HERMES_DISPLAY_GH_BIN", HOME / ".local/bin/gh"))
-GITHUB_API_VERSION = "2026-03-10"
-COPILOT_PLAN_CREDIT_LIMITS = {
-    "pro": 1500.0,
-    "pro-plus": 7000.0,
-    "max": 20000.0,
-}
 
 # Per-provider fallback signals. Request counts are not provider quota and must
 # only be used where the row is explicitly documented as an estimate.
@@ -67,11 +58,12 @@ PROVIDER_PLAN = {
         "window_minutes": 60,
         "request_cap": 600,
     },
-    "copilot": {
-        # No usable local quota signal for Copilot today — render as
-        # reachable-but-unknown rather than fabricate a number.
-        "label": "COPILOT",
-        "tier_label": None,
+    "opencode-go": {
+        # Confirmed quota comes from OpenCode Go's authenticated usage endpoint
+        # (rolling/weekly/monthly percent windows). Local request counts do not
+        # map to those windows and must never become percentage headroom.
+        "label": "OCGO",
+        "tier_label": "GO",
         "rank": 4,
         "window_minutes": None,
         "request_cap": None,
@@ -332,222 +324,66 @@ def fetch_nous_headroom() -> tuple[float | None, str | None, float | None]:
         return None, None, None
 
 
-def fetch_copilot_reachable() -> bool:
-    """Verify Copilot auth with the read-only model catalog endpoint."""
-    try:
-        _load_hermes_env_and_path()
-        from agent.credential_pool import load_pool
-
-        pool = load_pool("copilot")
-        entries = pool.entries() if pool else []
-        for entry in entries:
-            token = str(getattr(entry, "runtime_api_key", "") or "").strip()
-            if not token:
-                continue
-            request = urllib.request.Request(
-                "https://api.githubcopilot.com/models",
-                headers={
-                    "Authorization": f"Bearer {token}",
-                    "Accept": "application/json",
-                    "Editor-Version": "vscode/1.95.0",
-                    "Editor-Plugin-Version": "copilot-chat/0.22.0",
-                    "User-Agent": "GitHubCopilotChat/0.22.0",
-                },
-                method="GET",
-            )
-            try:
-                with urllib.request.urlopen(request, timeout=10.0) as response:
-                    payload = json.loads(response.read().decode("utf-8")) or {}
-                models = payload.get("data") if isinstance(payload, dict) else payload
-                if isinstance(models, list) and models:
-                    return True
-            except Exception:
-                continue
-    except Exception as exc:
-        print(f"copilot catalog probe failed: {type(exc).__name__}: {exc}", file=sys.stderr)
-    return False
+OPENCODE_GO_USAGE_URL = "https://opencode.ai/zen/go/v1/usage"
 
 
-def _copilot_plan() -> str:
-    raw = str(os.environ.get("HERMES_DISPLAY_COPILOT_PLAN") or "").strip().lower()
-    normalized = raw.replace("_", "-").replace("+", "-plus").replace(" ", "-")
-    aliases = {
-        "proplus": "pro-plus",
-        "pro--plus": "pro-plus",
-        "copilot-pro": "pro",
-        "copilot-pro-plus": "pro-plus",
-        "copilot-max": "max",
-    }
-    return aliases.get(normalized, normalized)
+def fetch_opencode_go_headroom() -> tuple[float | None, float | None, str | None, float | None]:
+    """Return confirmed OpenCode Go headroom from its authenticated usage endpoint.
 
-
-def _copilot_credit_limit() -> float | None:
-    override = str(os.environ.get("HERMES_DISPLAY_COPILOT_CREDIT_LIMIT") or "").strip()
-    if override:
-        try:
-            value = float(override)
-            if math.isfinite(value) and 0 < value <= 1_000_000_000:
-                return value
-        except ValueError:
-            return None
-        return None
-    return COPILOT_PLAN_CREDIT_LIMITS.get(_copilot_plan())
-
-
-def _next_month_reset_epoch(now: dt.datetime) -> float:
-    if now.month == 12:
-        reset = dt.datetime(now.year + 1, 1, 1, tzinfo=dt.timezone.utc)
-    else:
-        reset = dt.datetime(now.year, now.month + 1, 1, tzinfo=dt.timezone.utc)
-    return reset.timestamp()
-
-
-def _copilot_billing_tokens() -> list[str]:
-    _load_hermes_env_and_path()
-    tokens: list[str] = []
-    for name in (
-        "HERMES_DISPLAY_GITHUB_TOKEN",
-        "GITHUB_TOKEN",
-        "GH_TOKEN",
-        "COPILOT_GITHUB_TOKEN",
-    ):
-        token = str(os.environ.get(name) or "").strip()
-        if token and token not in tokens:
-            tokens.append(token)
-    if GH_BIN.is_file():
-        try:
-            result = subprocess.run(
-                [str(GH_BIN), "auth", "token"],
-                text=True,
-                capture_output=True,
-                timeout=5,
-                check=False,
-            )
-            token = result.stdout.strip() if result.returncode == 0 else ""
-            if token and token not in tokens:
-                tokens.append(token)
-        except (OSError, subprocess.TimeoutExpired):
-            pass
-    return tokens
-
-
-def _github_json(url: str, token: str) -> dict:
-    request = urllib.request.Request(
-        url,
-        headers={
-            "Authorization": f"Bearer {token}",
-            "Accept": "application/vnd.github+json",
-            "X-GitHub-Api-Version": GITHUB_API_VERSION,
-            "User-Agent": "hermes-personal-display",
-        },
-        method="GET",
-    )
-    with urllib.request.urlopen(request, timeout=12.0) as response:
-        payload = json.loads(response.read().decode("utf-8")) or {}
-    return payload if isinstance(payload, dict) else {}
-
-
-def _copilot_billing_account(token: str) -> str | None:
-    configured = str(os.environ.get("HERMES_DISPLAY_COPILOT_ACCOUNT") or "").strip()
-    account_pattern = r"[A-Za-z0-9](?:[A-Za-z0-9-]{0,37}[A-Za-z0-9])?"
-    if configured:
-        return configured if re.fullmatch(account_pattern, configured) else None
-    payload = _github_json("https://api.github.com/user", token)
-    login = str(payload.get("login") or "").strip()
-    return login if login and re.fullmatch(account_pattern, login) else None
-
-
-def fetch_copilot_usage() -> dict[str, Any] | None:
-    """Return confirmed Copilot AI-credit usage from GitHub's billing API.
-
-    Personal-plan allowance comes from an explicit local plan or credit-limit
-    setting. If GitHub reports consumption but no limit is configured, retain
-    the confirmed credits-used value without inventing percentage headroom.
+    Returns (primary_headroom, secondary_headroom, tier_label, reset_at_epoch_s).
+    The endpoint reports percent-used per window; the 5-hour rolling window is
+    primary and the weekly window is secondary. A window may be absent, null,
+    or report a non-ok status; each failure mode degrades independently instead
+    of inventing a number.
     """
     try:
-        tokens = _copilot_billing_tokens()
-    except Exception as exc:
-        print(f"copilot billing credential load failed: {type(exc).__name__}", file=sys.stderr)
-        return None
-    if not tokens:
-        return None
+        _load_hermes_env_and_path()
+        token = str(os.environ.get("OPENCODE_GO_API_KEY") or "").strip()
+        if not token:
+            return None, None, None, None
+        request = urllib.request.Request(
+            OPENCODE_GO_USAGE_URL,
+            headers={
+                "Authorization": f"Bearer {token}",
+                "Accept": "application/json",
+                "User-Agent": "hermes-personal-display",
+            },
+            method="GET",
+        )
+        with urllib.request.urlopen(request, timeout=12.0) as response:
+            payload = json.loads(response.read().decode("utf-8")) or {}
+        windows = (payload.get("usage") or {}) if isinstance(payload, dict) else {}
 
-    now = dt.datetime.now(dt.timezone.utc)
-    query = urllib.parse.urlencode({"year": now.year, "month": now.month})
-    for token in tokens:
-        try:
-            account = _copilot_billing_account(token)
-            if not account:
-                continue
-            payload = _github_json(
-                f"https://api.github.com/users/{account}/settings/billing/ai_credit/usage?{query}",
-                token,
-            )
-            items = payload.get("usageItems")
-            if not isinstance(items, list):
-                continue
-            credits_used = 0.0
-            recognized_items = 0
-            malformed_items = False
-            for item in items:
-                if not isinstance(item, dict):
-                    malformed_items = True
-                    break
-                unit = str(item.get("unitType") or "").strip().lower()
-                if unit not in {"ai-credits", "credits"}:
-                    malformed_items = True
-                    break
-                # grossQuantity is total AI-credit consumption before included
-                # allowance discounts. netQuantity can be zero while allowance
-                # was still consumed.
-                raw_quantity = item.get("grossQuantity")
-                if isinstance(raw_quantity, bool) or not isinstance(raw_quantity, (int, float, str)):
-                    malformed_items = True
-                    break
+        def window_used_percent(name: str) -> tuple[float | None, float | None]:
+            window = windows.get(name)
+            if not isinstance(window, dict):
+                return None, None
+            if str(window.get("status") or "").lower() not in {"", "ok"}:
+                return None, None
+            used = window.get("percent")
+            if isinstance(used, bool) or not isinstance(used, (int, float)):
+                return None, None
+            used = float(used)
+            if not math.isfinite(used) or used < 0 or used > 100:
+                return None, None
+            headroom = max(0.0, min(1.0, 1.0 - used / 100.0))
+            reset_at = None
+            raw_reset = str(window.get("resetsAt") or "").strip()
+            if raw_reset:
                 try:
-                    quantity = float(raw_quantity)
-                except (TypeError, ValueError):
-                    malformed_items = True
-                    break
-                if not math.isfinite(quantity) or quantity < 0:
-                    malformed_items = True
-                    break
-                recognized_items += 1
-                credits_used += quantity
-            if malformed_items or (items and recognized_items == 0) or not math.isfinite(credits_used):
-                continue
-            credit_limit = _copilot_credit_limit()
-            headroom = None
-            if credit_limit is not None:
-                headroom = max(0.0, min(1.0, 1.0 - credits_used / credit_limit))
-            plan = _copilot_plan()
-            tier = {"pro": "PRO", "pro-plus": "PRO+", "max": "MAX"}.get(plan, "CREDITS")
-            return {
-                "headroom": headroom,
-                "credits_used": credits_used,
-                "credits_limit": credit_limit,
-                "tier_label": tier,
-                "reset_at_epoch_s": _next_month_reset_epoch(now),
-            }
-        except Exception:
-            continue
-    return None
+                    reset_at = dt.datetime.fromisoformat(raw_reset.replace("Z", "+00:00")).timestamp()
+                except ValueError:
+                    reset_at = None
+            return headroom, reset_at
 
-
-def apply_verified_reachability(providers: list[dict]) -> None:
-    """Promote safely probed unmetered providers to READY semantics."""
-    if not fetch_copilot_reachable():
-        return
-    for provider in providers:
-        if provider.get("id") == "copilot" and provider.get("state") == "unknown":
-            provider.update(
-                state="inferred",
-                headroom=None,
-                secondary_headroom=None,
-                tier_label="CATALOG",
-                last_used_age_s=0,
-            )
-            return
+        primary, primary_reset = window_used_percent("rolling")
+        secondary, _ = window_used_percent("weekly")
+        if primary is None:
+            return None, None, None, None
+        return primary, secondary, PROVIDER_PLAN["opencode-go"]["tier_label"], primary_reset
+    except Exception as exc:
+        print(f"opencode-go quota probe failed: {type(exc).__name__}: {exc}", file=sys.stderr)
+        return None, None, None, None
 
 
 def load_config_fallback_routes() -> dict[str, tuple[str, str]]:
@@ -589,7 +425,7 @@ def route_resolves(provider: str, model: str) -> bool:
         if isinstance(resolved, dict):
             # Some API-key providers return a structural route with an empty key;
             # that is not a usable authenticated route.
-            if provider in {"gemini", "anthropic", "openrouter", "nous", "copilot", "openai-codex"}:
+            if provider in {"gemini", "anthropic", "openrouter", "nous", "opencode-go", "openai-codex"}:
                 return bool(str(resolved.get("api_key") or "").strip())
         return True
     except Exception:
@@ -626,7 +462,7 @@ def apply_confirmed_quota(providers: list[dict]) -> None:
     codex_headroom, codex_secondary, codex_tier, codex_reset_at = fetch_codex_headroom()
     anthropic_headroom, anthropic_secondary, anthropic_reset_at = fetch_anthropic_headroom()
     nous_headroom, nous_tier, nous_reset_at = fetch_nous_headroom()
-    copilot_usage = fetch_copilot_usage()
+    opencode_go_headroom, opencode_go_secondary, opencode_go_tier, opencode_go_reset_at = fetch_opencode_go_headroom()
 
     quota_updates: dict[str, dict[str, Any]] = {}
     if codex_headroom is not None:
@@ -656,15 +492,13 @@ def apply_confirmed_quota(providers: list[dict]) -> None:
             "reset_at_epoch_s": nous_reset_at,
             "last_used_age_s": 0,
         }
-    if copilot_usage is not None:
-        quota_updates["copilot"] = {
+    if opencode_go_headroom is not None:
+        quota_updates["opencode-go"] = {
             "state": "confirmed",
-            "headroom": copilot_usage.get("headroom"),
-            "secondary_headroom": None,
-            "credits_used": copilot_usage.get("credits_used"),
-            "credits_limit": copilot_usage.get("credits_limit"),
-            "tier_label": copilot_usage.get("tier_label") or "CREDITS",
-            "reset_at_epoch_s": copilot_usage.get("reset_at_epoch_s"),
+            "headroom": opencode_go_headroom,
+            "secondary_headroom": opencode_go_secondary,
+            "tier_label": opencode_go_tier or PROVIDER_PLAN["opencode-go"]["tier_label"],
+            "reset_at_epoch_s": opencode_go_reset_at,
             "last_used_age_s": 0,
         }
 
@@ -832,9 +666,8 @@ def main() -> int:
                     provider["last_used_age_s"] = claude_last_age
                 break
 
-    # Last resort: safely probed unmetered providers and configured routes show
-    # READY without a fabricated percentage.
-    apply_verified_reachability(providers)
+    # Last resort: configured fallback routes that resolve show READY without a
+    # fabricated percentage.
     apply_route_availability(providers)
 
     payload = {

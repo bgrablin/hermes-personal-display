@@ -541,7 +541,7 @@ requireAll(appSource, [
   'formatRouteCredits(creditsUsed)',
   "const creditsUsedSummary = knownCreditsUsed ? `${formatRouteCredits(creditsUsed)}` : ''",
   "p.credits_used ?? ''",
-], 'Route rail must render five honest provider rows, including XAI, distinguish unmetered READY routes from measured percentages, and show confirmed Copilot credits when no limit exists.');
+], 'Route rail must render five honest provider rows, including XAI, distinguish unmetered READY routes from measured percentages, and show confirmed OpenCode Go rolling/weekly headroom.');
 requireAll(cssSource, ['right: 64px', 'width: 430px', 'width: 104px', 'transform: scaleX(var(--route-headroom))', 'transition: transform 600ms ease, opacity 450ms ease', 'grid-template-columns: 24px minmax(118px, auto) 80px', 'min-width: 270px', '.cb-route-provider-icon', 'color: currentColor', 'min-width: 76px', 'body.kiosk-mode.kiosk-landscape.claude-concept-b[data-cb-mode="active-turn"] .cb-activity', '[data-cb-mode="active-turn"] .cb-activity', 'background: transparent', 'box-shadow: none', 'font: 640 46px/1.18'], 'Route values must use a fixed aligned column clear of the route whisker, themed provider marks, animate the whisker via transform instead of width, and active turns must promote body-scoped activity text without a box that blocks the optic.');
 if (!cssSource.includes('body.kiosk-mode.kiosk-landscape.claude-concept-b[data-cb-mode="active-turn"] .cb-activity')) {
   fail('Active-turn activity panel CSS must target body[data-cb-mode] so the promoted activity card actually applies.');
@@ -874,7 +874,7 @@ if (!appSource.includes('field.__lastTickBucket') || !appSource.includes('field.
 }
 requireAll(cssSource, ['.cb-eye-gaze,', '.cb-eye-pupil-group {', 'will-change: transform;'], 'Hot Concept B gaze and pupil transform targets must retain compositor promotion hints.');
 requireAll(xsessionSource, ['--disable-backgrounding-occluded-windows', 'configure_audio', 'PERSONAL_DISPLAY_AUDIO_VOLUME', 'PERSONAL_DISPLAY_AUDIO_SINK'], 'Physical kiosk launcher must prevent Chromium from treating the kiosk as occluded/backgrounded and must use env-configured SF10T/HDMI audio.');
-requireAll(envExampleSource, ['PERSONAL_DISPLAY_AUDIO_SINK=alsa_output.pci-0000_00_1f.3.hdmi-stereo', 'PERSONAL_DISPLAY_OUTPUT=DP-2', 'HERMES_DISPLAY_COPILOT_ACCOUNT=github-login', 'HERMES_DISPLAY_COPILOT_PLAN=pro'], 'Display/audio hardware defaults and optional Copilot billing scope must live in the env template, not be hard-coded into runtime logic.');
+requireAll(envExampleSource, ['PERSONAL_DISPLAY_AUDIO_SINK=alsa_output.pci-0000_00_1f.3.hdmi-stereo', 'PERSONAL_DISPLAY_OUTPUT=DP-2'], 'Display/audio hardware defaults must live in the env template, not be hard-coded into runtime logic.');
 requireAll(displayCliSource, ['check_audio', 'configure_audio', 'HERMES_DISPLAY_AUDIO_VOLUME', 'setfacl -m', 'OK audio sink'], 'hermes-display CLI must verify and repair physical kiosk audio routing.');
 if (!appSource.includes('field.__tracePool')) {
   fail('Concept B gaze traces must reuse SVG path nodes instead of create/remove DOM nodes during RAF.');

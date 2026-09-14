@@ -556,7 +556,7 @@ test.describe('Hermes kiosk smoke and visual regression anchors', () => {
               { id: 'openai-codex', label: 'CHATGPT', state: 'confirmed', headroom: 0.76, reachable: true },
               { id: 'anthropic', label: 'CLAUDE', state: 'inferred', headroom: 0.54, reachable: true },
               { id: 'google-gemini-cli', label: 'GEMINI', state: 'stale', headroom: 0.25, reachable: true, stale_age_s: 670 },
-              { id: 'copilot', label: 'COPILOT', state: 'unknown', headroom: null, reachable: true },
+              { id: 'opencode-go', label: 'OCGO', state: 'unknown', headroom: null, reachable: true },
             ],
           },
         },
@@ -899,7 +899,7 @@ test.describe('Hermes kiosk smoke and visual regression anchors', () => {
         trackOpacity: Number.parseFloat(getComputedStyle(node.querySelector('.cb-route-track')).opacity),
       };
     }));
-    expect(snapshot.map((row) => row.label)).toEqual(['CHATGPT', 'CLAUDE', 'GEMINI', 'COPILOT', 'XAI']);
+    expect(snapshot.map((row) => row.label)).toEqual(['CHATGPT', 'CLAUDE', 'GEMINI', 'OCGO', 'XAI']);
     for (const row of snapshot) {
       expect(row).toMatchObject({ value: 'UNK', glyph: '○', state: 'unknown', active: 'false', headroomTier: 'none', collapsed: 'true' });
       expect(row.rowOpacity).toBeGreaterThan(.45); // Unknown remains readable.
@@ -944,7 +944,7 @@ test.describe('Hermes kiosk smoke and visual regression anchors', () => {
                 { id: 'openai-codex', label: 'CHATGPT', tier_label: 'PRO', state: 'confirmed', headroom: 0.79, reachable: true },
                 { id: 'anthropic', label: 'CLAUDE', tier_label: 'MAX', state: 'confirmed', headroom: 0.95, reset_at_epoch_s: Date.now() / 1000 + 10_800, reachable: true },
                 { id: 'google-gemini-cli', label: 'GEMINI', tier_label: 'CLI', state: 'confirmed', headroom: 1.0, reachable: true },
-                { id: 'copilot', label: 'COPILOT', tier_label: 'PRO', state: 'confirmed', headroom: 0.7, credits_used: 450, credits_limit: 1500, reset_at_epoch_s: Date.now() / 1000 + 900_000, reachable: true },
+                { id: 'opencode-go', label: 'OCGO', tier_label: 'GO', state: 'confirmed', headroom: 0.7, secondary_headroom: 0.9, reset_at_epoch_s: Date.now() / 1000 + 900_000, reachable: true },
                 { id: 'xai-oauth', label: 'XAI', tier_label: 'SUPERGROK', state: 'inferred', headroom: null, reachable: true },
               ],
             },
@@ -969,11 +969,10 @@ test.describe('Hermes kiosk smoke and visual regression anchors', () => {
       opacity: Number.parseFloat(getComputedStyle(row).opacity),
     })));
     expect(collapseState.slice(0, 3).every((row) => row.collapsed === 'false' && row.opacity > 0.8)).toBe(true);
-    expect(collapseState[3]).toMatchObject({ label: 'COPILOT', state: 'confirmed', collapsed: 'false' });
+    expect(collapseState[3]).toMatchObject({ label: 'OCGO', state: 'confirmed', collapsed: 'false' });
     expect(collapseState[3].opacity).toBeGreaterThan(0.8);
     await expect(page.locator('[data-route-value]').nth(3)).toHaveText('70%');
-    await expect(page.locator('[data-route-tier]').nth(3)).toContainText('450/1.5K CR');
-    await expect(page.locator('[data-route-tier]').nth(3)).toContainText('PRO');
+    await expect(page.locator('[data-route-tier]').nth(3)).toContainText('GO');
     await expect(page.locator('[data-route-label]').nth(4)).toHaveText('XAI');
     await expect(page.locator('[data-route-value]').nth(4)).toHaveText('READY');
     await expect(page.locator('[data-route-tier]').nth(4)).toContainText('SUPERGROK');
@@ -1001,7 +1000,7 @@ test.describe('Hermes kiosk smoke and visual regression anchors', () => {
     }
   });
 
-  test('Concept B route rail shows confirmed Copilot credits used without fake headroom', async ({ page }, testInfo) => {
+  test('Concept B route rail shows confirmed OpenCode Go headroom with reset context', async ({ page }, testInfo) => {
     test.skip(testInfo.project.name !== 'minix-sf10t-landscape', 'MINIX-only landscape project');
     await page.route('**/api/hermes-state', async (route) => {
       await route.fulfill({
@@ -1015,7 +1014,7 @@ test.describe('Hermes kiosk smoke and visual regression anchors', () => {
           state_preset: 'quiet_watch',
           state_label: 'LOCAL WATCH',
           caption: { text: 'Systems steady.', tone: 'calm', priority: 'ambient' },
-          snippet: { id: 'test', text: 'display-safe credits-used route test', kind: 'system', sensitivity: 'display_safe' },
+          snippet: { id: 'test', text: 'display-safe route headroom test', kind: 'system', sensitivity: 'display_safe' },
           live: {
             gateway_ok: true,
             tasks: 0,
@@ -1030,7 +1029,7 @@ test.describe('Hermes kiosk smoke and visual regression anchors', () => {
                 { id: 'openai-codex', label: 'CHATGPT', state: 'unknown', headroom: null, reachable: true },
                 { id: 'anthropic', label: 'CLAUDE', state: 'unknown', headroom: null, reachable: true },
                 { id: 'google-gemini-cli', label: 'GEMINI', state: 'unknown', headroom: null, reachable: true },
-                { id: 'copilot', label: 'COPILOT', tier_label: 'CREDITS', state: 'confirmed', headroom: null, credits_used: 126.25, credits_limit: null, reachable: true },
+                { id: 'opencode-go', label: 'OCGO', tier_label: 'GO', state: 'confirmed', headroom: 0.55, secondary_headroom: 0.8, reachable: true },
                 { id: 'xai-oauth', label: 'XAI', state: 'unknown', headroom: null, reachable: true },
               ],
             },
@@ -1042,16 +1041,15 @@ test.describe('Hermes kiosk smoke and visual regression anchors', () => {
     });
 
     await page.goto(`${runtimeUrl('idle_watch', testInfo)}&live=1`);
-    const copilot = page.locator('.cb-route-row').nth(3);
-    await expect(copilot).toHaveAttribute('data-state', 'confirmed');
-    await expect(copilot).toHaveAttribute('data-has-headroom', 'false');
-    await expect(copilot.locator('[data-route-value]')).toHaveText('126');
-    await expect(copilot.locator('[data-route-tier]')).toContainText('126 CR USED');
-    await expect(copilot.locator('[data-route-tier]')).toContainText('CREDITS');
-    expect(await copilot.evaluate((row) => ({
+    const go = page.locator('.cb-route-row').nth(3);
+    await expect(go).toHaveAttribute('data-state', 'confirmed');
+    await expect(go).toHaveAttribute('data-has-headroom', 'true');
+    await expect(go.locator('[data-route-value]')).toHaveText('55%');
+    await expect(go.locator('[data-route-tier]')).toContainText('GO');
+    expect(await go.evaluate((row) => ({
       track: Number.parseFloat(getComputedStyle(row.querySelector('.cb-route-track')).opacity),
       whisker: Number.parseFloat(getComputedStyle(row.querySelector('.cb-route-whisker')).opacity),
-    }))).toEqual({ track: 0, whisker: 0 });
+    }))).toEqual({ track: 1, whisker: 1 });
   });
 
   test('Concept B route rail provider handoff reads as a row event', async ({ page }, testInfo) => {
@@ -1078,7 +1076,7 @@ test.describe('Hermes kiosk smoke and visual regression anchors', () => {
             { id: 'openai-codex', label: 'CHATGPT', tier_label: 'PRO', state: 'confirmed', headroom: 0.40, reachable: true },
             { id: 'anthropic', label: 'CLAUDE', tier_label: 'MAX', state: 'confirmed', headroom: claudeHeadroom, reachable: true },
             { id: 'google-gemini-cli', label: 'GEMINI', tier_label: 'CLI', state: 'inferred', headroom: 0.55, reachable: true },
-            { id: 'copilot', label: 'COPILOT', tier_label: '', state: 'unknown', headroom: null, reachable: true },
+            { id: 'opencode-go', label: 'OCGO', tier_label: '', state: 'unknown', headroom: null, reachable: true },
           ],
         },
       },

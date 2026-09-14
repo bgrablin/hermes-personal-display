@@ -60,7 +60,7 @@ class _FakeResponse:
 def _install_fake_credential_pool(monkeypatch: pytest.MonkeyPatch, entry: _FakeEntry) -> None:
     package = types.ModuleType("agent")
     credential_pool = types.ModuleType("agent.credential_pool")
-    credential_pool.load_pool = lambda provider: _FakePool(entry)
+    credential_pool.load_pool = lambda provider: _FakePool(entry)  # type: ignore[attr-defined]
     monkeypatch.setitem(sys.modules, "agent", package)
     monkeypatch.setitem(sys.modules, "agent.credential_pool", credential_pool)
     monkeypatch.setattr(updater, "_load_hermes_env_and_path", lambda: None)
@@ -168,7 +168,7 @@ def test_config_fallback_routes_ignore_malformed_string_without_losing_primary_r
         """model:
   provider: openai-codex
   default: gpt-5.6-sol
-fallback_providers: '[{"provider":"copilot","model":"gpt-5.4"}]'
+fallback_providers: '[{"provider":"opencode-go","model":"glm-5.3-flash"}]'
 """,
         encoding="utf-8",
     )
@@ -214,28 +214,30 @@ def test_display_server_passes_route_reset_at_epoch_s(tmp_path: Path, monkeypatc
     assert rail["providers"][0]["reset_at_epoch_s"] == pytest.approx(reset_at)
 
 
-def test_display_server_passes_sanitized_copilot_credit_usage(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+def test_display_server_accepts_opencode_go_route_and_drops_unknown_fields(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
     route_path = tmp_path / "provider_route_rail.json"
     route_path.write_text(
         json.dumps(
             {
                 "as_of_ms": int(time.time() * 1000),
-                "active_provider_id": "copilot",
+                "active_provider_id": "opencode-go",
                 "providers": [
                     {
-                        "id": "copilot",
-                        "label": "COPILOT",
-                        "tier_label": "PRO",
+                        "id": "opencode-go",
+                        "label": "OCGO",
+                        "tier_label": "GO",
                         "rank": 4,
                         "state": "confirmed",
-                        "headroom": 0.7,
-                        "secondary_headroom": None,
-                        "credits_used": 450.25,
-                        "credits_limit": 1500,
+                        "headroom": 0.97,
+                        "secondary_headroom": 0.48,
                         "reachable": True,
                         "last_used_age_s": 0,
                         "stale_age_s": None,
+                        "reset_at_epoch_s": time.time() + 3_600,
                         "account": "must-not-pass",
+                        "secret": "must-not-pass",
                     }
                 ],
             }
@@ -246,13 +248,20 @@ def test_display_server_passes_sanitized_copilot_credit_usage(tmp_path: Path, mo
 
     rail = server.load_provider_route_rail()
 
-    copilot = rail["providers"][0]
-    assert copilot["credits_used"] == pytest.approx(450.25)
-    assert copilot["credits_limit"] == pytest.approx(1500)
-    assert "account" not in copilot
+    go = rail["providers"][0]
+    assert go["id"] == "opencode-go"
+    assert go["label"] == "OCGO"
+    assert go["state"] == "confirmed"
+    assert go["headroom"] == pytest.approx(0.97)
+    assert go["secondary_headroom"] == pytest.approx(0.48)
+    assert rail["active_provider_id"] == "opencode-go"
+    assert "account" not in go
+    assert "secret" not in go
 
 
-def test_display_server_rejects_invalid_copilot_credit_usage(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+def test_display_server_rejects_invalid_opencode_go_headroom(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
     route_path = tmp_path / "provider_route_rail.json"
     route_path.write_text(
         json.dumps(
@@ -260,13 +269,12 @@ def test_display_server_rejects_invalid_copilot_credit_usage(tmp_path: Path, mon
                 "as_of_ms": int(time.time() * 1000),
                 "providers": [
                     {
-                        "id": "copilot",
-                        "label": "COPILOT",
+                        "id": "opencode-go",
+                        "label": "OCGO",
                         "rank": 4,
                         "state": "confirmed",
-                        "headroom": None,
-                        "credits_used": "not-a-number",
-                        "credits_limit": -1,
+                        "headroom": "not-a-number",
+                        "secondary_headroom": "not-a-number",
                     }
                 ],
             }
@@ -275,13 +283,41 @@ def test_display_server_rejects_invalid_copilot_credit_usage(tmp_path: Path, mon
     )
     monkeypatch.setattr(server, "PROVIDER_ROUTE_RAIL_PATH", route_path)
 
-    copilot = server.load_provider_route_rail()["providers"][0]
+    go = server.load_provider_route_rail()["providers"][0]
 
-    assert copilot["credits_used"] is None
-    assert copilot["credits_limit"] is None
+    assert go["headroom"] is None
+    assert go["secondary_headroom"] is None
 
 
-def test_display_server_expires_copilot_credit_usage_with_old_route_artifact(
+def test_display_server_rejects_unknown_provider_ids(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    route_path = tmp_path / "provider_route_rail.json"
+    route_path.write_text(
+        json.dumps(
+            {
+                "as_of_ms": int(time.time() * 1000),
+                "providers": [
+                    {
+                        "id": "removed-provider",
+                        "label": "RETIRED",
+                        "rank": 4,
+                        "state": "confirmed",
+                        "headroom": 0.7,
+                    }
+                ],
+            }
+        ),
+        encoding="utf-8",
+    )
+    monkeypatch.setattr(server, "PROVIDER_ROUTE_RAIL_PATH", route_path)
+
+    rail = server.load_provider_route_rail()
+
+    assert rail["providers"] == []
+
+
+def test_display_server_expires_opencode_go_headroom_with_old_route_artifact(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     route_path = tmp_path / "provider_route_rail.json"
@@ -289,17 +325,15 @@ def test_display_server_expires_copilot_credit_usage_with_old_route_artifact(
         json.dumps(
             {
                 "as_of_ms": int((time.time() - 3_700) * 1000),
-                "active_provider_id": "copilot",
+                "active_provider_id": "opencode-go",
                 "providers": [
                     {
-                        "id": "copilot",
-                        "label": "COPILOT",
-                        "tier_label": "PRO",
+                        "id": "opencode-go",
+                        "label": "OCGO",
+                        "tier_label": "GO",
                         "rank": 4,
                         "state": "confirmed",
                         "headroom": 0.7,
-                        "credits_used": 450,
-                        "credits_limit": 1500,
                     }
                 ],
             }
@@ -309,10 +343,8 @@ def test_display_server_expires_copilot_credit_usage_with_old_route_artifact(
     monkeypatch.setattr(server, "PROVIDER_ROUTE_RAIL_PATH", route_path)
 
     rail = server.load_provider_route_rail()
-    copilot = rail["providers"][0]
+    go = rail["providers"][0]
 
-    assert copilot["state"] == "unknown"
-    assert copilot["headroom"] is None
-    assert copilot["credits_used"] is None
-    assert copilot["credits_limit"] is None
+    assert go["state"] == "unknown"
+    assert go["headroom"] is None
     assert rail["active_provider_id"] == ""

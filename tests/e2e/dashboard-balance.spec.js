@@ -199,7 +199,7 @@ test('provider marks sit before each name and inherit the route state color', as
       { id: 'openai-codex', label: 'CHATGPT', state: polls < 2 ? 'confirmed' : 'error', headroom: 0.76, reachable: true },
       { id: 'anthropic', label: 'CLAUDE', state: 'inferred', headroom: 0.54, reachable: true },
       { id: 'google', label: 'GEMINI', state: 'stale', headroom: 0.25, reachable: true, stale_age_s: 670 },
-      { id: 'copilot', label: 'COPILOT', state: 'unknown', headroom: null, reachable: true },
+      { id: 'opencode-go', label: 'OCGO', state: 'unknown', headroom: null, reachable: true },
       { id: 'xai-oauth', label: 'XAI', state: 'disabled', headroom: null, reachable: false },
     ],
   };

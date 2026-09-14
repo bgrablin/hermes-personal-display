@@ -54,21 +54,16 @@ Do not confuse `launch-kiosk.sh` with the live `xsession-minix-kiosk.sh` path. T
    PERSONAL_DISPLAY_OUTPUT_POS=0x0
    PERSONAL_DISPLAY_AUDIO_SINK=alsa_output.pci-0000_00_1f.3.hdmi-stereo
    PERSONAL_DISPLAY_AUDIO_VOLUME=90%
-   HERMES_DISPLAY_COPILOT_ACCOUNT=github-login
-   HERMES_DISPLAY_COPILOT_PLAN=pro
    HERMES_DISPLAY_INTEGRATION_DIR=/path/to/private/hermes-display-integration
    HERMES_DISPLAY_RPC_CONFIG=/path/to/private/hermes-display-rpc.json
    ```
 
-   The route-rail refresh unit loads this file. Copilot headroom uses GitHub's
-   read-only billing API and needs either an existing `gh` login with billing
-   access or a protected Hermes token with personal `Plan: read` permission.
-   Keep tokens out of `~/.config/hermes-personal-display.env`, which is not a
-   secret store. This collector intentionally supports only the personal user
-   endpoint. Organization and enterprise billing require different endpoints
-   and permissions and are not represented as personal headroom. If consumption
-   is confirmed but no valid individual limit is available, the rail shows
-   credits used without inventing remaining percentage headroom.
+   The route-rail refresh unit loads this file. OpenCode Go headroom comes from
+   OpenCode's authenticated usage endpoint and uses the `OPENCODE_GO_API_KEY`
+   from Hermes' protected env; no token belongs in
+   `~/.config/hermes-personal-display.env`, which is not a secret store. If the
+   endpoint is unreachable or a window reports a non-ok status, the row degrades
+   to unknown instead of inventing remaining percentage headroom.
 
    The two `HERMES_DISPLAY_*` integration values are optional. The snapshot
    directory must be shared with each enabled observer when Hermes and the

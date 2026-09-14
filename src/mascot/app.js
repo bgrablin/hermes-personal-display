@@ -2391,7 +2391,7 @@
         { id: 'openai-codex', label: 'CHATGPT', tier_label: null, rank: 1, state: 'unknown', headroom: null, reachable: true },
         { id: 'anthropic', label: 'CLAUDE', tier_label: null, rank: 2, state: 'unknown', headroom: null, reachable: true },
         { id: 'nous', label: 'GEMINI', tier_label: null, rank: 3, state: 'unknown', headroom: null, reachable: true },
-        { id: 'copilot', label: 'COPILOT', tier_label: null, rank: 4, state: 'unknown', headroom: null, reachable: true },
+        { id: 'opencode-go', label: 'OCGO', tier_label: null, rank: 4, state: 'unknown', headroom: null, reachable: true },
         { id: 'xai-oauth', label: 'XAI', tier_label: null, rank: 5, state: 'unknown', headroom: null, reachable: true },
       ],
     };
@@ -2401,7 +2401,7 @@
     if (!root) return;
     const allowedStates = new Set(['confirmed', 'inferred', 'stale', 'unknown', 'error', 'disabled']);
     const glyphs = { confirmed: '●', inferred: '◉', stale: '◐', unknown: '○', error: '!', disabled: '×' };
-    const providerIcons = { 'openai-codex': '✦', anthropic: '✧', google: '✺', nous: '✺', 'google-gemini-cli': '✺', copilot: '⌘', 'xai-oauth': '𝕏' };
+    const providerIcons = { 'openai-codex': '✦', anthropic: '✧', google: '✺', nous: '✺', 'google-gemini-cli': '✺', 'opencode-go': '◆', 'xai-oauth': '𝕏' };
     const rows = root.__cbRouteRows ||= Array.from(root.querySelectorAll('.cb-route-row')).map((row) => ({
       row,
       labelWrap: row.querySelector('.cb-route-label'),
@@ -2432,7 +2432,7 @@
     let collapsedCount = 0;
     rows.forEach((entry, idx) => {
       const { row } = entry;
-      const provider = providers[idx] || { id: `unknown-${idx}`, label: ['CHATGPT', 'CLAUDE', 'GEMINI', 'COPILOT', 'XAI'][idx] || 'ROUTE', state: 'unknown', headroom: null };
+      const provider = providers[idx] || { id: `unknown-${idx}`, label: ['CHATGPT', 'CLAUDE', 'GEMINI', 'OCGO', 'XAI'][idx] || 'ROUTE', state: 'unknown', headroom: null };
       const state = allowedStates.has(String(provider.state)) ? String(provider.state) : 'unknown';
       const isActive = provider.id === activeId && ['confirmed', 'inferred'].includes(state) && provider.reachable !== false;
       if (isActive) activeIndex = idx;
