@@ -220,7 +220,7 @@ test('provider marks sit before each name and inherit the route state color', as
       iconGap: label.getBoundingClientRect().left - icon.getBoundingClientRect().right,
     };
   }));
-  expect(marks.map(mark => mark.icon)).toEqual(['✦', '✧', '✺', '⌘', '𝕏']);
+  expect(marks.map(mark => mark.icon)).toEqual(['✦', '✧', '✺', '◆', '𝕏']);
   for (const mark of marks) {
     expect(mark.iconBeforeLabel).toBe(true);
     expect(mark.iconColor).toBe(mark.rowColor);

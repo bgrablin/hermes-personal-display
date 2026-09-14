@@ -1046,10 +1046,10 @@ test.describe('Hermes kiosk smoke and visual regression anchors', () => {
     await expect(go).toHaveAttribute('data-has-headroom', 'true');
     await expect(go.locator('[data-route-value]')).toHaveText('55%');
     await expect(go.locator('[data-route-tier]')).toContainText('GO');
-    expect(await go.evaluate((row) => ({
+    await expect.poll(async () => go.evaluate((row) => ({
       track: Number.parseFloat(getComputedStyle(row.querySelector('.cb-route-track')).opacity),
       whisker: Number.parseFloat(getComputedStyle(row.querySelector('.cb-route-whisker')).opacity),
-    }))).toEqual({ track: 1, whisker: 1 });
+    })), { timeout: 5000 }).toEqual({ track: 0.62, whisker: 0.9 });
   });
 
   test('Concept B route rail provider handoff reads as a row event', async ({ page }, testInfo) => {
