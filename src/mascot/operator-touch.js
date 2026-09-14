@@ -157,6 +157,9 @@
               interruption?.invalidation_reason ? `Reason ${interruption.invalidation_reason}` : null,
             ].filter(Boolean).join(' · ') || 'Observed from the Hermes interrupt lifecycle hook'));
             detail.append(card);
+            // The identity and summary remain above for context, but the outcome
+            // itself must be visible without a blind swipe on a landscape kiosk.
+            card.scrollIntoView({ block: 'nearest', inline: 'nearest' });
           }
           if (toolOutcome) {
             const card = document.createElement('article');
