@@ -2034,6 +2034,7 @@
     }
     const trends = { cpu: [], temp: [] };
     const feelState = { tokenBuffer: 0, rms: 0, forcedLoad: null, network: 'online', lastEventAt: 0 };
+    let lastCronIncidentSignature = '';
 
     // XState is the source of truth for high-level display state. The behavior region mirrors the
     // optic mode; the parallel health/quiet/privacy_display regions are orthogonal overlays the
@@ -2227,6 +2228,16 @@
       }
       const work = live.current_work || {};
       const queuedTaskCount = conceptBQueuedTaskCount(live);
+      const cronIncidentCount = recentCronIncidentCount(live);
+      const cronIncident = firstRecentCronIncident(live);
+      const cronIncidentSignature = cronIncident
+        ? `${safeDisplayText(cronIncident.id, 80)}:${safeDisplayText(cronIncident.last_seen_at, 48)}`
+        : '';
+      if (cronIncidentSignature && cronIncidentSignature !== lastCronIncidentSignature) {
+        renderer.triggerIntent?.('skeptical_squint');
+        window.__HERMES_CONCEPT_B_EYE_MOTION?.pulse?.('notice');
+      }
+      lastCronIncidentSignature = cronIncidentSignature;
       const isCurrentWork = Boolean(work.active) && Number.isFinite(Number(work.age_seconds)) && Number(work.age_seconds) <= CURRENT_WORK_MAX_AGE_SECONDS;
       const source = label === 'LOCAL WATCH'
         ? 'LOCAL · WATCH'
@@ -2279,17 +2290,22 @@
       updateRemoteMemoryCell(refs, live.remote_memory);
       const taskText = isCurrentWork
         ? 'CURRENT TURN'
+        : cronIncidentCount > 0
+          ? `${cronIncidentCount} CRON ALERT${cronIncidentCount === 1 ? '' : 'S'}`
         : Number.isFinite(queuedTaskCount) && queuedTaskCount > 0
           ? `${queuedTaskCount} QUEUED`
           : 'READY';
       const taskHint = isCurrentWork
         ? safeDisplayText(work.visual_kind || work.kind || source, 18)
+        : cronIncidentCount > 0
+          ? safeDisplayText(cronIncident?.job || cronIncident?.failure_type || 'needs review', 18)
         : Number.isFinite(queuedTaskCount) && queuedTaskCount > 0
           ? 'queued calmly'
           : 'no queued work';
       setConceptBStatusText(refs.tasks, taskText);
       setConceptBText(refs.taskHint, taskHint);
-      setConceptBStatusDotClass(refs.taskDot, isCurrentWork || (Number.isFinite(queuedTaskCount) && queuedTaskCount > 0) ? 'ok' : 'fresh');
+      setConceptBStatusDotClass(refs.taskDot, cronIncidentCount > 0 ? 'watch'
+        : isCurrentWork || (Number.isFinite(queuedTaskCount) && queuedTaskCount > 0) ? 'ok' : 'fresh');
 
       updateConceptBRouteRail(routeRail, live.route_rail);
       updateStatusAges();
@@ -3932,6 +3948,8 @@
     if (gatewayText === 'GATEWAY WATCH') return { label: 'GATEWAY WATCH', detail: 'LOCAL DISPLAY ACTIVE', severity: 'offline' };
     if (state === 'blocked_user_task') return { label: 'WAITING FOR BRIAN', detail: safeDisplayText(activity?.summary || 'blocked', 28).toUpperCase(), severity: 'watch' };
     if (state === 'needs_attention' || workKind === 'waiting') return { label: 'WAITING FOR BRIAN', detail: safeDisplayText(activity?.summary || 'needs input', 28).toUpperCase(), severity: 'watch' };
+    const cronIncident = firstRecentCronIncident(live);
+    if (cronIncident) return { label: 'SCHEDULER ALERT', detail: safeDisplayText(cronIncident.job || cronIncident.failure_type || 'task needs review', 28).toUpperCase(), severity: 'watch' };
     if (tempLabel) return { label: tempLabel, detail: 'THERMAL WATCH', severity: tempSeverity === 'hot' ? 'critical' : 'watch' };
     if (freshnessTier === 'stale') return { label: 'FEED STALE', detail: 'WAITING FOR TELEMETRY', severity: 'offline' };
     return null;
@@ -3959,6 +3977,8 @@
     if (state === 'blocked_user_task') return displaySentence(activity.summary || 'Waiting on Brian.');
     if (state === 'needs_attention') return displaySentence(activity.summary || 'Waiting for confirmation.');
     if (state === 'critical_local_issue') return displaySentence(activity.summary || 'Local issue needs attention.');
+    const cronIncident = firstRecentCronIncident(live);
+    if (cronIncident) return displaySentence(`${cronIncident.job || 'Scheduled task'} needs review. Tap Tasks for durable incident details.`);
     return '';
   }
 
@@ -4136,6 +4156,15 @@
       };
     }
 
+    const cronIncident = firstRecentCronIncident(live);
+    if (cronIncident) {
+      return {
+        label: 'SCHEDULER WATCH',
+        summary: displaySentence(`${cronIncident.job || 'Scheduled task'} · ${cronIncident.failure_type || 'failure'} needs review.`),
+        chips: ['CRON', String(cronIncident.state || 'detected').toUpperCase()]
+      };
+    }
+
     if (resolver.display_state === 'feed_stale_degraded') {
       return {
         label: 'FEED WATCH',
@@ -4194,6 +4223,17 @@
       if (Number.isFinite(value)) return value;
     }
     return NaN;
+  }
+
+  function recentCronIncidentCount(live) {
+    const value = Number(live?.cron_incidents?.recent);
+    return Number.isFinite(value) ? Math.max(0, Math.floor(value)) : 0;
+  }
+
+  function firstRecentCronIncident(live) {
+    if (!recentCronIncidentCount(live)) return null;
+    const incidents = Array.isArray(live?.cron_incidents?.incidents) ? live.cron_incidents.incidents : [];
+    return incidents.find(incident => incident?.recent) || null;
   }
 
   function activitySourceChip(value, kind = '') {
@@ -4270,6 +4310,7 @@
     if (state === 'needs_attention') return mood === 'blocked_annoyed' ? 'WAITING INPUT' : 'ATTENTION';
     if (state === 'planning_reasoning' && work.active) return work.visual_kind === 'planning' ? 'PLANNING' : 'ACTIVE TURN';
     if (state === 'active_work' && work.active) return work.visual_kind === 'planning' ? 'PLANNING' : 'ACTIVE TURN';
+    if (recentCronIncidentCount(live) > 0) return 'ATTENTION';
     if (state === 'recently_completed') return 'COMPLETE';
     if (state === 'night_mode') return 'NIGHT WATCH';
     if (state === 'feed_stale_degraded') return 'FEED STALE';

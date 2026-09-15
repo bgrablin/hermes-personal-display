@@ -7,14 +7,18 @@ import re
 import sqlite3
 import subprocess
 from contextlib import closing
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
-from display_state.privacy import clean_log_msg
+from display_state.privacy import augury_clean, clean_log_msg
 
 HERMES_HOME = Path.home() / ".hermes"
 KANBAN_BOARD = os.environ.get("HERMES_DISPLAY_KANBAN_BOARD", "hermes-personal-display")
 KANBAN_DB = HERMES_HOME / "kanban" / "boards" / KANBAN_BOARD / "kanban.db"
 LEGACY_KANBAN_DB = HERMES_HOME / "kanban.db"
+CRON_INCIDENT_RECENT_SECONDS = 24 * 60 * 60
+CRON_INCIDENT_LIMIT = 5
+CRON_PROFILE_LIMIT = 32
 
 FRESHNESS_ORDER = {"fresh": 0, "aging": 1, "stale": 2, "lost": 3}
 MEASUREMENT_KEYS = ("cpu", "memory", "temp_c", "cpu_temp_c", "pch_temp_c")
@@ -242,6 +246,135 @@ def blocked_kanban_task(kanban: dict) -> dict | None:
         if str(task.get("status", "")).lower() == "blocked":
             return task
     return None
+
+
+# === cron incidents ===
+
+
+def _cron_profile_homes() -> list[tuple[str, Path]]:
+    """Return bounded, profile-scoped cron stores without following profile symlinks."""
+    homes: list[tuple[str, Path]] = [("default", HERMES_HOME)]
+    profiles = HERMES_HOME / "profiles"
+    try:
+        children = sorted(
+            (path for path in profiles.iterdir() if path.is_dir() and not path.is_symlink()),
+            key=lambda path: path.name,
+        )[:CRON_PROFILE_LIMIT]
+    except (FileNotFoundError, NotADirectoryError, OSError):
+        children = []
+    homes.extend((augury_clean(path.name, 64) or "profile", path) for path in children)
+    return homes
+
+
+def _cron_job_names(home: Path) -> dict[str, str]:
+    jobs_path = home / "cron" / "jobs.json"
+    try:
+        if not jobs_path.is_file() or jobs_path.stat().st_size > 2_000_000:
+            return {}
+        payload = json.loads(jobs_path.read_text(encoding="utf-8"))
+    except (OSError, ValueError, TypeError):
+        return {}
+    rows = payload.get("jobs") if isinstance(payload, dict) else payload
+    if not isinstance(rows, list):
+        return {}
+    names: dict[str, str] = {}
+    for row in rows[:1000]:
+        if not isinstance(row, dict):
+            continue
+        job_id = str(row.get("id") or "")
+        if job_id:
+            names[job_id] = augury_clean(row.get("name") or job_id, 72) or job_id[:72]
+    return names
+
+
+def _incident_age_seconds(value: object, now: datetime) -> int | None:
+    try:
+        parsed = datetime.fromisoformat(str(value).replace("Z", "+00:00"))
+        if parsed.tzinfo is None:
+            parsed = parsed.replace(tzinfo=timezone.utc)
+        return max(0, int((now - parsed.astimezone(timezone.utc)).total_seconds()))
+    except (TypeError, ValueError, OverflowError):
+        return None
+
+
+def cron_incident_snapshot() -> dict:
+    """Read current durable scheduler failures without mutating or acknowledging them.
+
+    The upstream incident ledger is profile-local. Only ``detected``/``alerted`` rows are open;
+    ``resolved`` and operator-acknowledged ``closed`` rows stay out of the display. Recent rows may
+    drive an amber notice, while older unresolved rows remain available in the touch inspector.
+    """
+    now = datetime.now(timezone.utc)
+    incidents: list[dict] = []
+    open_count = 0
+    recent_count = 0
+    stores_checked = 0
+    read_errors = 0
+    for profile, home in _cron_profile_homes():
+        db_path = home / "cron" / "executions.db"
+        if not db_path.is_file():
+            continue
+        stores_checked += 1
+        try:
+            uri = db_path.resolve().as_uri() + "?mode=ro"
+            with closing(sqlite3.connect(uri, uri=True, timeout=0.25)) as con:
+                con.row_factory = sqlite3.Row
+                exists = con.execute(
+                    "SELECT 1 FROM sqlite_master WHERE type='table' AND name='cron_incidents'"
+                ).fetchone()
+                if not exists:
+                    continue
+                open_count += int(con.execute(
+                    "SELECT COUNT(*) FROM cron_incidents WHERE state IN ('detected','alerted')"
+                ).fetchone()[0])
+                recent_cutoff = (now - timedelta(seconds=CRON_INCIDENT_RECENT_SECONDS)).isoformat()
+                recent_count += int(con.execute(
+                    """SELECT COUNT(*) FROM cron_incidents
+                       WHERE state IN ('detected','alerted')
+                         AND datetime(last_seen_at) >= datetime(?)""",
+                    (recent_cutoff,),
+                ).fetchone()[0])
+                rows = con.execute(
+                    """SELECT id, job_id, state, failure_type, first_seen_at, last_seen_at,
+                              error, output_file
+                       FROM cron_incidents
+                       WHERE state IN ('detected','alerted')
+                       ORDER BY last_seen_at DESC, id DESC
+                       LIMIT ?""",
+                    (CRON_INCIDENT_LIMIT,),
+                ).fetchall()
+        except (OSError, sqlite3.Error):
+            read_errors += 1
+            continue
+        names = _cron_job_names(home)
+        for row in rows:
+            job_id = str(row["job_id"] or "")
+            age = _incident_age_seconds(row["last_seen_at"], now)
+            incidents.append({
+                "id": augury_clean(row["id"], 80),
+                "job_id": augury_clean(job_id, 80),
+                "job": names.get(job_id) or augury_clean(job_id, 72) or "scheduled task",
+                "profile": profile,
+                "state": str(row["state"] or "detected")[:16],
+                "failure_type": augury_clean(row["failure_type"] or "unknown", 32),
+                "first_seen_at": augury_clean(row["first_seen_at"], 48),
+                "last_seen_at": augury_clean(row["last_seen_at"], 48),
+                "age_seconds": age,
+                "recent": age is not None and age <= CRON_INCIDENT_RECENT_SECONDS,
+                "error": augury_clean(row["error"], 240),
+                "output_file": augury_clean(row["output_file"], 180),
+            })
+    incidents.sort(key=lambda row: row.get("last_seen_at") or "", reverse=True)
+    incidents = incidents[:CRON_INCIDENT_LIMIT]
+    return {
+        "available": stores_checked > 0 and read_errors < stores_checked,
+        "open": open_count,
+        "recent": recent_count,
+        "summary": f"{open_count} open scheduler incident{'s' if open_count != 1 else ''}",
+        "incidents": incidents,
+        "profiles_checked": stores_checked,
+        "read_errors": read_errors,
+    }
 
 
 # === measurement / format ===

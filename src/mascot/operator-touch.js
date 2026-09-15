@@ -260,6 +260,23 @@
       }
       select.addEventListener('change', show);
       show();
+      const cron = data.cron_incidents || {};
+      const incidents = Array.isArray(cron.incidents) ? cron.incidents : [];
+      integration.append(textNode('strong', 'SCHEDULER INCIDENTS · READ-ONLY'));
+      integration.append(textNode('p', cron.available
+        ? `${Number(cron.open) || 0} open · ${Number(cron.recent) || 0} seen in the last 24 hours. Resolved and acknowledged incidents stay hidden.`
+        : 'Durable scheduler incident data is unavailable on this host.'));
+      for (const incident of incidents) {
+        const card = document.createElement('article');
+        card.className = 'cb-cron-incident-detail';
+        card.dataset.state = String(incident.state || 'detected');
+        card.append(textNode('strong', incident.job || incident.job_id || 'Scheduled task'));
+        card.append(textNode('p', `${incident.failure_type || 'unknown'} · ${incident.state || 'detected'}${incident.age_seconds == null ? '' : ` · ${Math.max(0, Math.round(incident.age_seconds / 60))}m ago`}`));
+        card.append(textNode('small', `${incident.profile || 'default'} · ${incident.id || 'incident id unavailable'}`));
+        if (incident.error) card.append(textNode('small', incident.error));
+        if (incident.output_file) card.append(textNode('small', `Output ${incident.output_file}`));
+        integration.append(card);
+      }
       integration.append(textNode('strong', 'RECENT PROVIDER CALLS · LOG OBSERVATIONS'));
       for (const call of data.provider_calls || []) integration.append(textNode('p',
         `${call.model} · ${call.upstream || call.provider} · ${call.latency_seconds}s · input ${call.input ?? '?'} / output ${call.output ?? '?'} · cache read ${call.cache_read ?? '?'} / write ${call.cache_write ?? '?'} · response ${call.response_id ?? '?'} · ${call.observation || 'timestamp unavailable'}`));
