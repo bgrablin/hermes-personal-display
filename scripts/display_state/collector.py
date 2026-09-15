@@ -309,6 +309,7 @@ def cron_incident_snapshot() -> dict:
     open_count = 0
     recent_count = 0
     stores_checked = 0
+    ledger_stores = 0
     read_errors = 0
     for profile, home in _cron_profile_homes():
         db_path = home / "cron" / "executions.db"
@@ -323,7 +324,9 @@ def cron_incident_snapshot() -> dict:
                     "SELECT 1 FROM sqlite_master WHERE type='table' AND name='cron_incidents'"
                 ).fetchone()
                 if not exists:
+                    read_errors += 1
                     continue
+                ledger_stores += 1
                 open_count += int(con.execute(
                     "SELECT COUNT(*) FROM cron_incidents WHERE state IN ('detected','alerted')"
                 ).fetchone()[0])
@@ -364,10 +367,21 @@ def cron_incident_snapshot() -> dict:
                 "error": augury_clean(row["error"], 240),
                 "output_file": augury_clean(row["output_file"], 180),
             })
+    available = stores_checked > 0 and read_errors == 0 and ledger_stores == stores_checked
+    if not available:
+        return {
+            "available": False,
+            "open": 0,
+            "recent": 0,
+            "summary": "Scheduler incident data unavailable",
+            "incidents": [],
+            "profiles_checked": stores_checked,
+            "read_errors": read_errors,
+        }
     incidents.sort(key=lambda row: row.get("last_seen_at") or "", reverse=True)
     incidents = incidents[:CRON_INCIDENT_LIMIT]
     return {
-        "available": stores_checked > 0 and read_errors < stores_checked,
+        "available": True,
         "open": open_count,
         "recent": recent_count,
         "summary": f"{open_count} open scheduler incident{'s' if open_count != 1 else ''}",

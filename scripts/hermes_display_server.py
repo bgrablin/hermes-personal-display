@@ -231,11 +231,42 @@ def sanitize_cron_incident_snapshot(snapshot: dict) -> dict:
         recent_count = max(0, int(raw.get("recent") or 0))
     except (TypeError, ValueError):
         open_count = recent_count = 0
+    available = bool(raw.get("available"))
+    if not available:
+        return {
+            "available": False,
+            "open": 0,
+            "recent": 0,
+            "summary": "Scheduler incident data unavailable",
+            "incidents": [],
+        }
     return {
-        "available": bool(raw.get("available")),
+        "available": True,
         "open": open_count,
         "recent": min(recent_count, open_count),
         "summary": clean_log_msg(raw.get("summary") or f"{open_count} open scheduler incidents", 72),
+        "incidents": incidents,
+    }
+
+
+def cron_incident_ambient_snapshot(snapshot: dict) -> dict:
+    """Return the minimum incident fields needed by the display-safe ambient packet."""
+    full = sanitize_cron_incident_snapshot(snapshot)
+    if not full["available"]:
+        return {"available": False, "open": 0, "recent": 0, "incidents": []}
+    incidents = [{
+        "id": row["id"],
+        "job": row["job"],
+        "profile": row["profile"],
+        "state": row["state"],
+        "failure_type": row["failure_type"],
+        "age_seconds": row["age_seconds"],
+        "recent": row["recent"],
+    } for row in full["incidents"]]
+    return {
+        "available": True,
+        "open": full["open"],
+        "recent": full["recent"],
         "incidents": incidents,
     }
 
@@ -573,7 +604,7 @@ def build_state_from_facts(facts: dict) -> dict:
     active_summary = facts.get("active_summary") or {"count": 0, "sessions": []}
     agents = int(facts.get("resident_agents") or 0)
     kanban = sanitize_kanban_snapshot(facts.get("kanban") or {"active": 0, "summary": "0 active task(s)", "tasks": []})
-    cron_incidents = sanitize_cron_incident_snapshot(facts.get("cron_incidents") or {})
+    cron_incidents = cron_incident_ambient_snapshot(facts.get("cron_incidents") or {})
     system_input = facts.get("system") or {}
     sys, freshness = normalize_system_freshness(system_input)
     gateway_ok = bool(facts.get("gateway_ok"))

@@ -788,6 +788,42 @@ def test_operator_http_boundaries_and_family_projection(monkeypatch):
         thread.join(timeout=2)
 
 
+def test_ambient_cron_snapshot_excludes_private_incident_details():
+    import hermes_display_server as server
+
+    ambient = server.cron_incident_ambient_snapshot({
+        "available": True,
+        "open": 1,
+        "recent": 1,
+        "incidents": [{
+            "id": "inc-1", "job_id": "job-1", "job": "Nightly display check",
+            "profile": "silver", "state": "alerted", "failure_type": "timeout",
+            "first_seen_at": "2026-09-15T00:00:00Z", "last_seen_at": "2026-09-15T01:00:00Z",
+            "age_seconds": 60, "recent": True, "error": "private diagnostic",
+            "output_file": "/home/brian/.hermes/cron/output/job-1/run.md",
+        }],
+    })
+
+    assert ambient["incidents"] == [{
+        "id": "inc-1", "job": "Nightly display check", "profile": "silver",
+        "state": "alerted", "failure_type": "timeout", "age_seconds": 60,
+        "recent": True,
+    }]
+    assert "private diagnostic" not in json.dumps(ambient)
+    assert "/home/brian" not in json.dumps(ambient)
+
+
+def test_unavailable_cron_snapshot_cannot_drive_ambient_alerts():
+    import hermes_display_server as server
+
+    ambient = server.cron_incident_ambient_snapshot({
+        "available": False, "open": 4, "recent": 2,
+        "incidents": [{"id": "partial", "recent": True}],
+    })
+
+    assert ambient == {"available": False, "open": 0, "recent": 0, "incidents": []}
+
+
 @pytest.mark.parametrize("failure", ["identity", "snapshot", 4001, 5031])
 def test_verification_failure_discards_cached_details_and_blocks_mutation(failure):
     c, target = connection()
