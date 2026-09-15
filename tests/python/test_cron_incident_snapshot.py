@@ -97,9 +97,42 @@ def test_missing_incident_store_is_read_only_and_unavailable(tmp_path, monkeypat
         "available": False,
         "open": 0,
         "recent": 0,
-        "summary": "0 open scheduler incidents",
+        "summary": "Scheduler incident data unavailable",
         "incidents": [],
         "profiles_checked": 0,
         "read_errors": 0,
     }
     assert not (tmp_path / "cron").exists()
+
+
+def test_pre_incident_database_is_unavailable_not_empty(tmp_path, monkeypatch):
+    monkeypatch.setattr(collector, "HERMES_HOME", tmp_path)
+    cron_dir = tmp_path / "cron"
+    cron_dir.mkdir(parents=True)
+    with sqlite3.connect(cron_dir / "executions.db") as con:
+        con.execute("CREATE TABLE cron_executions (id TEXT PRIMARY KEY)")
+
+    snapshot = collector.cron_incident_snapshot()
+
+    assert snapshot["available"] is False
+    assert snapshot["summary"] == "Scheduler incident data unavailable"
+
+
+def test_one_unreadable_profile_suppresses_partial_totals(tmp_path, monkeypatch):
+    monkeypatch.setattr(collector, "HERMES_HOME", tmp_path)
+    now = datetime.now(timezone.utc).isoformat()
+    write_incidents(tmp_path, [
+        ("inc-default", "job-default", "detected", "provider", now, now,
+         "provider unavailable", None),
+    ])
+    broken = tmp_path / "profiles" / "broken" / "cron"
+    broken.mkdir(parents=True)
+    (broken / "executions.db").write_text("not sqlite", encoding="utf-8")
+
+    snapshot = collector.cron_incident_snapshot()
+
+    assert snapshot["available"] is False
+    assert snapshot["open"] == 0
+    assert snapshot["recent"] == 0
+    assert snapshot["incidents"] == []
+    assert snapshot["read_errors"] == 1
