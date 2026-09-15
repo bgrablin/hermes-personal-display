@@ -8,7 +8,8 @@
     "sources",
     "coverage",
     "rpc",
-    "provider_calls"
+    "provider_calls",
+    "cron_incidents"
   ],
   "additionalProperties": false,
   "properties": {
@@ -169,6 +170,49 @@
     "provider_calls": {
       "type": "array",
       "maxItems": 8
+    },
+    "cron_incidents": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "available",
+        "open",
+        "recent",
+        "summary",
+        "incidents"
+      ],
+      "properties": {
+        "available": { "type": "boolean" },
+        "open": { "type": "integer", "minimum": 0 },
+        "recent": { "type": "integer", "minimum": 0 },
+        "summary": { "type": "string", "maxLength": 72 },
+        "incidents": {
+          "type": "array",
+          "maxItems": 5,
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "id", "job_id", "job", "profile", "state", "failure_type",
+              "first_seen_at", "last_seen_at", "age_seconds", "recent", "error", "output_file"
+            ],
+            "properties": {
+              "id": { "type": "string", "maxLength": 80 },
+              "job_id": { "type": "string", "maxLength": 80 },
+              "job": { "type": "string", "maxLength": 72 },
+              "profile": { "type": "string", "maxLength": 64 },
+              "state": { "enum": ["detected", "alerted"] },
+              "failure_type": { "type": "string", "maxLength": 32 },
+              "first_seen_at": { "type": "string", "maxLength": 48 },
+              "last_seen_at": { "type": "string", "maxLength": 48 },
+              "age_seconds": { "type": ["integer", "null"], "minimum": 0 },
+              "recent": { "type": "boolean" },
+              "error": { "type": "string", "maxLength": 240 },
+              "output_file": { "type": "string", "maxLength": 180 }
+            }
+          }
+        }
+      }
     }
   }
 }

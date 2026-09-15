@@ -725,6 +725,16 @@ def test_operator_http_boundaries_and_family_projection(monkeypatch):
             action=lambda payload: {"ok": True, "status": "applied"},
         ),
     )
+    monkeypatch.setattr(
+        server,
+        "cron_incident_snapshot",
+        lambda: {"available": True, "open": 1, "recent": 1, "summary": "1 open scheduler incident", "incidents": [{
+            "id": "inc-1", "job_id": "job-1", "job": "Nightly display check", "profile": "default",
+            "state": "alerted", "failure_type": "timeout", "first_seen_at": "2026-09-15T00:00:00Z",
+            "last_seen_at": "2026-09-15T01:00:00Z", "age_seconds": 60, "recent": True,
+            "error": "timed out", "output_file": "/home/brian/.hermes/cron/output/job-1/run.md",
+        }]},
+    )
     httpd = server.ThreadingHTTPServer(("127.0.0.1", 0), server.Handler)
     thread = threading.Thread(target=httpd.serve_forever, daemon=True)
     thread.start()
@@ -744,7 +754,9 @@ def test_operator_http_boundaries_and_family_projection(monkeypatch):
             connection.close()
             return status, body
 
-        assert request("GET", "/api/hermes-integration")[0] == 200
+        status, integration = request("GET", "/api/hermes-integration")
+        assert status == 200
+        assert integration["cron_incidents"]["incidents"][0]["job"] == "Nightly display check"
         assert (
             request("GET", "/api/hermes-integration", {"Host": "evil.example"})[0]
             == 403
@@ -766,9 +778,10 @@ def test_operator_http_boundaries_and_family_projection(monkeypatch):
             == 200
         )
         safe = server.family_safe_state(
-            {"live": {"integration": {"secret": "private"}, "system": {}}}
+            {"live": {"integration": {"secret": "private"}, "cron_incidents": {"open": 1}, "system": {}}}
         )
         assert "integration" not in safe["live"]
+        assert "cron_incidents" not in safe["live"]
     finally:
         httpd.shutdown()
         httpd.server_close()

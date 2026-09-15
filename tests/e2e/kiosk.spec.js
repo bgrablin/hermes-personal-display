@@ -1183,6 +1183,44 @@ test.describe('Hermes kiosk smoke and visual regression anchors', () => {
     await expect(page.locator('.cb-radial-stage')).toHaveAttribute('data-optic-special', 'none');
   });
 
+  test('Concept B gives a recent cron incident a truthful amber idle notice', async ({ page }, testInfo) => {
+    test.skip(testInfo.project.name !== 'minix-sf10t-landscape', 'MINIX-only landscape project');
+    await page.route('**/api/hermes-state', async (route) => {
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({
+          schema_version: '0.4.0', generated_at: new Date().toISOString(), mood: 'idle_watchful',
+          skin: 'retro-robot-core', state_preset: 'quiet_watch', state_label: 'QUIET WATCH',
+          caption: { text: 'Systems steady.', tone: 'calm', priority: 'ambient' },
+          live: {
+            gateway_ok: true,
+            freshness: { tier: 'fresh', valid_measurements: 5, stale_measurements: [] },
+            system: { cpu: 0.18, memory: 0.40, temp_c: 66, cpu_temp_c: 66, uptime: '1d' },
+            current_work: { active: false, state: 'quiet_watch', summary: 'Quiet watch.', age_seconds: null, source: 'local' },
+            kanban: { active: 0, tasks: [] },
+            cron_incidents: { available: true, open: 1, recent: 1, incidents: [{
+              id: 'job-1_abcd', job_id: 'job-1', job: 'Improve Hermes Display Screen', profile: 'silver',
+              state: 'alerted', failure_type: 'timeout', age_seconds: 120, recent: true,
+            }] },
+            resolver: { display_state: 'quiet_watch', priority: 70, reason_codes: ['quiet_watch'], secondary_badges: [] },
+            route_rail: { as_of_ms: null, age_seconds: null, active_provider_id: '', providers: [] },
+          },
+          optic_state_packet: { mode: 'idle_watch', special: 'none' },
+          safety: { boundary: 'local_trusted_display', contains_credentials: false },
+        }),
+      });
+    });
+    await page.goto(`${runtimeUrl('idle_watch', testInfo)}&live=1`);
+    await expect(page.locator('[data-cb-state]')).toHaveText('ATTENTION');
+    await expect(page.locator('[data-cb-activity]')).toContainText('Improve Hermes Display Screen');
+    await expect(page.locator('[data-cb-top-alert]')).toHaveText('SCHEDULER ALERT');
+    await expect(page.locator('[data-cb-tasks]')).toHaveText('1 CRON ALERT');
+    await expect(page.locator('[data-cb-task-hint]')).toHaveText(/Improve Hermes Dis/i);
+    await expect(page.locator('[data-cb-task-dot]')).toHaveClass(/watch/);
+    await expect(page.locator('.cb-radial-stage')).toHaveAttribute('data-optic-mode', 'idle_watch');
+  });
+
   test('Concept B blocked task uses attention copy instead of quiet-watch queue copy', async ({ page }, testInfo) => {
     test.skip(testInfo.project.name !== 'minix-sf10t-landscape', 'MINIX-only landscape project');
     await page.route('**/api/hermes-state', async (route) => {

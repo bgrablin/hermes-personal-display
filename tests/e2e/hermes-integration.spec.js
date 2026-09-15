@@ -10,6 +10,12 @@ const snapshot = {
     control: { revision: 'rev1', goal: { title: '<img src=x onerror=alert(1)>', status: 'active' }, loop: null, heartbeat: null }, actions: ['goal.pause'],
     mcp: { checked_at: 123, servers: [{ name: 'context7', status: 'configured', transport: 'stdio', tools: 0 }] } }] },
   provider_calls: [{ model: 'test-model', provider: 'route', upstream: 'serving-provider', latency_seconds: 1.5, cache_write: 100, response_id: 'req-test' }],
+  cron_incidents: { available: true, open: 1, recent: 1, summary: '1 open scheduler incident', incidents: [{
+    id: 'job-1_abcd1234', job_id: 'job-1', job: 'Improve Hermes Display Screen', profile: 'silver',
+    state: 'alerted', failure_type: 'timeout', first_seen_at: '2026-09-15T00:00:00+00:00',
+    last_seen_at: '2026-09-15T01:00:00+00:00', age_seconds: 120, recent: true,
+    error: 'Provider request timed out; verify before retrying.', output_file: '/home/brian/.hermes/cron/output/job-1/run.md',
+  }] },
 };
 
 const uncertainSnapshot = structuredClone(snapshot);
@@ -70,6 +76,10 @@ test('private integration shows background units, exact controls and literal tex
   await expect(panel).toContainText('Review <img src=x onerror=alert(1)> optic spacing');
   await expect(panel.locator('img')).toHaveCount(0);
   await expect(panel).toContainText('serving-provider');
+  await expect(panel).toContainText('SCHEDULER INCIDENTS · READ-ONLY');
+  await expect(panel.locator('.cb-cron-incident-detail')).toContainText('Improve Hermes Display Screen');
+  await expect(panel.locator('.cb-cron-incident-detail')).toContainText('silver · job-1_abcd1234');
+  await expect(panel.locator('.cb-cron-incident-detail')).toContainText('/home/brian/.hermes/cron/output/job-1/run.md');
   await page.screenshot({ path: `test-results/background-work-${info.project.name}.png`, animations: 'disabled' });
   await page.getByLabel('Observed Hermes session').selectOption('1');
   await expect(panel.locator('.cb-owner-scope-detail')).toContainText('RPC OWNER VERIFIED');
