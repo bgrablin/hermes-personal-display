@@ -196,6 +196,10 @@ class Observer:
                         a.get("status") in TERMINAL
                         for a in s.get("subagents", [])
                     )
+                    and all(
+                        t.get("status") in TERMINAL
+                        for t in s.get("tools", [])
+                    )
                 ),
                 None,
             )
@@ -217,6 +221,32 @@ class Observer:
             },
         )
         s["last_event_at"] = time.time()
+        event_turn_id = event.get("turn_id")
+        if isinstance(event_turn_id, str) and event_turn_id:
+            previous_turn_id = s.get("turn_id")
+            if previous_turn_id and previous_turn_id != event_turn_id:
+                # Session-start is not a per-turn hook. Rotate on the first
+                # identity-bearing event for the next turn so old terminal rows
+                # cannot contaminate current activity. Preserve unresolved prior
+                # evidence as a fail-closed outcome instead of silently dropping it.
+                previous_unknown = next(
+                    (
+                        row
+                        for row in s.get("tools", [])
+                        if row.get("status") == "unknown"
+                    ),
+                    None,
+                )
+                if previous_unknown and not s.get("tool_outcome"):
+                    s["tool_outcome"] = {
+                        "status": "unknown",
+                        "tool_name": previous_unknown.get("tool_name") or "tool",
+                        "tool_call_id": previous_unknown.get("tool_call_id"),
+                        "message": "A previous turn ended without exact tool completion evidence.",
+                        "observed_at": time.time(),
+                    }
+                s["tools"] = []
+            s["turn_id"] = event_turn_id
         if session_key and hook != "agent_loop_stopped":
             s["session_key"] = session_key
         if hook == "on_session_start":
@@ -273,10 +303,7 @@ class Observer:
             }
         if hook == "post_tool_call":
             self.track_tool_stop(s, event)
-        if event.get("turn_id"):
-            s["turn_id"] = event[
-                "turn_id"
-            ]  # Observed identity, never a durable receipt claim.
+        # turn_id is observed identity only, never a durable receipt claim.
         if hook == "subagent_start":
             self.track_subagent_start(s, event)
         elif hook == "subagent_stop":
@@ -342,7 +369,10 @@ class Observer:
                 return
         else:
             if len(tools) >= 64:
-                settled = next((row for row in tools if row.get("status") != "running"), None)
+                settled = next(
+                    (row for row in tools if row.get("status") in TERMINAL),
+                    None,
+                )
                 if settled is None:
                     self.dropped += 1
                     return
@@ -368,7 +398,10 @@ class Observer:
         existing = next((row for row in tools if row.get("tool_call_id") == call_id), None)
         if existing is None:
             if len(tools) >= 64:
-                settled = next((row for row in tools if row.get("status") != "running"), None)
+                settled = next(
+                    (row for row in tools if row.get("status") in TERMINAL),
+                    None,
+                )
                 if settled is None:
                     self.dropped += 1
                     return

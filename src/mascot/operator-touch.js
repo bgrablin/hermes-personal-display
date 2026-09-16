@@ -177,6 +177,7 @@
             detail.append(card);
           }
           if (tools.length) detail.append(textNode('strong', 'OBSERVED TOOL CALLS'));
+          let firstToolCard = null;
           for (const tool of [...tools].sort((a, b) => (a.status === 'running' ? -1 : 0) - (b.status === 'running' ? -1 : 0)).slice(0, 8)) {
             const card = document.createElement('article');
             card.className = 'cb-tool-activity-detail';
@@ -185,7 +186,11 @@
             card.append(textNode('p', `${tool.status || 'unknown'}${tool.duration_ms == null ? '' : ` · ${(tool.duration_ms / 1000).toFixed(1)}s`}`));
             card.append(textNode('small', `Call ${tool.tool_call_id}${tool.turn_id ? ` · turn ${tool.turn_id}` : ''}${tool.evidence ? ` · ${tool.evidence}` : ''}`));
             detail.append(card);
+            firstToolCard ||= card;
           }
+          // Active calls are the reason this panel was opened; keep the first
+          // exact call visible on the shallow landscape kiosk without a blind swipe.
+          if (activeTools.length && firstToolCard) firstToolCard.scrollIntoView({ block: 'nearest', inline: 'nearest' });
           for (const process of processes) {
             const card = textNode('p', `Process ${process.session_id}: ${process.status}${process.exit_code == null ? '' : ` · exit ${process.exit_code}`}`);
             card.className = 'cb-process-detail';

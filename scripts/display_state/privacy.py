@@ -41,7 +41,7 @@ SCRUB_RISKY_PATTERNS: list[re.Pattern[str]] = [
 CURRENT_WORK_ALLOWED_KEYS = {
     "active", "state", "kind", "summary", "detail", "tool", "source",
     "visual_kind", "session_id", "session_label", "age_seconds",
-    "valid_for_seconds", "expires_in_seconds",
+    "valid_for_seconds", "expires_in_seconds", "tool_count",
 }
 
 CURRENT_WORK_FORBIDDEN_KEYS = {
@@ -120,6 +120,10 @@ def sanitize_current_work(work: dict, *, max_age_seconds: int = CURRENT_WORK_MAX
         safe["session_label"] = clean_log_msg(str(safe.get("session_label")), 48)
     if safe.get("tool"):
         safe["tool"] = clean_log_msg(str(safe.get("tool")), 32)
+    try:
+        safe["tool_count"] = max(0, min(64, int(safe.get("tool_count") or 0)))
+    except (TypeError, ValueError):
+        safe["tool_count"] = 0
 
     safe.update(current_work_timing(safe.get("age_seconds"), max_age_seconds))
     try:

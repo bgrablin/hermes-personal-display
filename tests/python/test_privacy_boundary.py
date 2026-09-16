@@ -87,22 +87,48 @@ def test_sanitize_current_work_strips_forbidden_keys_and_caps_text() -> None:
         "tool_output": "raw output",
         "path": "/home/brian/private/file.txt",
         "extra": "not allowed",
+        "tool_count": 999,
         "age_seconds": 9999,
     }, max_age_seconds=10)
 
     assert set(safe) <= {
         "active", "state", "kind", "summary", "detail", "tool", "source",
         "visual_kind", "session_id", "session_label", "age_seconds",
-        "valid_for_seconds", "expires_in_seconds",
+        "valid_for_seconds", "expires_in_seconds", "tool_count",
     }
     assert safe["active"] is False
     assert safe["state"] == "quiet_watch"
+    assert safe["tool_count"] == 64
     assert "prompt" not in safe
     assert "tool_output" not in safe
     assert "path" not in safe
     rendered = json.dumps(safe)
     assert "brian" not in rendered.lower()
     assert FAKE_SECRET not in rendered
+
+
+def test_display_state_packet_keeps_bounded_concurrent_tool_count() -> None:
+    work = sanitize_current_work({
+        "active": True,
+        "summary": "3 tool calls active",
+        "tool_count": 3,
+        "age_seconds": 1,
+    })
+    packet = server.display_state_file_packet(
+        {"work": work, "kanban": {}},
+        {},
+        {},
+        {"display_state": "active_work"},
+        {
+            "generated_at": "2026-09-16T00:00:00+00:00",
+            "mood": "thinking_focused",
+            "state_preset": "working",
+            "energy": 0.5,
+            "caption": {"text": "Working"},
+            "snippet": {"text": "Working"},
+        },
+    )
+    assert packet["activity"]["active_tools"] == 3
 
 
 def test_build_state_from_hostile_facts_contains_only_allowlisted_top_fields() -> None:

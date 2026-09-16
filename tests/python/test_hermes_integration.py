@@ -578,6 +578,87 @@ def test_finished_turn_marks_missing_tool_completion_unknown():
     assert outcome["summary"] == "Tool outcome unknown; observation incomplete"
 
 
+def test_new_turn_rotates_tool_rail_and_preserves_prior_unknown_evidence():
+    observer = Observer()
+    observer.apply("on_session_start", {"session_id": "parent"})
+    observer.apply(
+        "pre_tool_call",
+        {
+            "session_id": "parent",
+            "turn_id": "turn-1",
+            "tool_call_id": "call-lost",
+            "tool_name": "mcp.crm.update",
+        },
+    )
+    observer.apply(
+        "on_session_end",
+        {"session_id": "parent", "turn_id": "turn-1", "completed": True},
+    )
+    observer.apply(
+        "pre_tool_call",
+        {
+            "session_id": "parent",
+            "turn_id": "turn-2",
+            "tool_call_id": "call-current",
+            "tool_name": "search_files",
+        },
+    )
+
+    session = observer.sessions[("unknown", "parent")]
+    assert session["turn_id"] == "turn-2"
+    assert [row["tool_call_id"] for row in session["tools"]] == ["call-current"]
+    assert session["tool_outcome"]["status"] == "unknown"
+    assert session["tool_outcome"]["tool_call_id"] == "call-lost"
+    assert "previous turn" in session["tool_outcome"]["message"].lower()
+
+
+def test_tool_rail_saturation_never_evicts_unknown_evidence():
+    observer = Observer()
+    observer.apply("on_session_start", {"session_id": "parent"})
+    session = observer.sessions[("unknown", "parent")]
+    session["tools"] = [
+        {
+            "tool_call_id": f"call-{index}",
+            "tool_name": "tool",
+            "status": "unknown",
+        }
+        for index in range(64)
+    ]
+
+    observer.apply(
+        "pre_tool_call",
+        {
+            "session_id": "parent",
+            "tool_call_id": "call-overflow",
+            "tool_name": "search_files",
+        },
+    )
+
+    assert len(session["tools"]) == 64
+    assert all(row["status"] == "unknown" for row in session["tools"])
+    assert observer.dropped == 1
+
+
+def test_session_eviction_preserves_unknown_tool_evidence():
+    observer = Observer()
+    for index in range(64):
+        observer.sessions[("unknown", f"session-{index}")] = {
+            "session_id": f"session-{index}",
+            "profile": "unknown",
+            "status": "completed",
+            "tools": ([{"tool_call_id": "lost", "status": "unknown"}] if index == 0 else []),
+            "processes": [],
+            "delegations": [],
+            "subagents": [],
+        }
+
+    observer.apply("on_session_start", {"session_id": "replacement"})
+
+    assert ("unknown", "session-0") in observer.sessions
+    assert ("unknown", "session-1") not in observer.sessions
+    assert ("unknown", "replacement") in observer.sessions
+
+
 def test_terminal_tool_error_contributes_to_observed_failure():
     observer = Observer()
     observer.apply("on_session_start", {"session_id": "parent"})
