@@ -494,6 +494,111 @@ def test_uncertain_tool_result_survives_turn_completion_without_success_claim():
     assert "/home/brian/customer" in outcome["detail"]
 
 
+def test_concurrent_tool_calls_keep_exact_identity_and_settle_independently():
+    observer = Observer()
+    observer.apply("on_session_start", {"session_id": "parent"})
+    barrier = threading.Barrier(3)
+
+    def publish(call_id, tool_name):
+        callback = observer.callback("pre_tool_call")
+        barrier.wait()
+        callback(
+            session_id="parent",
+            turn_id="turn-1",
+            tool_call_id=call_id,
+            tool_name=tool_name,
+        )
+
+    threads = [
+        threading.Thread(target=publish, args=("call-search", "search_files")),
+        threading.Thread(target=publish, args=("call-read", "read_file")),
+    ]
+    for thread in threads:
+        thread.start()
+    barrier.wait()
+    for thread in threads:
+        thread.join()
+    while not observer.events.empty():
+        hook, event = observer.events.get_nowait()
+        observer.apply(hook, event)
+
+    session = observer.sessions[("unknown", "parent")]
+    assert {row["tool_call_id"] for row in session["tools"]} == {
+        "call-search",
+        "call-read",
+    }
+    assert all(row["status"] == "running" for row in session["tools"])
+    work = observed_work(
+        {"sources": [{"sessions": [session], "fresh": True, "age_seconds": 0}]}
+    )
+    assert work["active"]
+    assert work["tool_count"] == 2
+    assert work["summary"] == "2 tool calls active"
+
+    observer.apply(
+        "post_tool_call",
+        {
+            "session_id": "parent",
+            "turn_id": "turn-1",
+            "tool_call_id": "call-read",
+            "tool_name": "read_file",
+            "status": "ok",
+            "duration_ms": 1250,
+        },
+    )
+    statuses = {row["tool_call_id"]: row["status"] for row in session["tools"]}
+    assert statuses == {"call-search": "running", "call-read": "completed"}
+    assert observed_work(
+        {"sources": [{"sessions": [session], "fresh": True, "age_seconds": 0}]}
+    )["summary"] == "1 tool call active"
+
+
+def test_finished_turn_marks_missing_tool_completion_unknown():
+    observer = Observer()
+    observer.apply("on_session_start", {"session_id": "parent"})
+    observer.apply(
+        "pre_tool_call",
+        {
+            "session_id": "parent",
+            "turn_id": "turn-1",
+            "tool_call_id": "call-lost",
+            "tool_name": "mcp.crm.update",
+        },
+    )
+    observer.apply("on_session_end", {"session_id": "parent", "completed": True})
+    session = observer.sessions[("unknown", "parent")]
+    assert session["tools"][0]["status"] == "unknown"
+    assert session["tools"][0]["evidence"] == (
+        "turn ended without matching tool completion"
+    )
+    outcome = observed_work(
+        {"sources": [{"sessions": [session], "fresh": True, "age_seconds": 0}]}
+    )
+    assert outcome["state"] == "unknown"
+    assert outcome["summary"] == "Tool outcome unknown; observation incomplete"
+
+
+def test_terminal_tool_error_contributes_to_observed_failure():
+    observer = Observer()
+    observer.apply("on_session_start", {"session_id": "parent"})
+    observer.apply(
+        "post_tool_call",
+        {
+            "session_id": "parent",
+            "tool_call_id": "call-failed",
+            "tool_name": "search_files",
+            "status": "error",
+        },
+    )
+    observer.apply("on_session_end", {"session_id": "parent", "completed": True})
+    session = observer.sessions[("unknown", "parent")]
+    outcome = observed_work(
+        {"sources": [{"sessions": [session], "fresh": True, "age_seconds": 0}]}
+    )
+    assert outcome["state"] == "failed"
+    assert outcome["summary"] == "Observed work ended with an error"
+
+
 def test_profile_isolation():
     o = Observer()
     for profile in ("a", "b"):

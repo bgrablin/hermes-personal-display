@@ -1199,6 +1199,54 @@
                         "observed_at"
                       ],
                       "type": "object"
+                    },
+                    "tools": {
+                      "items": {
+                        "additionalProperties": false,
+                        "properties": {
+                          "duration_ms": {
+                            "minimum": 0,
+                            "type": "integer"
+                          },
+                          "evidence": {
+                            "maxLength": 120,
+                            "type": "string"
+                          },
+                          "observed_finished_at": {
+                            "type": "number"
+                          },
+                          "observed_started_at": {
+                            "type": "number"
+                          },
+                          "status": {
+                            "maxLength": 32,
+                            "type": "string"
+                          },
+                          "tool_call_id": {
+                            "maxLength": 800,
+                            "type": "string"
+                          },
+                          "tool_name": {
+                            "maxLength": 800,
+                            "type": "string"
+                          },
+                          "turn_id": {
+                            "maxLength": 800,
+                            "type": [
+                              "string",
+                              "null"
+                            ]
+                          }
+                        },
+                        "required": [
+                          "tool_call_id",
+                          "tool_name",
+                          "status"
+                        ],
+                        "type": "object"
+                      },
+                      "maxItems": 64,
+                      "type": "array"
                     }
                   },
                   "required": [

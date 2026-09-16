@@ -75,6 +75,29 @@
                 "status": {
                   "type": "string"
                 },
+                "tools": {
+                  "type": "array",
+                  "maxItems": 64,
+                  "items": {
+                    "type": "object",
+                    "additionalProperties": false,
+                    "required": [
+                      "tool_call_id",
+                      "tool_name",
+                      "status"
+                    ],
+                    "properties": {
+                      "tool_call_id": { "type": "string", "maxLength": 800 },
+                      "tool_name": { "type": "string", "maxLength": 800 },
+                      "turn_id": { "type": ["string", "null"], "maxLength": 800 },
+                      "status": { "type": "string", "maxLength": 32 },
+                      "duration_ms": { "type": "integer", "minimum": 0 },
+                      "observed_started_at": { "type": "number" },
+                      "observed_finished_at": { "type": "number" },
+                      "evidence": { "type": "string", "maxLength": 120 }
+                    }
+                  }
+                },
                 "processes": {
                   "type": "array",
                   "maxItems": 64

@@ -298,7 +298,7 @@ def display_state_file_packet(facts: dict, sys: dict, freshness: dict, resolver:
         "quip_sensitivity": "public_status",
         "services": {"gateway": "ok" if facts.get("gateway_ok") else "watch"},
         "activity": {
-            "active_tools": 1 if work.get("active") else 0,
+            "active_tools": int(work.get("tool_count") or (1 if work.get("active") else 0)),
             "kanban_ready": int(kanban.get("active") or 0),
             "kanban_blocked": sum(1 for task in kanban.get("tasks") or [] if str(task.get("status", "")).lower() == "blocked"),
             "display_safe_title": work.get("summary") or state.get("caption", {}).get("text"),

@@ -42,3 +42,26 @@
   color: #cbbca9;
   line-height: 1.5;
 }
+
+.cb-tool-activity-detail {
+  margin: 8px 0;
+  padding: 11px 12px;
+  border: 1px solid #31586e;
+  border-left: 3px solid #58b9de;
+  border-radius: 7px;
+  background: linear-gradient(135deg, rgba(15, 39, 53, .94), rgba(11, 27, 39, .98));
+}
+.cb-tool-activity-detail[data-status="running"] {
+  border-left-color: #67cdf1;
+  box-shadow: inset 0 0 24px rgba(46, 159, 203, .08);
+}
+.cb-tool-activity-detail[data-status="completed"] { border-left-color: #77b99e; }
+.cb-tool-activity-detail[data-status="failed"],
+.cb-tool-activity-detail[data-status="error"],
+.cb-tool-activity-detail[data-status="timeout"],
+.cb-tool-activity-detail[data-status="blocked"],
+.cb-tool-activity-detail[data-status="cancelled"],
+.cb-tool-activity-detail[data-status="unknown"] { border-left-color: #d4a16f; }
+.cb-tool-activity-detail > strong { margin-top: 0; color: #dff5fc; }
+.cb-tool-activity-detail > p { color: #9fd2e5; }
+.cb-tool-activity-detail > small { display: block; color: #8daab8; line-height: 1.5; overflow-wrap: anywhere; }

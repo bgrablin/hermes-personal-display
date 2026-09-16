@@ -31,6 +31,36 @@ gatewayInterruptSnapshot.sources[0].sessions[0].interruption = {
   reason: 'tool_invalidation', platform: 'gateway',
 };
 
+const concurrentToolsSnapshot = structuredClone(snapshot);
+concurrentToolsSnapshot.sources[0].sessions[0] = {
+  profile: '/home/brian/.hermes', session_id: 'parent', status: 'running',
+  processes: [], delegations: [], subagents: [],
+  tools: [
+    { tool_call_id: 'call-search-1', turn_id: 'turn-7', tool_name: 'search_files', status: 'running', observed_started_at: 1 },
+    { tool_call_id: 'call-read-2', turn_id: 'turn-7', tool_name: 'read_file', status: 'running', observed_started_at: 2 },
+    { tool_call_id: 'call-done-3', turn_id: 'turn-7', tool_name: 'list_directory', status: 'completed', duration_ms: 830 },
+  ],
+};
+
+test('concurrent tool calls remain separate and touch-readable', async ({ page }, info) => {
+  await page.route('**/api/hermes-integration', route => route.fulfill({ json: concurrentToolsSnapshot }));
+  await page.goto('/src/character-runtime.html?kiosk=1&orientation=landscape&mode=working');
+  await page.locator('.cb-bottom-rail .cb-cell').last().press('Enter');
+  const panel = page.locator('.cb-integration');
+  await expect(panel.locator('.cb-work-summary')).toContainText('2 tool calls active');
+  await expect(panel.locator('.cb-work-summary')).toHaveAttribute('data-state', 'active');
+  await expect(panel.locator('.cb-work-summary')).toContainText('Tools: 3');
+  await expect(panel).toContainText('OBSERVED TOOL CALLS');
+  await expect(panel.locator('.cb-tool-activity-detail')).toHaveCount(3);
+  await expect(panel.locator('.cb-tool-activity-detail').nth(0)).toContainText('search_files');
+  await expect(panel.locator('.cb-tool-activity-detail').nth(0)).toContainText('Call call-search-1 · turn turn-7');
+  await expect(panel.locator('.cb-tool-activity-detail').nth(1)).toContainText('read_file');
+  await expect(panel.locator('.cb-tool-activity-detail').nth(2)).toContainText('list_directory');
+  await expect(panel.locator('.cb-tool-activity-detail').nth(2)).toContainText('completed · 0.8s');
+  await expect(panel.locator('.cb-tool-activity-detail').nth(0)).toBeInViewport();
+  await page.screenshot({ path: `test-results/concurrent-tools-${info.project.name}.png`, animations: 'disabled' });
+});
+
 test('non-user interruption reason stays readable without an invalidation reason', async ({ page }) => {
   await page.route('**/api/hermes-integration', route => route.fulfill({ json: gatewayInterruptSnapshot }));
   await page.goto('/src/character-runtime.html?kiosk=1&orientation=landscape&mode=completed');

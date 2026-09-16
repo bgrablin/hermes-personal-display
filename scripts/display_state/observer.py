@@ -210,6 +210,7 @@ class Observer:
                 "session_id": sid,
                 "profile": key[0],
                 "status": "unknown",
+                "tools": [],
                 "processes": [],
                 "delegations": [],
                 "subagents": [],
@@ -220,6 +221,9 @@ class Observer:
             s["session_key"] = session_key
         if hook == "on_session_start":
             s["status"] = "running"
+            # Tool calls are turn-scoped. Keep independently tracked background
+            # processes/delegations, but start each new turn with an empty call rail.
+            s["tools"] = []
             s.pop("interruption", None)
         elif hook == "on_session_end":
             explicit_status = event.get("status")
@@ -234,6 +238,7 @@ class Observer:
                 s["status"] = "completed"
             elif s.get("status") != "interrupted":
                 s["status"] = "failed"
+            self.mark_unsettled_tools_unknown(s)
         elif hook == "agent_loop_stopped":
             # Immediate identity-bearing evidence for /stop, /new's running-agent
             # path, and TUI/Desktop session.interrupt. It settles only the parent
@@ -249,6 +254,8 @@ class Observer:
             s["status"] = "running"
             s["tool"] = event.get("tool_name")
             s.pop("interruption", None)
+            if hook == "pre_tool_call":
+                self.track_tool_start(s, event)
         elif hook == "api_request_error":
             s["request_status"] = "error; turn outcome pending"
         elif (
@@ -264,6 +271,8 @@ class Observer:
                 or "The operation may have completed; inspect external state before retrying.",
                 "observed_at": time.time(),
             }
+        if hook == "post_tool_call":
+            self.track_tool_stop(s, event)
         if event.get("turn_id"):
             s["turn_id"] = event[
                 "turn_id"
@@ -319,6 +328,93 @@ class Observer:
                     }
                 )
         # Child stop is not unit completion. Only the registry settles exact dispatch units.
+
+    def track_tool_start(self, session, event):
+        """Track one exact tool call without retaining arguments or tool output."""
+        call_id = event.get("tool_call_id")
+        if not isinstance(call_id, str) or not call_id:
+            return
+        tools = session.setdefault("tools", [])
+        existing = next((row for row in tools if row.get("tool_call_id") == call_id), None)
+        if existing is not None:
+            # A late duplicate start must not resurrect a terminal call.
+            if existing.get("status") != "running":
+                return
+        else:
+            if len(tools) >= 64:
+                settled = next((row for row in tools if row.get("status") != "running"), None)
+                if settled is None:
+                    self.dropped += 1
+                    return
+                tools.remove(settled)
+            existing = {"tool_call_id": call_id}
+            tools.append(existing)
+        existing.update(
+            tool_name=event.get("tool_name") or "tool",
+            turn_id=event.get("turn_id") or None,
+            status="running",
+            observed_started_at=time.time(),
+        )
+        existing.pop("observed_finished_at", None)
+        existing.pop("duration_ms", None)
+        existing.pop("evidence", None)
+
+    def track_tool_stop(self, session, event):
+        """Settle only the exact call identified by Hermes' terminal hook."""
+        call_id = event.get("tool_call_id")
+        if not isinstance(call_id, str) or not call_id:
+            return
+        tools = session.setdefault("tools", [])
+        existing = next((row for row in tools if row.get("tool_call_id") == call_id), None)
+        if existing is None:
+            if len(tools) >= 64:
+                settled = next((row for row in tools if row.get("status") != "running"), None)
+                if settled is None:
+                    self.dropped += 1
+                    return
+                tools.remove(settled)
+            existing = {
+                "tool_call_id": call_id,
+                "evidence": "completion observed without matching start",
+            }
+            tools.append(existing)
+        raw = event.get("result") or {}
+        status = str(event.get("status") or "").lower()
+        if status in {"ok", "success"}:
+            status = "completed"
+        elif status not in {
+            "completed",
+            "failed",
+            "error",
+            "blocked",
+            "timeout",
+            "cancelled",
+            "interrupted",
+        }:
+            # A result's `status` may describe dispatched background work, not
+            # the terminal tool invocation. Only the hook's status is a call
+            # outcome; older hooks fall back to explicit error vs completion.
+            status = "failed" if raw.get("error") else "completed"
+        existing.update(
+            tool_name=event.get("tool_name") or existing.get("tool_name") or "tool",
+            turn_id=event.get("turn_id") or existing.get("turn_id"),
+            status=status,
+            observed_finished_at=time.time(),
+        )
+        duration = event.get("duration_ms")
+        if isinstance(duration, int) and duration >= 0:
+            existing["duration_ms"] = duration
+
+    @staticmethod
+    def mark_unsettled_tools_unknown(session):
+        """A finished turn cannot truthfully leave a tool marked as still running."""
+        for tool in session.get("tools", []):
+            if tool.get("status") == "running":
+                tool.update(
+                    status="unknown",
+                    evidence="turn ended without matching tool completion",
+                    observed_finished_at=time.time(),
+                )
 
     def track_subagent_start(self, session, event):
         child_session_id = event.get("child_session_id")

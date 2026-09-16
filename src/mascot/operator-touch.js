@@ -130,20 +130,24 @@
           const pending = processes.filter(p => !terminal.has(p.status));
           const units = (row.delegations || []).flatMap(batch => batch.units || []);
           const subagents = row.subagents || [];
+          const tools = row.tools || [];
+          const activeTools = tools.filter(tool => tool.status === 'running');
+          const unknownTools = tools.filter(tool => tool.status === 'unknown');
           const pendingSubagents = subagents.filter(subagent => !terminal.has(subagent.status));
           const toolOutcome = row.tool_outcome || null;
           const interruption = row.interruption || null;
           const uncertainTool = toolOutcome?.status === 'unknown';
-          const unknown = uncertainTool || !row.status || row.status === 'unknown' || !row.source.fresh || row.source.dropped_events || pending.some(p => p.status === 'unknown') || units.some(u => u.status === 'unknown') || pendingSubagents.some(subagent => subagent.status === 'unknown');
+          const unknown = uncertainTool || unknownTools.length > 0 || !row.status || row.status === 'unknown' || !row.source.fresh || row.source.dropped_events || pending.some(p => p.status === 'unknown') || units.some(u => u.status === 'unknown') || pendingSubagents.some(subagent => subagent.status === 'unknown');
           const summary = textNode('div', uncertainTool ? 'Tool outcome uncertain'
             : unknown ? 'Work outcome unknown'
-            : pending.length ? `${pending.length} background command${pending.length === 1 ? '' : 's'} continuing`
+            : activeTools.length ? `${activeTools.length} tool call${activeTools.length === 1 ? '' : 's'} active`
+              : pending.length ? `${pending.length} background command${pending.length === 1 ? '' : 's'} continuing`
               : units.some(u => !terminal.has(u.status)) ? 'Delegated work continuing'
                 : pendingSubagents.length ? `${pendingSubagents.length} subagent${pendingSubagents.length === 1 ? '' : 's'} working`
                 : `Turn ${row.status || 'unknown'}`);
           summary.className = 'cb-work-summary';
-          summary.dataset.state = unknown ? 'unknown' : pending.length || units.some(u => !terminal.has(u.status)) || pendingSubagents.length ? 'active' : 'settled';
-          summary.append(textNode('small', `Turn: ${row.status || 'unknown'} · Processes: ${processes.length} · Delegation units: ${units.length} · Subagents: ${subagents.length}`));
+          summary.dataset.state = unknown ? 'unknown' : activeTools.length || pending.length || units.some(u => !terminal.has(u.status)) || pendingSubagents.length ? 'active' : 'settled';
+          summary.append(textNode('small', `Turn: ${row.status || 'unknown'} · Tools: ${tools.length} · Processes: ${processes.length} · Delegation units: ${units.length} · Subagents: ${subagents.length}`));
           detail.append(summary);
           detail.append(textNode('p', 'Turn outcome and background work are separate. Details below are snapshot observations.'));
           if (row.source.dropped_events) detail.append(textNode('p', 'Observation gap: some events were dropped. Outcomes may be unknown.'));
@@ -170,6 +174,16 @@
             card.append(textNode('strong', 'OUTCOME NEEDS VERIFICATION'));
             card.append(textNode('p', `${toolOutcome.tool_name || 'Tool'} · ${toolOutcome.status || 'unknown'}`));
             card.append(textNode('small', toolOutcome.message || 'Inspect external state before retrying.'));
+            detail.append(card);
+          }
+          if (tools.length) detail.append(textNode('strong', 'OBSERVED TOOL CALLS'));
+          for (const tool of [...tools].sort((a, b) => (a.status === 'running' ? -1 : 0) - (b.status === 'running' ? -1 : 0)).slice(0, 8)) {
+            const card = document.createElement('article');
+            card.className = 'cb-tool-activity-detail';
+            card.dataset.status = String(tool.status || 'unknown');
+            card.append(textNode('strong', tool.tool_name || 'Tool'));
+            card.append(textNode('p', `${tool.status || 'unknown'}${tool.duration_ms == null ? '' : ` · ${(tool.duration_ms / 1000).toFixed(1)}s`}`));
+            card.append(textNode('small', `Call ${tool.tool_call_id}${tool.turn_id ? ` · turn ${tool.turn_id}` : ''}${tool.evidence ? ` · ${tool.evidence}` : ''}`));
             detail.append(card);
           }
           for (const process of processes) {

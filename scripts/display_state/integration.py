@@ -109,6 +109,9 @@ def observed_work(snapshot):
         for session in source.get("sessions", []):
             tool_outcome = session.get("tool_outcome") or {}
             tool_unknown = tool_outcome.get("status") == "unknown"
+            tools = session.get("tools", [])
+            active_tools = [t for t in tools if t.get("status") == "running"]
+            unknown_tools = [t for t in tools if t.get("status") == "unknown"]
             pending = [
                 p
                 for p in session.get("processes", [])
@@ -126,13 +129,15 @@ def observed_work(snapshot):
                 if a.get("status") not in TERMINAL
             ]
             active = session.get("status") in ACTIVE or bool(
-                pending or units or subagents
+                active_tools or pending or units or subagents
             )
             if not active:
                 continue
             fresh = source["fresh"] and not source.get("dropped_events")
             summary = (
-                "Command continuing in background"
+                f"{len(active_tools)} tool call{'s' if len(active_tools) != 1 else ''} active"
+                if active_tools
+                else "Command continuing in background"
                 if pending
                 else "Delegated work continuing"
                 if units
@@ -144,16 +149,20 @@ def observed_work(snapshot):
                 p.get("status") == "unknown" for p in pending + units + subagents
             ):
                 summary = "Work outcome unknown; observation unavailable"
+            if unknown_tools:
+                summary = "Tool outcome unknown; observation incomplete"
             if tool_unknown:
                 summary = "Tool outcome uncertain; inspect before retrying"
             return {
                 "active": not tool_unknown
+                and not unknown_tools
                 and fresh
                 and not any(
                     p.get("status") == "unknown" for p in pending + units + subagents
                 ),
                 "state": "active"
                 if not tool_unknown
+                and not unknown_tools
                 and fresh
                 and not any(
                     p.get("status") == "unknown" for p in pending + units + subagents
@@ -164,6 +173,7 @@ def observed_work(snapshot):
                 "detail": summary,
                 "source": "hermes_observer",
                 "session_id": session.get("session_id"),
+                "tool_count": len(active_tools),
                 "age_seconds": source["age_seconds"],
                 "valid_for_seconds": MAX_AGE,
                 "expires_in_seconds": max(0, MAX_AGE - source["age_seconds"]),
@@ -174,6 +184,20 @@ def observed_work(snapshot):
         for session in source.get("sessions", []):
             age = max(0, time.time() - session.get("last_event_at", 0))
             tool_outcome = session.get("tool_outcome") or {}
+            tools = session.get("tools", [])
+            unknown_tools = [t for t in tools if t.get("status") == "unknown"]
+            if session.get("status") in TERMINAL and unknown_tools and age < 30:
+                return {
+                    "active": False,
+                    "state": "unknown",
+                    "kind": "tool",
+                    "summary": "Tool outcome unknown; observation incomplete",
+                    "detail": "A turn ended without an exact matching tool completion",
+                    "source": "hermes_observer",
+                    "session_id": session["session_id"],
+                    "tool_count": 0,
+                    "age_seconds": age,
+                }
             if (
                 session.get("status") in TERMINAL
                 and tool_outcome.get("status") == "unknown"
@@ -205,6 +229,10 @@ def observed_work(snapshot):
                     or any(
                         a.get("status") in {"failed", "error", "stalled"}
                         for a in session.get("subagents", [])
+                    )
+                    or any(
+                        t.get("status") in {"failed", "error", "timeout"}
+                        for t in tools
                     )
                 )
                 interrupted = (

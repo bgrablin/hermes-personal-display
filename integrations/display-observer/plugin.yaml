@@ -1,6 +1,6 @@
 name: display-observer
-version: 1.1.0
-description: Local read-only lifecycle and background-work observer for Hermes Display Screen.
+version: 1.2.0
+description: Local read-only lifecycle, exact tool-call and background-work observer for Hermes Display Screen.
 manifest_version: 2
 provides_hooks:
   - on_session_start
