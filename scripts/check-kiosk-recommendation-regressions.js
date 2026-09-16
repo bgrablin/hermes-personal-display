@@ -308,9 +308,10 @@ requireAll(appSource, [
 const audienceParserMatch = appSource.match(/function parseFamilyAudience\(params\) \{([\s\S]*?)\n  \}/);
 if (!audienceParserMatch) fail('Runtime must define the shared parseFamilyAudience(params) audience parser.');
 requireAll(audienceParserMatch[1], [
-  "['family', 'theater'].includes((params.get('audience') || '').toLowerCase())",
-  "['1', 'true', 'yes'].includes((params.get('family') || '').toLowerCase())",
-  "(params.get('view') || '').toLowerCase() === 'theater'",
+  "const value = (key) => String(params.get(key) || '').trim().toLowerCase();",
+  "['family', 'theater'].includes(value('audience'))",
+  "['1', 'true', 'yes'].includes(value('family'))",
+  "value('view') === 'theater'",
 ], 'parseFamilyAudience must accept all family routes: audience=family|theater, family=1|true|yes, view=theater');
 if (!appSource.includes('const familyAudience = parseFamilyAudience(urlParams);')) {
   fail('Top-level familyAudience must come from the shared parseFamilyAudience parser.');

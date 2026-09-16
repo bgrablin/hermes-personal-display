@@ -1074,6 +1074,124 @@
             "unavailable"
           ]
         },
+        "cron_incidents": {
+          "additionalProperties": false,
+          "properties": {
+            "available": {
+              "type": "boolean"
+            },
+            "discovery_error": {
+              "type": "boolean"
+            },
+            "incidents": {
+              "items": {
+                "additionalProperties": false,
+                "properties": {
+                  "age_seconds": {
+                    "minimum": 0,
+                    "type": [
+                      "integer",
+                      "null"
+                    ]
+                  },
+                  "error": {
+                    "maxLength": 240,
+                    "type": "string"
+                  },
+                  "failure_type": {
+                    "maxLength": 32,
+                    "type": "string"
+                  },
+                  "first_seen_at": {
+                    "maxLength": 48,
+                    "type": "string"
+                  },
+                  "id": {
+                    "maxLength": 80,
+                    "type": "string"
+                  },
+                  "job": {
+                    "maxLength": 72,
+                    "type": "string"
+                  },
+                  "job_id": {
+                    "maxLength": 80,
+                    "type": "string"
+                  },
+                  "last_seen_at": {
+                    "maxLength": 48,
+                    "type": "string"
+                  },
+                  "output_file": {
+                    "maxLength": 180,
+                    "type": "string"
+                  },
+                  "profile": {
+                    "maxLength": 64,
+                    "type": "string"
+                  },
+                  "recent": {
+                    "type": "boolean"
+                  },
+                  "state": {
+                    "enum": [
+                      "detected",
+                      "alerted"
+                    ]
+                  }
+                },
+                "required": [
+                  "id",
+                  "job_id",
+                  "job",
+                  "profile",
+                  "state",
+                  "failure_type",
+                  "first_seen_at",
+                  "last_seen_at",
+                  "age_seconds",
+                  "recent",
+                  "error",
+                  "output_file"
+                ],
+                "type": "object"
+              },
+              "maxItems": 5,
+              "type": "array"
+            },
+            "open": {
+              "minimum": 0,
+              "type": "integer"
+            },
+            "profiles_checked": {
+              "minimum": 0,
+              "type": "integer"
+            },
+            "profiles_truncated": {
+              "type": "boolean"
+            },
+            "read_errors": {
+              "minimum": 0,
+              "type": "integer"
+            },
+            "recent": {
+              "minimum": 0,
+              "type": "integer"
+            },
+            "summary": {
+              "maxLength": 72,
+              "type": "string"
+            }
+          },
+          "required": [
+            "available",
+            "open",
+            "recent",
+            "summary",
+            "incidents"
+          ],
+          "type": "object"
+        },
         "provider_calls": {
           "maxItems": 8,
           "type": "array"
@@ -1280,7 +1398,8 @@
         "sources",
         "coverage",
         "rpc",
-        "provider_calls"
+        "provider_calls",
+        "cron_incidents"
       ],
       "title": "Private Hermes integration inspection",
       "type": "object"

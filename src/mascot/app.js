@@ -2034,6 +2034,7 @@
     }
     const trends = { cpu: [], temp: [] };
     const feelState = { tokenBuffer: 0, rms: 0, forcedLoad: null, network: 'online', lastEventAt: 0 };
+    let lastCronIncidentSignature = '';
 
     // XState is the source of truth for high-level display state. The behavior region mirrors the
     // optic mode; the parallel health/quiet/privacy_display regions are orthogonal overlays the
@@ -2227,6 +2228,18 @@
       }
       const work = live.current_work || {};
       const queuedTaskCount = conceptBQueuedTaskCount(live);
+      const cronIncidentCount = recentCronIncidentCount(live);
+      const cronIncident = firstRecentCronIncident(live);
+      const cronIncidentSignature = cronIncident
+        ? safeDisplayText(cronIncident.id, 80)
+        : '';
+      const newIdleCronIncident = !isFreshCurrentWork(live)
+        && cronIncidentSignature && cronIncidentSignature !== lastCronIncidentSignature;
+      lastCronIncidentSignature = cronIncidentSignature;
+      if (newIdleCronIncident) {
+        renderer.triggerIntent?.('skeptical_squint');
+        window.__HERMES_CONCEPT_B_EYE_MOTION?.pulse?.('notice');
+      }
       const isCurrentWork = Boolean(work.active) && Number.isFinite(Number(work.age_seconds)) && Number(work.age_seconds) <= CURRENT_WORK_MAX_AGE_SECONDS;
       const source = label === 'LOCAL WATCH'
         ? 'LOCAL · WATCH'
@@ -2279,17 +2292,23 @@
       updateRemoteMemoryCell(refs, live.remote_memory);
       const taskText = isCurrentWork
         ? 'CURRENT TURN'
+        : cronIncidentCount > 0
+          ? `${cronIncidentCount} CRON ALERT${cronIncidentCount === 1 ? '' : 'S'}`
         : Number.isFinite(queuedTaskCount) && queuedTaskCount > 0
           ? `${queuedTaskCount} QUEUED`
           : 'READY';
       const taskHint = isCurrentWork
         ? safeDisplayText(work.visual_kind || work.kind || source, 18)
+        : cronIncidentCount > 0
+          ? 'Scheduled task'
         : Number.isFinite(queuedTaskCount) && queuedTaskCount > 0
           ? 'queued calmly'
           : 'no queued work';
       setConceptBStatusText(refs.tasks, taskText);
       setConceptBText(refs.taskHint, taskHint);
-      setConceptBStatusDotClass(refs.taskDot, isCurrentWork || (Number.isFinite(queuedTaskCount) && queuedTaskCount > 0) ? 'ok' : 'fresh');
+      setConceptBStatusDotClass(refs.taskDot, isCurrentWork ? 'ok'
+        : cronIncidentCount > 0 ? 'watch'
+          : Number.isFinite(queuedTaskCount) && queuedTaskCount > 0 ? 'ok' : 'fresh');
 
       updateConceptBRouteRail(routeRail, live.route_rail);
       updateStatusAges();
@@ -3934,6 +3953,8 @@
     if (state === 'needs_attention' || workKind === 'waiting') return { label: 'WAITING FOR BRIAN', detail: safeDisplayText(activity?.summary || 'needs input', 28).toUpperCase(), severity: 'watch' };
     if (tempLabel) return { label: tempLabel, detail: 'THERMAL WATCH', severity: tempSeverity === 'hot' ? 'critical' : 'watch' };
     if (freshnessTier === 'stale') return { label: 'FEED STALE', detail: 'WAITING FOR TELEMETRY', severity: 'offline' };
+    const cronIncident = firstRecentCronIncident(live);
+    if (!isFreshCurrentWork(live) && cronIncident) return { label: 'SCHEDULER ALERT', detail: 'SCHEDULED TASK', severity: 'watch' };
     return null;
   }
 
@@ -3959,6 +3980,8 @@
     if (state === 'blocked_user_task') return displaySentence(activity.summary || 'Waiting on Brian.');
     if (state === 'needs_attention') return displaySentence(activity.summary || 'Waiting for confirmation.');
     if (state === 'critical_local_issue') return displaySentence(activity.summary || 'Local issue needs attention.');
+    const cronIncident = firstRecentCronIncident(live);
+    if (!isFreshCurrentWork(live) && cronIncident) return displaySentence('Scheduled task needs review. Tap Tasks for durable incident details.');
     return '';
   }
 
@@ -4136,6 +4159,15 @@
       };
     }
 
+    const cronIncident = firstRecentCronIncident(live);
+    if (cronIncident) {
+      return {
+        label: 'SCHEDULER WATCH',
+        summary: 'Scheduled task needs review.',
+        chips: ['SCHEDULER', 'RECENT']
+      };
+    }
+
     if (resolver.display_state === 'feed_stale_degraded') {
       return {
         label: 'FEED WATCH',
@@ -4194,6 +4226,24 @@
       if (Number.isFinite(value)) return value;
     }
     return NaN;
+  }
+
+  function recentCronIncidentCount(live) {
+    if (live?.cron_incidents?.available !== true) return 0;
+    const value = Number(live?.cron_incidents?.recent);
+    return Number.isFinite(value) ? Math.max(0, Math.floor(value)) : 0;
+  }
+
+  function firstRecentCronIncident(live) {
+    if (!recentCronIncidentCount(live)) return null;
+    const incidents = Array.isArray(live?.cron_incidents?.incidents) ? live.cron_incidents.incidents : [];
+    return incidents.find(incident => incident?.recent) || null;
+  }
+
+  function isFreshCurrentWork(live) {
+    const work = live?.current_work || {};
+    const age = Number(work.age_seconds);
+    return work.active === true && Number.isFinite(age) && age <= CURRENT_WORK_MAX_AGE_SECONDS;
   }
 
   function activitySourceChip(value, kind = '') {
@@ -4270,6 +4320,8 @@
     if (state === 'needs_attention') return mood === 'blocked_annoyed' ? 'WAITING INPUT' : 'ATTENTION';
     if (state === 'planning_reasoning' && work.active) return work.visual_kind === 'planning' ? 'PLANNING' : 'ACTIVE TURN';
     if (state === 'active_work' && work.active) return work.visual_kind === 'planning' ? 'PLANNING' : 'ACTIVE TURN';
+    if (isFreshCurrentWork(live)) return work.visual_kind === 'planning' ? 'PLANNING' : 'ACTIVE TURN';
+    if (recentCronIncidentCount(live) > 0) return 'ATTENTION';
     if (state === 'recently_completed') return 'COMPLETE';
     if (state === 'night_mode') return 'NIGHT WATCH';
     if (state === 'feed_stale_degraded') return 'FEED STALE';
@@ -4483,9 +4535,10 @@
   // feature reads its own flag.
   const FAMILY_AUDIENCE_PARAMS = Object.freeze(['audience', 'family', 'view']);
   function parseFamilyAudience(params) {
-    return ['family', 'theater'].includes((params.get('audience') || '').toLowerCase())
-      || ['1', 'true', 'yes'].includes((params.get('family') || '').toLowerCase())
-      || (params.get('view') || '').toLowerCase() === 'theater';
+    const value = (key) => String(params.get(key) || '').trim().toLowerCase();
+    return ['family', 'theater'].includes(value('audience'))
+      || ['1', 'true', 'yes'].includes(value('family'))
+      || value('view') === 'theater';
   }
   function familyModeTargetUrl(toFamily) {
     const url = new URL(window.location.href);

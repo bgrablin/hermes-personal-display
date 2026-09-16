@@ -1077,6 +1077,25 @@ def test_operator_http_boundaries_and_family_projection(monkeypatch):
             action=lambda payload: {"ok": True, "status": "applied"},
         ),
     )
+    monkeypatch.setattr(
+        server,
+        "cron_incident_snapshot",
+        lambda: {"available": True, "open": 1, "recent": 1, "summary": "1 open scheduler incident", "incidents": [{
+            "id": "inc-1", "job_id": "job-1", "job": "Nightly display check", "profile": "default",
+            "state": "alerted", "failure_type": "timeout", "first_seen_at": "2026-09-15T00:00:00Z",
+            "last_seen_at": "2026-09-15T01:00:00Z", "age_seconds": 60, "recent": True,
+            "error": "timed out", "output_file": "/home/brian/.hermes/cron/output/job-1/run.md",
+        }]},
+    )
+    operator_state = {
+        "generated_at": "2026-09-15T01:00:00+00:00",
+        "state_preset": "quiet_watch",
+        "live": {
+            "system": {"cpu": 0.2},
+            "cron_incidents": {"available": True, "open": 1, "recent": 1},
+        },
+    }
+    monkeypatch.setattr(server, "cached_build_state", lambda: operator_state)
     httpd = server.ThreadingHTTPServer(("127.0.0.1", 0), server.Handler)
     thread = threading.Thread(target=httpd.serve_forever, daemon=True)
     thread.start()
@@ -1096,7 +1115,13 @@ def test_operator_http_boundaries_and_family_projection(monkeypatch):
             connection.close()
             return status, body
 
-        assert request("GET", "/api/hermes-integration")[0] == 200
+        status, integration = request("GET", "/api/hermes-integration")
+        assert status == 200
+        assert integration["cron_incidents"]["incidents"][0]["job"] == "Nightly display check"
+        assert integration["cron_incidents"]["profiles_checked"] == 0
+        assert integration["cron_incidents"]["read_errors"] == 0
+        assert integration["cron_incidents"]["profiles_truncated"] is False
+        assert integration["cron_incidents"]["discovery_error"] is False
         assert (
             request("GET", "/api/hermes-integration", {"Host": "evil.example"})[0]
             == 403
@@ -1117,14 +1142,104 @@ def test_operator_http_boundaries_and_family_projection(monkeypatch):
             )[0]
             == 200
         )
+        family_aliases = [
+            "audience=family", "audience=theater", "family=1", "family=TRUE",
+            "family=Yes", "view=theater", "audience=FAMILY", "audience=TheAtEr",
+            "family=TrUe", "view=THEATER",
+        ]
+        for alias in family_aliases:
+            status, body = request("GET", f"/api/hermes-state?{alias}")
+            assert status == 200
+            assert body["live"]["family_mode"] is True
+            assert "cron_incidents" not in body["live"]
+        status, operator = request("GET", "/api/hermes-state?audience=operator")
+        assert status == 200
+        assert "cron_incidents" in operator["live"]
+
+        monkeypatch.setattr(server, "cached_build_state", lambda: (_ for _ in ()).throw(RuntimeError("synthetic")))
+        for alias in family_aliases:
+            status, body = request("GET", f"/api/hermes-state?{alias}")
+            assert status == 503
+            assert body["live"]["family_mode"] is True
+            assert "cron_incidents" not in body["live"]
         safe = server.family_safe_state(
-            {"live": {"integration": {"secret": "private"}, "system": {}}}
+            {"live": {"integration": {"secret": "private"}, "cron_incidents": {"open": 1}, "system": {}}}
         )
         assert "integration" not in safe["live"]
+        assert "cron_incidents" not in safe["live"]
     finally:
         httpd.shutdown()
         httpd.server_close()
         thread.join(timeout=2)
+
+
+def test_ambient_cron_snapshot_excludes_private_incident_details():
+    import hermes_display_server as server
+
+    ambient = server.cron_incident_ambient_snapshot({
+        "available": True,
+        "open": 1,
+        "recent": 1,
+        "incidents": [{
+            "id": "inc-1", "job_id": "job-1", "job": "Nightly display check",
+            "profile": "silver", "state": "alerted", "failure_type": "timeout",
+            "first_seen_at": "2026-09-15T00:00:00Z", "last_seen_at": "2026-09-15T01:00:00Z",
+            "age_seconds": 60, "recent": True, "error": "private diagnostic",
+            "output_file": "/home/brian/.hermes/cron/output/job-1/run.md",
+        }],
+    })
+
+    assert ambient["category"] == "scheduler"
+    assert ambient["label"] == "Scheduled task"
+    assert ambient["incidents"] == [{
+        "id": ambient["incidents"][0]["id"], "category": "scheduler",
+        "label": "Scheduled task", "recent": True,
+    }]
+    assert len(ambient["incidents"][0]["id"]) == 32
+    again = server.cron_incident_ambient_snapshot({
+        "available": True, "open": 1, "recent": 1,
+        "incidents": [{"id": "inc-1", "job_id": "job-1", "job": "changed", "profile": "silver", "recent": True}],
+    })
+    assert again["incidents"][0]["id"] == ambient["incidents"][0]["id"]
+    assert "private diagnostic" not in json.dumps(ambient)
+    assert "/home/brian" not in json.dumps(ambient)
+    assert "Nightly display check" not in json.dumps(ambient)
+    assert "silver" not in json.dumps(ambient)
+    assert "timeout" not in json.dumps(ambient)
+
+
+def test_ambient_cron_snapshot_scrubs_paths_in_public_labels():
+    import hermes_display_server as server
+
+    snapshot = {
+        "available": True, "open": 1, "recent": 1,
+        "incidents": [{
+            "id": "/private/example/incident", "job": "/private/example/job",
+            "profile": "/private/example/profile", "state": "alerted",
+            "failure_type": "timeout", "age_seconds": 60, "recent": True,
+        }],
+    }
+    private = server.sanitize_cron_incident_snapshot(snapshot)
+    assert private["incidents"][0]["job"] == "/private/example/job"
+    ambient = server.cron_incident_ambient_snapshot(snapshot)
+    assert "/private/example" not in json.dumps(ambient)
+    assert ambient["recent"] == 1
+    assert ambient["label"] == "Scheduled task"
+    assert set(ambient["incidents"][0]) == {"id", "category", "label", "recent"}
+
+
+def test_unavailable_cron_snapshot_cannot_drive_ambient_alerts():
+    import hermes_display_server as server
+
+    ambient = server.cron_incident_ambient_snapshot({
+        "available": False, "open": 4, "recent": 2,
+        "incidents": [{"id": "partial", "recent": True}],
+    })
+
+    assert ambient == {
+        "available": False, "open": 0, "recent": 0,
+        "category": "scheduler", "label": "Scheduled task", "incidents": [],
+    }
 
 
 @pytest.mark.parametrize("failure", ["identity", "snapshot", 4001, 5031])

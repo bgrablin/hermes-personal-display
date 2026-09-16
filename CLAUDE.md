@@ -84,8 +84,15 @@ Local services bind loopback by default.
   friends pattern-match exact source lines and numeric constants. Refactoring guarded code requires
   updating the guard in the same change — that is by design, not an accident to work around.
 - **Git hooks:** pre-commit auto-refreshes `docs/current-dashboard.png` from bounded synthetic state when frontend files change
-  (skip with `HERMES_SKIP_DASHBOARD_CAPTURE=1`); pre-push blocks non-main refs to the public
-  `bgrablin/hermes-personal-display` remote.
+  (skip with `HERMES_SKIP_DASHBOARD_CAPTURE=1`). For the public
+  `bgrablin/hermes-personal-display` remote, pre-push permits updates only from matching local
+  `main`, `feat/cron-incident-watch`, or `feat/concurrent-tool-activity` refs; it never permits
+  deletion, tags, arbitrary sources, or refs outside that allowlist. Every allowed tip must descend
+  from the current public `main`, and every commit unique to that public base must use the
+  `bgrablin` author and committer identity with a valid signature matching the configured public
+  signing key. The hook checks each exact public-main-to-tip range because the installed
+  `git verify-outgoing` helper follows the current upstream/HEAD range and does not check author
+  identity; it is not a substitute for the hook's per-ref gate.
 - **No legacy v2 aliases:** the retired `-v2` entrypoints must 404
   (`scripts/verify-project.sh` asserts this). Do not reintroduce redirects from retired
   paths to current modules.

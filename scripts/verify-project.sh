@@ -32,6 +32,7 @@ check_file src/mascot/app.js
 check_file src/mascot/SOURCE-LICENSE.md
 check_file scripts/hermes-display
 check_file scripts/hermes_display_server.py
+check_file scripts/display_state/collector.py
 check_file scripts/display_state/integration.py
 check_file scripts/display_state/observer.py
 check_file scripts/display_state/rpc_monitor.py

@@ -46,6 +46,7 @@ def integration_monitor():
     return _INTEGRATION_MONITOR
 
 from display_state.collector import (
+    cron_incident_snapshot,
     kanban_snapshot,
     metric_snippet,
     normalize_system_freshness,
@@ -194,6 +195,117 @@ def sanitize_kanban_snapshot(kanban: dict) -> dict:
         "active": min(len(tasks), active),
         "summary": clean_log_msg(raw.get("summary") or f"{len(tasks)} active task(s)", 54),
         "tasks": tasks,
+    }
+
+
+def _cron_coverage_fields(raw: dict) -> dict:
+    def nonnegative_int(value: object) -> int:
+        try:
+            return max(0, int(str(value or "0")))
+        except (TypeError, ValueError, OverflowError):
+            return 0
+
+    return {
+        "profiles_checked": nonnegative_int(raw.get("profiles_checked")),
+        "read_errors": nonnegative_int(raw.get("read_errors")),
+        "profiles_truncated": bool(raw.get("profiles_truncated")),
+        "discovery_error": bool(raw.get("discovery_error")),
+    }
+
+
+def sanitize_cron_incident_snapshot(snapshot: dict) -> dict:
+    raw = snapshot if isinstance(snapshot, dict) else {}
+    coverage = _cron_coverage_fields(raw)
+    incidents = []
+    for row in list(raw.get("incidents") or [])[:5]:
+        if not isinstance(row, dict):
+            continue
+        age = row.get("age_seconds")
+        try:
+            age = max(0, int(age)) if age is not None else None
+        except (TypeError, ValueError):
+            age = None
+        state = str(row.get("state") or "detected")
+        if state not in {"detected", "alerted"}:
+            state = "detected"
+        incidents.append({
+            "id": augury_clean(row.get("id"), 80),
+            "job_id": augury_clean(row.get("job_id"), 80),
+            "job": augury_clean(row.get("job") or row.get("job_id") or "scheduled task", 72),
+            "profile": augury_clean(row.get("profile") or "default", 64),
+            "state": state,
+            "failure_type": clean_log_msg(row.get("failure_type") or "unknown", 32),
+            "first_seen_at": clean_log_msg(row.get("first_seen_at"), 48),
+            "last_seen_at": clean_log_msg(row.get("last_seen_at"), 48),
+            "age_seconds": age,
+            "recent": bool(row.get("recent")),
+            "error": augury_clean(row.get("error"), 240),
+            "output_file": augury_clean(row.get("output_file"), 180),
+        })
+    try:
+        open_count = max(0, int(raw.get("open") or 0))
+        recent_count = max(0, int(raw.get("recent") or 0))
+    except (TypeError, ValueError):
+        open_count = recent_count = 0
+    available = bool(raw.get("available")) and not any([
+        coverage["read_errors"],
+        coverage["profiles_truncated"],
+        coverage["discovery_error"],
+    ])
+    if not available:
+        return {
+            "available": False,
+            "open": 0,
+            "recent": 0,
+            "summary": "Scheduler incident data unavailable",
+            "incidents": [],
+            **coverage,
+        }
+    return {
+        "available": True,
+        "open": open_count,
+        "recent": min(recent_count, open_count),
+        "summary": clean_log_msg(raw.get("summary") or f"{open_count} open scheduler incidents", 72),
+        "incidents": incidents,
+        **coverage,
+    }
+
+
+def _ambient_incident_id(row: dict) -> str:
+    """Return a stable opaque identity without exposing private incident fields."""
+    material = json.dumps(
+        [row.get("profile"), row.get("id"), row.get("job_id")],
+        ensure_ascii=True,
+        separators=(",", ":"),
+    )
+    return hashlib.sha256(material.encode("utf-8")).hexdigest()[:32]
+
+
+def cron_incident_ambient_snapshot(snapshot: dict) -> dict:
+    """Return the minimum incident fields needed by the display-safe ambient packet."""
+    full = sanitize_cron_incident_snapshot(snapshot)
+    if not full["available"]:
+        return {
+            "available": False,
+            "open": 0,
+            "recent": 0,
+            "category": "scheduler",
+            "label": "Scheduled task",
+            "incidents": [],
+        }
+    incidents = [{
+        "id": _ambient_incident_id(row),
+        "category": "scheduler",
+        "label": "Scheduled task",
+        "recent": row["recent"],
+    } for row in full["incidents"]]
+    return {
+        "available": True,
+        "open": full["open"],
+        "recent": full["recent"],
+        "category": "scheduler",
+        "label": "Scheduled task",
+        "incidents": incidents,
     }
 
 
@@ -530,6 +642,7 @@ def build_state_from_facts(facts: dict) -> dict:
     active_summary = facts.get("active_summary") or {"count": 0, "sessions": []}
     agents = int(facts.get("resident_agents") or 0)
     kanban = sanitize_kanban_snapshot(facts.get("kanban") or {"active": 0, "summary": "0 active task(s)", "tasks": []})
+    cron_incidents = cron_incident_ambient_snapshot(facts.get("cron_incidents") or {})
     system_input = facts.get("system") or {}
     sys, freshness = normalize_system_freshness(system_input)
     gateway_ok = bool(facts.get("gateway_ok"))
@@ -619,6 +732,7 @@ def build_state_from_facts(facts: dict) -> dict:
             "resident_agents": agents,
             "tasks": active_tasks,
             "kanban": kanban,
+            "cron_incidents": cron_incidents,
             "system": sys,
             "freshness": freshness,
             "resolver": {**resolver, "fixture_source": facts.get("fixture_source")},
@@ -687,6 +801,7 @@ def build_state() -> dict:
         "active_summary": active_session_summary(agent_log, minutes=CURRENT_WORK_SECONDS / 60),
         "resident_agents": active_agent_count(),
         "kanban": kanban_snapshot(),
+        "cron_incidents": cron_incident_snapshot(),
         "system": system_snapshot(),
         "gateway_ok": gateway_ok_recently(recent_gateway),
         "manual_override": load_manual_override(),
@@ -757,6 +872,21 @@ def family_safe_state(source_state: dict) -> dict:
     return state
 
 
+def family_audience_requested(params: dict) -> bool:
+    """Recognize every public family/theater query alias consistently."""
+    def value_for(name: str) -> str:
+        raw = params.get(name, "")
+        if isinstance(raw, (list, tuple)):
+            raw = raw[0] if raw else ""
+        return str(raw or "").strip().lower()
+
+    return (
+        value_for("audience") in {"family", "theater"}
+        or value_for("family") in {"1", "true", "yes"}
+        or value_for("view") == "theater"
+    )
+
+
 def request_provider_route_rail_refresh() -> dict:
     """Queue the deployed read-only quota refresh service with a short cooldown."""
     global _PROVIDER_ROUTE_REFRESH_AT
@@ -793,6 +923,7 @@ def degraded_state(reason: str = "state_api_error") -> dict:
         "active_summary": {"count": 0, "sessions": []},
         "resident_agents": 0,
         "kanban": {"active": 0, "summary": "0 active task(s)", "tasks": []},
+        "cron_incidents": {"available": False, "open": 0, "recent": 0, "incidents": []},
         "system": {"sensor_error": True, "measurements": {}, "source": reason},
         "gateway_ok": False,
         "now_hour": datetime.now().hour,
@@ -1380,12 +1511,13 @@ class Handler(SimpleHTTPRequestHandler):
             if not self.loopback_only():
                 return
             json_response(self, 200, {**read_snapshots(), "rpc": integration_monitor().snapshot(),
-                "provider_calls": provider_telemetry(tail_text(LOG_DIR / "agent.log", 40000))})
+                "provider_calls": provider_telemetry(tail_text(LOG_DIR / "agent.log", 40000)),
+                "cron_incidents": sanitize_cron_incident_snapshot(cron_incident_snapshot())})
             return
         if parsed.path == "/api/hermes-state":
             params = parse_qs(parsed.query)
             fixture = params.get("fixture", [None])[0]
-            audience = params.get("audience", [None])[0]
+            family_audience = family_audience_requested(params)
             try:
                 state = build_state_from_fixture_name(fixture) if fixture else cached_build_state()
             except FixtureLookupError:
@@ -1398,9 +1530,9 @@ class Handler(SimpleHTTPRequestHandler):
                 safe_reason = scrub(exc.__class__.__name__)
                 print(f"Display state API degraded: {safe_reason}", flush=True)
                 state = degraded_state(safe_reason)
-                json_response(self, 503, family_safe_state(state) if audience == "family" else state)
+                json_response(self, 503, family_safe_state(state) if family_audience else state)
                 return
-            json_response(self, 200, family_safe_state(state) if audience == "family" else state)
+            json_response(self, 200, family_safe_state(state) if family_audience else state)
             return
         if parsed.path == "/api/augury-feed":
             if not self.loopback_only("Augury feed is operator-only and accepts localhost requests only"):

@@ -4,17 +4,22 @@ from __future__ import annotations
 import json
 import os
 import re
+import stat
 import sqlite3
 import subprocess
 from contextlib import closing
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
-from display_state.privacy import clean_log_msg
+from display_state.privacy import augury_clean, clean_log_msg
 
 HERMES_HOME = Path.home() / ".hermes"
 KANBAN_BOARD = os.environ.get("HERMES_DISPLAY_KANBAN_BOARD", "hermes-personal-display")
 KANBAN_DB = HERMES_HOME / "kanban" / "boards" / KANBAN_BOARD / "kanban.db"
 LEGACY_KANBAN_DB = HERMES_HOME / "kanban.db"
+CRON_INCIDENT_RECENT_SECONDS = 24 * 60 * 60
+CRON_INCIDENT_LIMIT = 5
+CRON_PROFILE_LIMIT = 32
 
 FRESHNESS_ORDER = {"fresh": 0, "aging": 1, "stale": 2, "lost": 3}
 MEASUREMENT_KEYS = ("cpu", "memory", "temp_c", "cpu_temp_c", "pch_temp_c")
@@ -242,6 +247,269 @@ def blocked_kanban_task(kanban: dict) -> dict | None:
         if str(task.get("status", "")).lower() == "blocked":
             return task
     return None
+
+
+# === cron incidents ===
+
+
+def _cron_profile_homes() -> tuple[list[tuple[str, Path]], dict[str, bool]]:
+    """Return bounded profile homes plus discovery coverage flags.
+
+    The configured Hermes home may itself be a supported symlink. Profile
+    directories below it may not be symlinks, and enumeration stops after one
+    entry beyond the explicit bound so a large directory is never sorted or
+    walked without a limit.
+    """
+    homes: list[tuple[str, Path]] = [("default", HERMES_HOME)]
+    profiles = HERMES_HOME / "profiles"
+    discovery_error = False
+    profiles_truncated = False
+    try:
+        profiles_stat = profiles.lstat()
+    except FileNotFoundError:
+        return homes, {"discovery_error": False, "profiles_truncated": False}
+    except OSError:
+        return homes, {"discovery_error": True, "profiles_truncated": False}
+
+    if stat.S_ISLNK(profiles_stat.st_mode) or not stat.S_ISDIR(profiles_stat.st_mode):
+        return homes, {"discovery_error": True, "profiles_truncated": False}
+
+    children: list[Path] = []
+    try:
+        entries = profiles.iterdir()
+        for index in range(CRON_PROFILE_LIMIT + 1):
+            try:
+                path = next(entries)
+            except StopIteration:
+                break
+            if index >= CRON_PROFILE_LIMIT:
+                profiles_truncated = True
+                break
+            try:
+                path_stat = path.lstat()
+            except OSError:
+                discovery_error = True
+                continue
+            if stat.S_ISLNK(path_stat.st_mode) or not stat.S_ISDIR(path_stat.st_mode):
+                discovery_error = True
+                continue
+            children.append(path)
+    except OSError:
+        discovery_error = True
+
+    # Sorting is safe only after the bounded collection above.
+    children.sort(key=lambda path: path.name)
+    homes.extend((augury_clean(path.name, 64) or "profile", path) for path in children)
+    return homes, {"discovery_error": discovery_error, "profiles_truncated": profiles_truncated}
+
+
+def _path_is_contained(home: Path, path: Path) -> bool:
+    """Return true only when an existing path resolves below its profile home."""
+    try:
+        path.resolve(strict=True).relative_to(home.resolve(strict=True))
+        return True
+    except (OSError, RuntimeError, ValueError):
+        return False
+
+
+def _cron_store_paths(home: Path) -> tuple[Path | None, Path | None, bool, bool]:
+    """Return safe cron paths and ``(path_error, store_present)`` coverage."""
+    cron_dir = home / "cron"
+    try:
+        cron_stat = cron_dir.lstat()
+    except FileNotFoundError:
+        return None, None, False, False
+    except OSError:
+        return None, None, True, True
+
+    if stat.S_ISLNK(cron_stat.st_mode) or not stat.S_ISDIR(cron_stat.st_mode):
+        return None, None, True, True
+    if not _path_is_contained(home, cron_dir):
+        return None, None, True, True
+
+    db_path = home / "cron" / "executions.db"
+    jobs_path = home / "cron" / "jobs.json"
+    db_present = False
+    jobs_present = False
+    for path in (db_path, jobs_path):
+        try:
+            path_stat = path.lstat()
+        except FileNotFoundError:
+            continue
+        except OSError:
+            return None, None, True, True
+        if path == db_path:
+            db_present = True
+        else:
+            jobs_present = True
+        if stat.S_ISLNK(path_stat.st_mode) or not stat.S_ISREG(path_stat.st_mode):
+            return None, None, True, db_present or jobs_present
+        if not _path_is_contained(home, path):
+            return None, None, True, db_present or jobs_present
+    return (
+        db_path if db_present else None,
+        jobs_path if jobs_present else None,
+        False,
+        db_present,
+    )
+
+
+def _cron_job_names(home: Path, jobs_path: Path | None = None) -> dict[str, str]:
+    jobs_path = jobs_path or home / "cron" / "jobs.json"
+    try:
+        path_stat = jobs_path.lstat()
+    except FileNotFoundError:
+        return {}
+    except OSError:
+        raise
+    if (
+        stat.S_ISLNK(path_stat.st_mode)
+        or not stat.S_ISREG(path_stat.st_mode)
+        or not _path_is_contained(home, jobs_path)
+    ):
+        raise OSError("unsafe cron job manifest")
+    try:
+        if path_stat.st_size > 2_000_000:
+            return {}
+        payload = json.loads(jobs_path.read_text(encoding="utf-8"))
+    except (OSError, ValueError, TypeError):
+        return {}
+    rows = payload.get("jobs") if isinstance(payload, dict) else payload
+    if not isinstance(rows, list):
+        return {}
+    names: dict[str, str] = {}
+    for row in rows[:1000]:
+        if not isinstance(row, dict):
+            continue
+        job_id = str(row.get("id") or "")
+        if job_id:
+            names[job_id] = augury_clean(row.get("name") or job_id, 72) or job_id[:72]
+    return names
+
+
+def _incident_age_seconds(value: object, now: datetime) -> int | None:
+    try:
+        parsed = datetime.fromisoformat(str(value).replace("Z", "+00:00"))
+        if parsed.tzinfo is None:
+            parsed = parsed.replace(tzinfo=timezone.utc)
+        return max(0, int((now - parsed.astimezone(timezone.utc)).total_seconds()))
+    except (TypeError, ValueError, OverflowError):
+        return None
+
+
+def cron_incident_snapshot() -> dict:
+    """Read current durable scheduler failures without mutating or acknowledging them.
+
+    The upstream incident ledger is profile-local. Only ``detected``/``alerted`` rows are open;
+    ``resolved`` and operator-acknowledged ``closed`` rows stay out of the display. Recent rows may
+    drive an amber notice, while older unresolved rows remain available in the touch inspector.
+    """
+    now = datetime.now(timezone.utc)
+    incidents: list[dict] = []
+    open_count = 0
+    recent_count = 0
+    stores_checked = 0
+    ledger_stores = 0
+    read_errors = 0
+    homes, discovery = _cron_profile_homes()
+    discovery_error = bool(discovery.get("discovery_error"))
+    profiles_truncated = bool(discovery.get("profiles_truncated"))
+    for profile, home in homes:
+        db_path, jobs_path, path_error, store_present = _cron_store_paths(home)
+        if store_present:
+            stores_checked += 1
+        if path_error:
+            read_errors += 1
+            continue
+        if db_path is None:
+            continue
+        try:
+            uri = db_path.resolve(strict=True).as_uri() + "?mode=ro"
+            with closing(sqlite3.connect(uri, uri=True, timeout=0.25)) as con:
+                con.row_factory = sqlite3.Row
+                exists = con.execute(
+                    "SELECT 1 FROM sqlite_master WHERE type='table' AND name='cron_incidents'"
+                ).fetchone()
+                if not exists:
+                    read_errors += 1
+                    continue
+                ledger_stores += 1
+                open_count += int(con.execute(
+                    "SELECT COUNT(*) FROM cron_incidents WHERE state IN ('detected','alerted')"
+                ).fetchone()[0])
+                recent_cutoff = (now - timedelta(seconds=CRON_INCIDENT_RECENT_SECONDS)).isoformat()
+                recent_count += int(con.execute(
+                    """SELECT COUNT(*) FROM cron_incidents
+                       WHERE state IN ('detected','alerted')
+                         AND datetime(last_seen_at) >= datetime(?)""",
+                    (recent_cutoff,),
+                ).fetchone()[0])
+                rows = con.execute(
+                    """SELECT id, job_id, state, failure_type, first_seen_at, last_seen_at,
+                              error, output_file
+                       FROM cron_incidents
+                       WHERE state IN ('detected','alerted')
+                       ORDER BY last_seen_at DESC, id DESC
+                       LIMIT ?""",
+                    (CRON_INCIDENT_LIMIT,),
+                ).fetchall()
+        except (OSError, sqlite3.Error):
+            read_errors += 1
+            continue
+        try:
+            names = _cron_job_names(home, jobs_path)
+        except OSError:
+            read_errors += 1
+            continue
+        for row in rows:
+            job_id = str(row["job_id"] or "")
+            age = _incident_age_seconds(row["last_seen_at"], now)
+            incidents.append({
+                "id": augury_clean(row["id"], 80),
+                "job_id": augury_clean(job_id, 80),
+                "job": names.get(job_id) or augury_clean(job_id, 72) or "scheduled task",
+                "profile": profile,
+                "state": str(row["state"] or "detected")[:16],
+                "failure_type": augury_clean(row["failure_type"] or "unknown", 32),
+                "first_seen_at": augury_clean(row["first_seen_at"], 48),
+                "last_seen_at": augury_clean(row["last_seen_at"], 48),
+                "age_seconds": age,
+                "recent": age is not None and age <= CRON_INCIDENT_RECENT_SECONDS,
+                "error": augury_clean(row["error"], 240),
+                "output_file": augury_clean(row["output_file"], 180),
+            })
+    available = (
+        not discovery_error
+        and not profiles_truncated
+        and stores_checked > 0
+        and read_errors == 0
+        and ledger_stores == stores_checked
+    )
+    if not available:
+        return {
+            "available": False,
+            "open": 0,
+            "recent": 0,
+            "summary": "Scheduler incident data unavailable",
+            "incidents": [],
+            "profiles_checked": stores_checked,
+            "read_errors": read_errors,
+            "profiles_truncated": profiles_truncated,
+            "discovery_error": discovery_error,
+        }
+    incidents.sort(key=lambda row: row.get("last_seen_at") or "", reverse=True)
+    incidents = incidents[:CRON_INCIDENT_LIMIT]
+    return {
+        "available": True,
+        "open": open_count,
+        "recent": recent_count,
+        "summary": f"{open_count} open scheduler incident{'s' if open_count != 1 else ''}",
+        "incidents": incidents,
+        "profiles_checked": stores_checked,
+        "read_errors": read_errors,
+        "profiles_truncated": profiles_truncated,
+        "discovery_error": discovery_error,
+    }
 
 
 # === measurement / format ===

@@ -42,6 +42,22 @@ Current capabilities include:
 - Local touch/entertainment hooks for physical-display experiments.
 - A loopback-first avatar event bus contract for safe lifecycle events.
 
+## Scheduler incident watch
+
+The display reads profile-local `cron/executions.db` incident ledgers without
+acknowledging, retrying, replaying, or changing job ownership. Open incidents seen
+within 24 hours produce an amber notice while idle; active work stays primary.
+Older unresolved incidents remain available in the private Tasks inspector.
+Counts are independent of the five visible cards. An unreadable or incompatible
+ledger makes the snapshot unavailable rather than reporting partial totals.
+
+The ambient packet uses fixed `scheduler`/`Scheduled task` labels, counts, and
+opaque stable incident IDs only. Job names, profiles, failure details, errors,
+and output paths remain only in the loopback-only private integration inspector,
+with credential redaction. Family mode excludes incident payloads.
+See `scripts/display_state/collector.py` and
+`tests/python/test_cron_incident_snapshot.py` for collection and regression checks.
+
 ## Why Hermes Agent users may care
 
 If you are using Hermes as a persistent local agent, this repo gives you patterns for:
