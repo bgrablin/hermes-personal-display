@@ -272,6 +272,9 @@ Operator touch now defaults to quiet contact and inspection: drag to guide the e
 tap CPU, memory, temperature, a provider, or a bottom status reading for current details.
 The center activity copy remains stationary while the eye changes gaze. Observer-backed work uses
 plain activity labels such as `LIVE · TOOL` instead of exposing internal source identifiers.
+The optic has a fixed shaded socket edge; recessed side rails and ruled activity rows
+frame the real readings. Underlined metric labels expose the existing inspection targets.
+Unknown provider headroom remains unknown, with no invented meter fill.
 Details close with the close button, Escape, another touch outside, or after 15 seconds.
 Enter/Space opens a focused reading. Touch does not change Hermes's reported activity.
 Family mode keeps playful effects. `touch=fun` explicitly enables those effects in

@@ -6,7 +6,8 @@ This repository is intentionally trimmed to the files needed to run, test, and o
 
 - `src/character-runtime.html` — canonical browser/kiosk entrypoint.
 - `src/mascot/` — current optic/orb runtime, behavior machine, touch effects, audio hooks, and entertainment/watch logic.
-- `src/styles.css` — current runtime styling.
+- `src/styles.css` — kiosk composition, fixed optic material edge, recessed instrument rails, and visible inspection affordances; no decorative telemetry.
+- `tests/e2e/visual-material.spec.js` — synthetic landscape tests for fixed housing, stationary copy, unknown meters, preview separation, and touch inspection.
 - `src/state.js` — display-state normalization and contract consumption.
 - `src/vendor/` — vendored browser libraries used directly by the runtime.
 - `src/generated/display-contract.js` — generated browser contract constants.

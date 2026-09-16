@@ -25,6 +25,26 @@ The folds are not a heartbeat monitor, progress indication, or a view into priva
 reasoning. They change tension with the observed mode. Gaze, current-state text,
 and feed health carry the actual meaning.
 
+### Material and instrument hierarchy
+
+The fixed socket now has a shaded material edge and a narrow upper reflection.
+It stays outside the gaze group: iris and pupil move within the housing, while
+lids retain their existing travel. Brighter outer-iris midtones and slightly
+stronger surface contours preserve detail without another glow or animation loop.
+
+The activity and provider rails share recessed, open-ended backgrounds and row
+rules. These surfaces contain no synthetic measurements or activity. Unknown
+providers remain readable and retain empty headroom tracks; the active-provider
+underline is confined to its meter rather than crossing the whole rail.
+Activity timestamps, refresh, and the touch hint have stronger contrast. Underlined
+metric labels indicate inspection without drawing boxes across the side rails.
+The generous existing touch targets remain unchanged. The preview marker sits
+below the CPU target, separate from its label and the top alert.
+
+`tests/e2e/visual-material.spec.js` checks housing ownership, sampled gaze bounds,
+stationary copy, unknown-meter semantics, preview separation, and metric inspection.
+This is browser evidence, not physical-panel or sustained GPU certification.
+
 ## Activity color and Augury
 
 The iris, aura, surface reflections, background light, and both rail headings

@@ -1099,15 +1099,25 @@ test.describe('Hermes kiosk smoke and visual regression anchors', () => {
     const hairlineTarget = () => page.locator('.cb-route-active-hairline').evaluate((node) => (
       Number.parseFloat(node.style.getPropertyValue('--route-active-y'))
     ));
+    const hairlineGeometry = () => page.locator('.cb-route-active-hairline').evaluate((node) => {
+      const rail = node.closest('.cb-route-rail').getBoundingClientRect();
+      const marker = node.getBoundingClientRect();
+      return { top: marker.top - rail.top, right: marker.right - rail.left, width: marker.width };
+    });
     const settleHairline = () => page.locator('.cb-route-active-hairline').evaluate((node) => {
       for (const animation of node.getAnimations()) animation.finish();
     });
 
     await expect(rows.nth(1)).toHaveAttribute('data-active', 'true');
     await expect(rows.nth(1)).toHaveAttribute('data-headroom-tier', 'ok');
-    await expect.poll(hairlineTarget).toBe(233);
+    await expect.poll(hairlineTarget).toBe(217);
     await settleHairline();
-    await expect.poll(hairlineY).toBeCloseTo(278, 0);
+    await expect.poll(hairlineY).toBeCloseTo(217, 0);
+    expect(await hairlineGeometry()).toMatchObject({ top: 217, width: 104 });
+    expect(Math.abs((await hairlineGeometry()).right - (await rows.nth(1).locator('.cb-route-track').evaluate((node) => {
+      const rail = node.closest('.cb-route-rail').getBoundingClientRect();
+      return node.getBoundingClientRect().right - rail.left;
+    })))).toBeLessThanOrEqual(1);
     const ticksBeforeHandoff = await page.evaluate(() => window.__HERMES_STATUS_TICKS);
 
     currentRailPacket = railPacket('openai-codex', 0.08);
@@ -1115,9 +1125,14 @@ test.describe('Hermes kiosk smoke and visual regression anchors', () => {
     await expect(rows.nth(1)).toHaveAttribute('data-active', 'false');
     await expect(rows.nth(1)).toHaveAttribute('data-headroom-tier', 'low');
     await expect(rows.nth(1).locator('[data-route-value]')).toHaveText('8%');
-    await expect.poll(hairlineTarget).toBe(97);
+    await expect.poll(hairlineTarget).toBe(81);
     await settleHairline();
-    await expect.poll(hairlineY).toBeCloseTo(142, 0);
+    await expect.poll(hairlineY).toBeCloseTo(81, 0);
+    expect(await hairlineGeometry()).toMatchObject({ top: 81, width: 104 });
+    expect(Math.abs((await hairlineGeometry()).right - (await rows.nth(0).locator('.cb-route-track').evaluate((node) => {
+      const rail = node.closest('.cb-route-rail').getBoundingClientRect();
+      return node.getBoundingClientRect().right - rail.left;
+    })))).toBeLessThanOrEqual(1);
     expect(await page.evaluate(() => window.__HERMES_STATUS_TICKS)).toBeGreaterThan(ticksBeforeHandoff);
 
     const lanes = await rows.evaluateAll((nodes) => nodes.map((node) => {
