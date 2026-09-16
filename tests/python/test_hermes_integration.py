@@ -670,7 +670,7 @@ def test_finished_turn_marks_missing_tool_completion_unknown():
         "status": "unknown",
         "tool_name": "mcp.crm.update",
         "tool_call_id": "call-lost",
-        "message": "A turn ended without exact tool completion evidence.",
+        "message": "A previous turn ended without exact tool completion evidence.",
         "observed_at": session["tool_outcome"]["observed_at"],
     }
     outcome = observed_work(

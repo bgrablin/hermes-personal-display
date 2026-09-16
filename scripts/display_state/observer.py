@@ -455,7 +455,7 @@ class Observer:
                 "status": "unknown",
                 "tool_name": first_unknown.get("tool_name") or "tool",
                 "tool_call_id": first_unknown.get("tool_call_id"),
-                "message": "A turn ended without exact tool completion evidence.",
+                "message": "A previous turn ended without exact tool completion evidence.",
                 "observed_at": time.time(),
             }
 
