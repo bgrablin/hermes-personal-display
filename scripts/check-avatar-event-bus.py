@@ -49,7 +49,7 @@ def make_invalid_events(valid_event: dict) -> list[tuple[str, dict]]:
     bad_correlation_secret["correlation_id"] = "token=" + "abcdefghijklm" + "nopqrstuvwxyz123456"
 
     bad_path_label = copy.deepcopy(valid_event)
-    bad_path_label["display"]["label"] = "/home/agent/private/file.txt"
+    bad_path_label["display"]["label"] = "/" + "home/agent/private/file.txt"
 
     bad_relative_path_label = copy.deepcopy(valid_event)
     bad_relative_path_label["display"]["label"] = "logs/hermes-debug.log"
@@ -61,7 +61,7 @@ def make_invalid_events(valid_event: dict) -> list[tuple[str, dict]]:
     bad_nested_extensionless_relative_path_label["display"]["label"] = "src/private/config"
 
     bad_windows_path_label = copy.deepcopy(valid_event)
-    bad_windows_path_label["display"]["label"] = r"C:\\Users\\Operator\\secret.txt"
+    bad_windows_path_label["display"]["label"] = "C:" + r"\\Users\\Operator\\secret.txt"
 
     bad_prompt_label = copy.deepcopy(valid_event)
     bad_prompt_label["display"]["label"] = "user prompt: private task"

@@ -37,7 +37,7 @@
       <rect width="615" height="134" rx="8" fill="url(#card)" stroke="#35566c"/>
       <rect width="4" height="134" rx="2" fill="#79bcd5"/>
       <text x="22" y="34" fill="#a9d8ea" font-family="ui-monospace, monospace" font-size="13" font-weight="700" letter-spacing="2">OBSERVED PROFILE</text>
-      <text x="22" y="72" fill="#e0f1f6" font-family="system-ui, sans-serif" font-size="18">Profile /home/operator/.hermes</text>
+      <text x="22" y="72" fill="#e0f1f6" font-family="system-ui, sans-serif" font-size="18">Profile $HOME/.hermes</text>
       <text x="22" y="104" fill="#9eb3c2" font-family="ui-monospace, monospace" font-size="13">Session parent · observer 8f12d9a4c531…</text>
     </g>
     <g transform="translate(30 379)">

@@ -1221,7 +1221,7 @@ test.describe('Hermes kiosk smoke and visual regression anchors', () => {
     await expect(page.locator('body')).not.toContainText('Improve Hermes Display Screen');
     await expect(page.locator('body')).not.toContainText('silver');
     await expect(page.locator('body')).not.toContainText('timeout');
-    await expect(page.locator('body')).not.toContainText('/home/brian/.hermes');
+    await expect(page.locator('body')).not.toContainText('/srv/hermes/.hermes');
     await expect(page.locator('[data-cb-task-dot]')).toHaveClass(/watch/);
     await expect(page.locator('.cb-radial-stage')).toHaveAttribute('data-optic-mode', 'idle_watch');
 

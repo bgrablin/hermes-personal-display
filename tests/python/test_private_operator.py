@@ -10,7 +10,7 @@ from display_state.log_snapshot import recent_agent_work, build_augury_items
 
 
 def test_private_context_is_not_a_secret():
-    text = 'token usage: 123 password reset required /home/brian/src/state.js {"output":"tests passed"}'
+    text = 'token usage: 123 password reset required /srv/hermes/src/state.js {"output":"tests passed"}'
     assert augury_clean(text) == text
     assert 'a' * 64 in augury_clean('commit ' + 'a' * 64)
 
@@ -23,7 +23,7 @@ def test_private_context_is_not_a_secret():
     'xoxb-private-value-12345678', 'npm_privatevalue12345678',
     'glpat-privatevalue12345678',
     'Authorization: Bearer private-value', 'Cookie: session=private-value; other=value',
-    'https://example.test/?sig=private-value&mode=view',
+    'https://example.test/?' + 'sig=private-value&mode=view',
     'https://example.test/?X-Amz-Signature=private-value',
     '-----BEGIN PRIVATE KEY-----\nprivate-value\n-----END PRIVATE KEY-----',
 ])

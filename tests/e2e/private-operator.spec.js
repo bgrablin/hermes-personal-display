@@ -4,7 +4,7 @@ const url = '/src/character-runtime.html?kiosk=1&orientation=landscape&augury=1&
 
 test('private Augury expands inert text and holds the selected observation across updates', async ({ page }, info) => {
   test.skip(info.project.name !== 'minix-sf10t-landscape', 'Physical display interaction');
-  let text = 'Reading /home/brian/src/state.js token usage: 123 <img src=x onerror=window.injected=true> ' + 'Result details '.repeat(12);
+  let text = 'Reading /srv/hermes/src/state.js token usage: 123 <img src=x onerror=window.injected=true> ' + 'Result details '.repeat(12);
   let polls = 0;
   await page.route('**/api/augury-feed**', route => {
     polls++;
@@ -14,7 +14,7 @@ test('private Augury expands inert text and holds the selected observation acros
   });
   await page.goto(url + '&auguryText=1');
   const row = page.getByRole('button', { name: 'Inspect read_file', exact: true });
-  await expect(row).toContainText('/home/brian/src/state.js');
+  await expect(row).toContainText('/srv/hermes/src/state.js');
   await row.click();
   const panel = page.getByRole('dialog');
   await expect(panel).toBeVisible();

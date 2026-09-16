@@ -42,7 +42,7 @@ def test_augury_feed_rejects_non_loopback_host_header() -> None:
     httpd = _server()
     try:
         url = f"http://127.0.0.1:{httpd.server_address[1]}/api/augury-feed"
-        req = urllib.request.Request(url, headers={"Host": "192.168.1.50"})
+        req = urllib.request.Request(url, headers={"Host": "192.0.2.50"})
         try:
             urllib.request.urlopen(req, timeout=5)
             raise AssertionError("expected 403")

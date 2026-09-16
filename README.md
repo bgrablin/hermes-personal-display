@@ -380,7 +380,7 @@ hermes-display build-id
 hermes-display url
 ```
 
-`/home/brian/.local/bin/hermes-display` is a symlink to `scripts/hermes-display` in this repo. Keep that script in the source tree: `xsession-minix-kiosk.sh` derives the cache-busted kiosk URL from it, and `check:kiosk` verifies that restart/fix/status still target the real `hermes-personal-display-minix.service` path rather than an unmanaged Chromium process.
+`$HOME/.local/bin/hermes-display` is a symlink to `scripts/hermes-display` in this repo. Keep that script in the source tree: `xsession-minix-kiosk.sh` derives the cache-busted kiosk URL from it, and `check:kiosk` verifies that restart/fix/status still target the real `hermes-personal-display-minix.service` path rather than an unmanaged Chromium process.
 
 ## Project status
 

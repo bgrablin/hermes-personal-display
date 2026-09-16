@@ -73,7 +73,7 @@ def write_synthetic_log(path: Path) -> None:
         f'tool read_file completed (0.05s, 240 chars)',
         # Normal paths are useful operator context and should survive Augury.
         f'{ts(1)} INFO [20260523_120000_aaaa] agent.tool_executor: '
-        f'tool read_file completed /home/brian/.hermes/projects/personal-display/src/state.js',
+        f'tool read_file completed /srv/hermes/.hermes/projects/personal-display/src/state.js',
         # Ordinary structured results are useful private operator context.
         f'{ts(4)} INFO [20260523_120000_aaaa] agent.tool_executor: '
         f'tool terminal completed payload={{"role":"user","content":"hi"}}',
@@ -129,7 +129,7 @@ def run_redaction_checks(log: Path) -> None:
     expect("OAuth middleware" in blob, "normal prompt text preserved")
     expect("subprocess timed out" in blob, "normal warning text preserved")
     expect("search_files completed" in blob, "tool activity text preserved")
-    expect("/home/brian/.hermes/projects/personal-display/src/state.js" in blob, "normal file path preserved")
+    expect("/srv/hermes/.hermes/projects/personal-display/src/state.js" in blob, "normal file path preserved")
 
     # JWT shape direct redaction.
     jwt = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.aaaaaaaaaaaaaaaaaaaa.bbbbbbbbbbbbbbbbbbbb"

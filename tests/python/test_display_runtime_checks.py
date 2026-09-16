@@ -92,7 +92,7 @@ def _write_cmdline(proc_root: Path, pid: int, *args: str) -> None:
 
 def test_managed_chromium_roots_exclude_helpers_wrappers_and_other_profiles(tmp_path: Path) -> None:
     proc_root = tmp_path / "proc"
-    profile = "/home/test/snap/chromium/common/hermes-personal-display-profile"
+    profile = "/srv/test/snap/chromium/common/hermes-personal-display-profile"
     url = "http://127.0.0.1:8770/src/character-runtime.html?kiosk=1&orientation=landscape"
 
     _write_cmdline(
@@ -142,7 +142,7 @@ def test_managed_chromium_roots_exclude_helpers_wrappers_and_other_profiles(tmp_
 
 def test_managed_chromium_accepts_snap_flattened_browser_process_title(tmp_path: Path) -> None:
     proc_root = tmp_path / "proc"
-    profile = "/home/test/snap/chromium/common/hermes-personal-display-profile"
+    profile = "/srv/test/snap/chromium/common/hermes-personal-display-profile"
     process_dir = proc_root / "201"
     process_dir.mkdir(parents=True)
     process_dir.joinpath("exe").symlink_to(
@@ -166,7 +166,7 @@ def test_managed_chromium_accepts_snap_flattened_browser_process_title(tmp_path:
 
 
 def test_monitor_compositor_matches_python_entrypoint_not_option_value() -> None:
-    script = "/home/test/personal-display/herdr-monitor-raw-compositor.py"
+    script = "/srv/test/personal-display/herdr-monitor-raw-compositor.py"
 
     assert checks._is_monitor_compositor(
         ("/usr/bin/python3", script, "--poll-seconds", "1"), script
@@ -174,7 +174,7 @@ def test_monitor_compositor_matches_python_entrypoint_not_option_value() -> None
     assert checks._is_monitor_compositor(
         (
             "/usr/bin/python3",
-            "/home/test/personal-display/display_runtime_checks.py",
+            "/srv/test/personal-display/display_runtime_checks.py",
             "herdr-monitor",
             "--script",
             script,
@@ -206,7 +206,7 @@ def _write_monitor_processes(proc_root: Path, script: str) -> None:
 
 def test_managed_monitor_requires_one_compositor_and_live_source(tmp_path: Path) -> None:
     proc_root = tmp_path / "proc"
-    script = "/home/test/personal-display/herdr-monitor-raw-compositor.py"
+    script = "/srv/test/personal-display/herdr-monitor-raw-compositor.py"
     _write_monitor_processes(proc_root, script)
 
     display = checks.managed_herdr_monitor_display(
@@ -225,7 +225,7 @@ def test_managed_monitor_requires_one_compositor_and_live_source(tmp_path: Path)
 
 def test_managed_monitor_rejects_missing_source_session(tmp_path: Path) -> None:
     proc_root = tmp_path / "proc"
-    script = "/home/test/personal-display/herdr-monitor-raw-compositor.py"
+    script = "/srv/test/personal-display/herdr-monitor-raw-compositor.py"
     _write_monitor_processes(proc_root, script)
 
     display = checks.managed_herdr_monitor_display(

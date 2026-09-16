@@ -7,7 +7,7 @@ const url = '/src/character-runtime.html?kiosk=1&orientation=landscape&augury=1&
 test('hold rows keeps a readable snapshot while polling and inspection continue', async ({ page }, info) => {
   test.skip(info.project.name !== 'minix-sf10t-landscape', 'Physical display geometry');
   let polls = 0;
-  let text = 'Reading /home/brian/project/state.js';
+  let text = 'Reading /srv/hermes/project/state.js';
   await page.route('**/api/augury-feed**', route => {
     polls++;
     return route.fulfill({ json: { schema_version: '0.1.0', items: [
@@ -33,13 +33,13 @@ test('hold rows keeps a readable snapshot while polling and inspection continue'
   text = 'New observation <img src=x onerror=window.injected=true>';
   const before = polls;
   await expect.poll(() => polls, { timeout: 8000 }).toBeGreaterThan(before);
-  await expect(row).toContainText('/home/brian/project/state.js');
+  await expect(row).toContainText('/srv/hermes/project/state.js');
   await expect(page.locator('.augury-feed-status')).toContainText('RECENT LOG');
   await row.press('Enter');
-  await expect(page.getByRole('dialog')).toContainText('/home/brian/project/state.js');
+  await expect(page.getByRole('dialog')).toContainText('/srv/hermes/project/state.js');
   await page.keyboard.press('Escape');
   await expect(page.getByRole('dialog')).toBeHidden();
-  await expect(row).toContainText('/home/brian/project/state.js');
+  await expect(row).toContainText('/srv/hermes/project/state.js');
   await expect(resume).toHaveAttribute('aria-pressed', 'true');
   await page.screenshot({ path: 'test-results/augury-reading-hold.png' });
   await resume.press('Space');

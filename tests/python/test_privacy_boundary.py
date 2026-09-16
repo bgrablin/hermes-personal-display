@@ -16,15 +16,17 @@ import hermes_display_server as server  # noqa: E402
 
 
 FAKE_SECRET = "x" * 32
+PRIVATE_HOME = "/" + "home/example-user"
+PRIVATE_WINDOWS_HOME = "C:" + r"\\Users\\ExampleUser"
 SENSITIVE_CASES = [
-    "/home/brian/.hermes/secret.txt",
+    PRIVATE_HOME + "/.hermes/secret.txt",
     "author" + "ization: " + FAKE_SECRET,
     "tok" + "en=" + FAKE_SECRET,
     "api_" + "key=" + FAKE_SECRET,
     "https://example.test/callback?" + "tok" + "en=" + FAKE_SECRET + "&ok=1",
     "line one\nline two\n" + "sec" + "ret=" + FAKE_SECRET,
     "A" * 96,
-    r"C:\\Users\\Brian\\secrets\\notes.txt",
+    PRIVATE_WINDOWS_HOME + r"\\secrets\\notes.txt",
     r"..\\private\\notes.txt",
     "src/private/operator-notes.md",
 ]
@@ -67,7 +69,7 @@ def test_augury_clean_redacts_and_caps(text: str) -> None:
 
 
 def test_augury_preserves_normal_file_paths_but_redacts_url_tokens() -> None:
-    normal_path = "/home/brian/.hermes/projects/personal-display/src/state.js"
+    normal_path = PRIVATE_HOME + "/.hermes/projects/personal-display/src/state.js"
     cleaned = augury_clean(f"edited {normal_path}", 160)
     assert normal_path in cleaned
     token_url = "https://example.test/callback?" + "tok" + "en=" + FAKE_SECRET
@@ -81,11 +83,11 @@ def test_sanitize_current_work_strips_forbidden_keys_and_caps_text() -> None:
         "active": True,
         "state": "current_work",
         "summary": "Working\nwith " + "tok" + "en=" + FAKE_SECRET,
-        "detail": "/home/brian/private/file.txt",
+        "detail": PRIVATE_HOME + "/private/file.txt",
         "source": "telegram session",
         "prompt": "raw prompt",
         "tool_output": "raw output",
-        "path": "/home/brian/private/file.txt",
+        "path": PRIVATE_HOME + "/private/file.txt",
         "extra": "not allowed",
         "tool_count": 999,
         "age_seconds": 9999,
@@ -136,11 +138,11 @@ def test_build_state_from_hostile_facts_contains_only_allowlisted_top_fields() -
         "work": {
             "active": True,
             "state": "current_work",
-            "summary": "Use /home/brian/.ssh/id_rsa " + "tok" + "en=" + FAKE_SECRET,
+            "summary": "Use " + PRIVATE_HOME + "/.ssh/id_rsa " + "tok" + "en=" + FAKE_SECRET,
             "detail": "raw details\nwith " + "api_" + "key=" + FAKE_SECRET,
             "prompt": "raw prompt must not leak",
             "tool_output": "raw output must not leak",
-            "path": "/home/brian/.ssh/id_rsa",
+            "path": PRIVATE_HOME + "/.ssh/id_rsa",
             "unexpected": "bad",
         },
         "system": {"cpu": "nope", "memory": "bad", "temp_c": "nan"},
@@ -150,9 +152,9 @@ def test_build_state_from_hostile_facts_contains_only_allowlisted_top_fields() -
             "active": 1,
             "summary": "private path src/private/plan.md",
             "tasks": [{
-                "title": r"Fix private issue at C:\\Users\\Brian\\secret.txt",
+                "title": "Fix private issue at " + PRIVATE_WINDOWS_HOME + r"\\secret.txt",
                 "status": "blocked",
-                "assignee": "Brian /home/brian/private/context",
+                "assignee": "Example User " + PRIVATE_HOME + "/private/context",
                 "step": "send token",
             }],
         },

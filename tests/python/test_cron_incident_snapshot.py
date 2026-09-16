@@ -37,7 +37,7 @@ def test_cron_incidents_are_profile_scoped_named_and_credential_redacted(tmp_pat
     }), encoding="utf-8")
     write_incidents(profile, [
         ("inc-open", "job-1", "alerted", "provider", (now - timedelta(hours=2)).isoformat(),
-         now.isoformat(), "provider failed token=actual-secret-value", "/home/brian/.hermes/cron/output/job-1/run.md"),
+         now.isoformat(), "provider failed token=actual-secret-value", "/srv/hermes/.hermes/cron/output/job-1/run.md"),
         ("inc-resolved", "job-1", "resolved", "provider", now.isoformat(), now.isoformat(),
          "already recovered", None),
     ])

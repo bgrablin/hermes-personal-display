@@ -1,4 +1,11 @@
-# Intentional false positives reviewed during public-readiness scan.
-# scripts/check-augury-feed.py contains split fake credential fixtures used to test display-feed redaction.
+# Exact historical false positives reviewed during public-readiness scans.
+# Each fingerprint identifies a synthetic credential fixture in a specific old commit.
+# Path globs and broad suppressions are rejected by scripts/publication_safety.py.
 c526a79cc5c04e80df3c37738c2a60ca83b3ddcf:scripts/check-augury-feed.py:github-pat:67
 c526a79cc5c04e80df3c37738c2a60ca83b3ddcf:scripts/check-augury-feed.py:github-pat:117
+9d700442f20a152b8b4205830e719c8ada80530f:tests/python/test_hermes_integration.py:generic-api-key:144
+15a0aedc85ab583861666b3d17c9862db9fc0805:tests/operator-text.test.js:gitlab-pat:21
+15a0aedc85ab583861666b3d17c9862db9fc0805:tests/python/test_private_operator.py:gitlab-pat:24
+ae4fc0cdbf4963aeb4edd3539067119e63c8b58e:tests/adopted-stack.test.js:generic-api-key:84
+ae4fc0cdbf4963aeb4edd3539067119e63c8b58e:tests/adopted-stack.test.js:generic-api-key:85
+ae4fc0cdbf4963aeb4edd3539067119e63c8b58e:tests/adopted-stack.test.js:github-pat:84

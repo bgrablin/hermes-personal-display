@@ -39,7 +39,7 @@
       <text x="22" y="67" fill="#f1e2c5" font-family="system-ui, sans-serif" font-size="17">Provider unavailable · alerted · 2m ago</text>
       <text x="22" y="99" fill="#afc1c6" font-family="ui-monospace, monospace" font-size="12">Profile silver · job display-nightly</text>
       <text x="22" y="130" fill="#d2dfe0" font-family="system-ui, sans-serif" font-size="14">Connection closed before the request was admitted.</text>
-      <text x="22" y="160" fill="#91a9ae" font-family="ui-monospace, monospace" font-size="11">/home/brian/.hermes/cron/output/display-nightly/run.md</text>
+      <text x="22" y="160" fill="#91a9ae" font-family="ui-monospace, monospace" font-size="11">$HOME/.hermes/cron/output/display-nightly/run.md</text>
       <text x="22" y="195" fill="#d3b879" font-family="system-ui, sans-serif" font-size="13">No retry, replay, acknowledge, or ownership claim.</text>
     </g>
     <text x="28" y="399" fill="#9bb2b8" font-family="ui-monospace, monospace" font-size="12" letter-spacing="1.5">BEHAVIOR</text>

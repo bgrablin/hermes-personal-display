@@ -421,11 +421,11 @@ def test_subagent_hooks_preserve_named_activity_and_exact_stop_identity():
         child_session_id="child-session",
         child_subagent_id="child-1",
         child_role="leaf",
-        child_goal="Review /home/brian/display and api_key=secret-value",
+        child_goal="Review /srv/hermes/display and api_key=secret-value",
     )
     hook, event = observer.events.get_nowait()
     assert hook == "subagent_start"
-    assert "/home/brian/display" in event["child_goal"]
+    assert "/srv/hermes/display" in event["child_goal"]
     assert "secret-value" not in event["child_goal"]
     observer.apply(hook, event)
     row = next(iter(observer.sessions.values()))
@@ -484,7 +484,7 @@ def test_uncertain_tool_result_survives_turn_completion_without_success_claim():
             {
                 "outcome_uncertain": True,
                 "error": (
-                    "Operation may have completed for /home/brian/customer; "
+                    "Operation may have completed for /srv/hermes/customer; "
                     "api_key=secret-value. Do not retry automatically."
                 ),
             }
@@ -507,7 +507,7 @@ def test_uncertain_tool_result_survives_turn_completion_without_success_claim():
     )
     assert outcome["state"] == "unknown"
     assert outcome["summary"] == "Tool outcome uncertain; inspect before retrying"
-    assert "/home/brian/customer" in outcome["detail"]
+    assert "/srv/hermes/customer" in outcome["detail"]
 
 
 def test_concurrent_tool_calls_keep_exact_identity_and_settle_independently():
@@ -874,13 +874,13 @@ def test_snapshot_freshness_reconnect_and_credentials(tmp_path):
     assert read_snapshots(tmp_path, 105)["sources"][0].get("age_seconds") != 30
     text = clean(
         {
-            "path": "/home/brian/project",
+            "path": "/srv/hermes/project",
             "title": "token usage",
             "secret": "remove",
             "detail": "api_key=sk-1234567890",
         }
     )
-    assert text["path"] == "/home/brian/project" and text["title"] == "token usage"
+    assert text["path"] == "/srv/hermes/project" and text["title"] == "token usage"
     assert "1234567890" not in str(text) and "secret" not in text
 
 
@@ -1084,7 +1084,7 @@ def test_operator_http_boundaries_and_family_projection(monkeypatch):
             "id": "inc-1", "job_id": "job-1", "job": "Nightly display check", "profile": "default",
             "state": "alerted", "failure_type": "timeout", "first_seen_at": "2026-09-15T00:00:00Z",
             "last_seen_at": "2026-09-15T01:00:00Z", "age_seconds": 60, "recent": True,
-            "error": "timed out", "output_file": "/home/brian/.hermes/cron/output/job-1/run.md",
+            "error": "timed out", "output_file": "/srv/hermes/.hermes/cron/output/job-1/run.md",
         }]},
     )
     operator_state = {
@@ -1185,7 +1185,7 @@ def test_ambient_cron_snapshot_excludes_private_incident_details():
             "profile": "silver", "state": "alerted", "failure_type": "timeout",
             "first_seen_at": "2026-09-15T00:00:00Z", "last_seen_at": "2026-09-15T01:00:00Z",
             "age_seconds": 60, "recent": True, "error": "private diagnostic",
-            "output_file": "/home/brian/.hermes/cron/output/job-1/run.md",
+            "output_file": "/srv/hermes/.hermes/cron/output/job-1/run.md",
         }],
     })
 
@@ -1202,7 +1202,7 @@ def test_ambient_cron_snapshot_excludes_private_incident_details():
     })
     assert again["incidents"][0]["id"] == ambient["incidents"][0]["id"]
     assert "private diagnostic" not in json.dumps(ambient)
-    assert "/home/brian" not in json.dumps(ambient)
+    assert "/srv/hermes" not in json.dumps(ambient)
     assert "Nightly display check" not in json.dumps(ambient)
     assert "silver" not in json.dumps(ambient)
     assert "timeout" not in json.dumps(ambient)

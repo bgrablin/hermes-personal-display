@@ -27,7 +27,7 @@
   <g transform="translate(760 86)">
     <rect width="780" height="788" rx="24" fill="#0a141d" stroke="#35566c" stroke-width="2"/>
     <text x="34" y="52" fill="#e6f5fb" font-family="system-ui,sans-serif" font-size="25" font-weight="650">Private Hermes activity</text>
-    <text x="34" y="86" fill="#8ca8b7" font-family="ui-monospace,monospace" font-size="15">Profile /home/brian/.hermes · session parent</text>
+    <text x="34" y="86" fill="#8ca8b7" font-family="ui-monospace,monospace" font-size="15">Profile $HOME/.hermes · session parent</text>
     <rect x="34" y="112" width="712" height="92" rx="9" fill="#152a37"/>
     <rect x="34" y="112" width="4" height="92" rx="2" fill="#79bcd5"/>
     <text x="58" y="151" fill="#e0f1f6" font-family="system-ui,sans-serif" font-size="23" font-weight="600">2 tool calls active</text>

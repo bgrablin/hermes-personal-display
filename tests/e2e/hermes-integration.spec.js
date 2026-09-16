@@ -2,7 +2,7 @@ import { test, expect } from '@playwright/test';
 
 const snapshot = {
   schema_version: 1, coverage: 'observed',
-  sources: [{ owner: 'observer-1', fresh: true, age_seconds: 2, sessions: [{ profile: '/home/brian/.hermes', session_id: 'parent', status: 'completed',
+  sources: [{ owner: 'observer-1', fresh: true, age_seconds: 2, sessions: [{ profile: '/srv/hermes/.hermes', session_id: 'parent', status: 'completed',
     processes: [{ session_id: 'proc-A', status: 'running' }], delegations: [{ delegation_id: 'batch', settled: false,
       units: [{ delegation_id: 'unit-A', task_indexes: [0], status: 'completed' }, { delegation_id: 'unit-B', task_indexes: [1], status: 'running' }] }],
     subagents: [{ subagent_id: 'child-1', child_session_id: 'child-session', role: 'leaf', goal: 'Review <img src=x onerror=alert(1)> optic spacing', status: 'running' }] }] }],
@@ -14,7 +14,7 @@ const snapshot = {
     id: 'job-1_abcd1234', job_id: 'job-1', job: 'Improve Hermes Display Screen', profile: 'silver',
     state: 'alerted', failure_type: 'timeout', first_seen_at: '2026-09-15T00:00:00+00:00',
     last_seen_at: '2026-09-15T01:00:00+00:00', age_seconds: 120, recent: true,
-    error: 'Provider request timed out; verify before retrying.', output_file: '/home/brian/.hermes/cron/output/job-1/run.md',
+    error: 'Provider request timed out; verify before retrying.', output_file: '/srv/hermes/.hermes/cron/output/job-1/run.md',
   }] },
 };
 
@@ -26,7 +26,7 @@ uncertainSnapshot.sources[0].sessions[0].tool_outcome = {
 
 const interruptedSnapshot = structuredClone(snapshot);
 interruptedSnapshot.sources[0].sessions[0] = {
-  profile: '/home/brian/.hermes', session_id: 'parent', status: 'interrupted',
+  profile: '/srv/hermes/.hermes', session_id: 'parent', status: 'interrupted',
   interruption: { reason: 'user_stop', invalidation_reason: 'session_interrupt', platform: 'tui' },
   processes: [], delegations: [], subagents: [],
 };
@@ -39,7 +39,7 @@ gatewayInterruptSnapshot.sources[0].sessions[0].interruption = {
 
 const concurrentToolsSnapshot = structuredClone(snapshot);
 concurrentToolsSnapshot.sources[0].sessions[0] = {
-  profile: '/home/brian/.hermes', session_id: 'parent', status: 'running',
+  profile: '/srv/hermes/.hermes', session_id: 'parent', status: 'running',
   processes: [], delegations: [], subagents: [],
   tools: [
     { tool_call_id: 'call-search-1', turn_id: 'turn-7', tool_name: 'search_files', status: 'running', observed_started_at: 1 },
@@ -95,7 +95,7 @@ test('private integration shows background units, exact controls and literal tex
   await expect(panel).toBeVisible();
   await expect(page.getByLabel('Observed Hermes session').locator('option').first()).toHaveText(/\.hermes \/ parent/);
   await expect(panel.locator('.cb-owner-scope-detail')).toContainText('OBSERVED PROFILE');
-  await expect(panel.locator('.cb-owner-scope-detail')).toContainText('Profile /home/brian/.hermes');
+  await expect(panel.locator('.cb-owner-scope-detail')).toContainText('Profile /srv/hermes/.hermes');
   await expect(panel.locator(':scope > select + div > :first-child')).toHaveClass(/cb-owner-scope-detail/);
   await expect(panel).toContainText('Process proc-A: running');
   await expect(panel).toContainText('unit-B');
@@ -109,7 +109,7 @@ test('private integration shows background units, exact controls and literal tex
   await expect(panel).toContainText('SCHEDULER INCIDENTS · READ-ONLY');
   await expect(panel.locator('.cb-cron-incident-detail')).toContainText('Improve Hermes Display Screen');
   await expect(panel.locator('.cb-cron-incident-detail')).toContainText('silver · job-1_abcd1234');
-  await expect(panel.locator('.cb-cron-incident-detail')).toContainText('/home/brian/.hermes/cron/output/job-1/run.md');
+  await expect(panel.locator('.cb-cron-incident-detail')).toContainText('/srv/hermes/.hermes/cron/output/job-1/run.md');
   await page.screenshot({ path: `test-results/background-work-${info.project.name}.png`, animations: 'disabled' });
   await page.getByLabel('Observed Hermes session').selectOption('1');
   await expect(panel.locator('.cb-owner-scope-detail')).toContainText('RPC OWNER VERIFIED');

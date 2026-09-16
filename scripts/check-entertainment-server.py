@@ -43,7 +43,7 @@ def main() -> int:
         expect_raises(server.handle_entertainment_tts, {"sequence_id": "../../bad", "text": "hello"})
         expect_raises(server.handle_entertainment_tts, {"sequence_id": "curious_orb", "text": "x" * 97})
         expect_raises(server.handle_entertainment_tts, {"sequence_id": "curious_orb", "text": "secret token: abcdefghijklmnopqrstuvwxyz"})
-        expect_raises(server.handle_entertainment_tts, {"sequence_id": "curious_orb", "text": "/home/operator/.ssh/id_ed25519"})
+        expect_raises(server.handle_entertainment_tts, {"sequence_id": "curious_orb", "text": "/" + "home/operator/.ssh/id_ed25519"})
 
         safe_line = server.validate_entertainment_line({
             "line": "Tiny comet!",
