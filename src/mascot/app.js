@@ -1847,8 +1847,8 @@
             <stop offset="24%" stop-color="#050b12" />
             <stop offset="32%" stop-color="color-mix(in srgb, var(--cb-accent) 24%, #726248)" />
             <stop offset="44%" stop-color="color-mix(in srgb, var(--cb-accent) 56%, #16444a)" />
-            <stop offset="67%" stop-color="color-mix(in srgb, var(--cb-accent) 30%, #071a25)" />
-            <stop offset="89%" stop-color="color-mix(in srgb, var(--cb-accent) 15%, #06101d)" />
+            <stop offset="67%" stop-color="color-mix(in srgb, var(--cb-accent) 39%, #0b202b)" />
+            <stop offset="89%" stop-color="color-mix(in srgb, var(--cb-accent) 21%, #08131e)" />
             <stop offset="100%" stop-color="#030912" />
           </radialGradient>
           <radialGradient id="cb-iris-spectrum">
@@ -1858,6 +1858,13 @@
             <stop offset="77%" stop-color="color-mix(in srgb, var(--cb-accent) 68%, #24424c)" />
             <stop offset="100%" stop-color="color-mix(in srgb, var(--cb-accent) 42%, #1a2e48)" />
           </radialGradient>
+          <linearGradient id="cb-socket-material" x1="0" y1="0" x2=".8" y2="1">
+            <stop offset="0%" stop-color="#91a9ad" />
+            <stop offset="24%" stop-color="#33484e" />
+            <stop offset="54%" stop-color="#070d12" />
+            <stop offset="82%" stop-color="#17262e" />
+            <stop offset="100%" stop-color="#536d75" />
+          </linearGradient>
           <radialGradient id="cb-iris-vignette">
             <stop offset="64%" stop-color="#020710" stop-opacity="0" />
             <stop offset="100%" stop-color="#020710" stop-opacity=".85" />
@@ -1931,6 +1938,11 @@
                 <path class="cb-winglet cb-winglet-left" d="M 350 550 C 386 530 410 518 438 514" />
                 <path class="cb-winglet cb-winglet-right" d="M 750 550 C 714 530 690 518 662 514" />
                 <path class="cb-helmet-brow" d="M 424 482 C 474 428 626 428 676 482" />
+              </g>
+              <!-- Fixed material edge, not a gauge or a moving iris layer. -->
+              <g class="cb-eye-housing">
+                <circle class="cb-eye-bezel" cx="550" cy="550" r="184" />
+                <path class="cb-eye-bezel-light" d="M 387 461 A 186 186 0 0 1 637 386" />
               </g>
               <circle class="cb-eye-lens" cx="550" cy="550" r="178" />
               <circle class="cb-eye-ring" cx="550" cy="550" r="179" />
@@ -2546,7 +2558,9 @@
       setConceptBText(standby, allUnknown ? 'ROUTE UNKNOWN' : staleRoute ? `ROUTE STALE · ${formatRouteAge(sourceAge)}` : sourceAge != null ? `AS OF ${formatRouteAge(sourceAge)}` : 'ROUTE UNKNOWN');
     }
     const hairline = root.querySelector('.cb-route-active-hairline');
-    setConceptBStyleProperty(hairline, '--route-active-y', activeIndex >= 0 ? `${97 + activeIndex * 136}px` : '-100px');
+    // Keep the active marker on the same lane as the row's meter: rows begin at
+    // 38px + 26px and the meter sits 17px into each 64px row.
+    setConceptBStyleProperty(hairline, '--route-active-y', activeIndex >= 0 ? `${81 + activeIndex * 136}px` : '-100px');
     standby?.classList.toggle('quiet', collapsedCount >= 3);
   }
 

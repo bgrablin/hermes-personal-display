@@ -233,7 +233,7 @@ test('same session id in two profiles remains visibly distinguishable', async ({
   await page.locator('.cb-bottom-rail .cb-cell').last().press('Enter');
   const select = page.getByLabel('Observed Hermes session');
   await expect(select.locator('option')).toHaveText([
-    /\/home\/brian\/\.hermes \/ parent · observed/,
+    /\/srv\/hermes\/\.hermes \/ parent · observed/,
     /\/srv\/other\/\.hermes \/ parent · observed/,
     /home \/ default \/ runtime/,
   ]);

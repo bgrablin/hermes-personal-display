@@ -568,7 +568,7 @@ requireAll(cssSource, [
   '.cb-route-glyph',
   'color: currentColor',
   '[data-headroom-tier="low"] .cb-route-label span',
-  'transform: translateY(calc(var(--route-active-y, -100px) + 45px))',
+  'transform: translateY(var(--route-active-y, -100px))',
   'transition: transform 650ms ease, opacity 450ms ease',
 ], 'Route headroom must render fill-vs-track with honest hiding for unknown routes, amber confirmed rows/dots, collapsed idle rows, low-band ochre values, and a transform-driven active hairline.');
 if (!resolverSource.includes('actionable_warn_lines')) {
