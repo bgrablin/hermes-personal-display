@@ -1,0 +1,56 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1600" height="960" viewBox="0 0 1600 960" role="img" aria-labelledby="title desc">
+  <title id="title">Hermes Display concurrent tool activity preview</title>
+  <desc id="desc">Landscape home display with the small blue Hermes eye and a private operator panel showing two simultaneous tool calls and one completed call.</desc>
+  <defs>
+    <radialGradient id="bg" cx="48%" cy="42%" r="72%"><stop offset="0" stop-color="#102433"/><stop offset=".55" stop-color="#07131d"/><stop offset="1" stop-color="#03070b"/></radialGradient>
+    <radialGradient id="eye" cx="50%" cy="45%" r="60%"><stop offset="0" stop-color="#d9fbff"/><stop offset=".28" stop-color="#6edaf7"/><stop offset=".68" stop-color="#19769f"/><stop offset="1" stop-color="#062b43"/></radialGradient>
+    <linearGradient id="card" x1="0" x2="1"><stop stop-color="#0f2735"/><stop offset="1" stop-color="#0b1b27"/></linearGradient>
+    <filter id="glow"><feGaussianBlur stdDeviation="13"/></filter>
+  </defs>
+  <rect width="1600" height="960" fill="url(#bg)"/>
+  <g fill="#37aeda" opacity=".28">
+    <circle cx="90" cy="126" r="3"/><circle cx="188" cy="795" r="2"/><circle cx="362" cy="170" r="2.5"/><circle cx="472" cy="742" r="3"/><circle cx="606" cy="102" r="2"/><circle cx="690" cy="836" r="2.5"/><circle cx="1512" cy="128" r="2.5"/><circle cx="1480" cy="836" r="3"/>
+  </g>
+  <text x="62" y="72" fill="#77bcd3" font-family="ui-monospace,monospace" font-size="21" letter-spacing="4">HERMES · WORKING</text>
+  <text x="62" y="108" fill="#75909d" font-family="system-ui,sans-serif" font-size="18">2 exact tool calls active</text>
+  <g transform="translate(345 462)">
+    <ellipse rx="225" ry="225" fill="#0c5777" opacity=".24" filter="url(#glow)"/>
+    <circle r="172" fill="none" stroke="#2588ad" stroke-width="2" opacity=".42"/>
+    <circle r="129" fill="#081723" stroke="#4cc2e8" stroke-width="3"/>
+    <ellipse rx="92" ry="62" fill="url(#eye)"/>
+    <ellipse rx="27" ry="43" fill="#04131d"/>
+    <circle cx="-9" cy="-13" r="8" fill="#efffff" opacity=".9"/>
+    <path d="M-95-24 Q0-82 95-24" fill="none" stroke="#98e9fb" stroke-width="5" opacity=".58"/>
+  </g>
+  <text x="180" y="742" fill="#92c9db" font-family="system-ui,sans-serif" font-size="25">Parallel work remains one calm presence.</text>
+  <text x="220" y="778" fill="#668797" font-family="ui-monospace,monospace" font-size="17">blue motes · exact received evidence</text>
+  <g transform="translate(760 86)">
+    <rect width="780" height="788" rx="24" fill="#0a141d" stroke="#35566c" stroke-width="2"/>
+    <text x="34" y="52" fill="#e6f5fb" font-family="system-ui,sans-serif" font-size="25" font-weight="650">Private Hermes activity</text>
+    <text x="34" y="86" fill="#8ca8b7" font-family="ui-monospace,monospace" font-size="15">Profile /home/brian/.hermes · session parent</text>
+    <rect x="34" y="112" width="712" height="92" rx="9" fill="#152a37"/>
+    <rect x="34" y="112" width="4" height="92" rx="2" fill="#79bcd5"/>
+    <text x="58" y="151" fill="#e0f1f6" font-family="system-ui,sans-serif" font-size="23" font-weight="600">2 tool calls active</text>
+    <text x="58" y="181" fill="#9fb9c6" font-family="ui-monospace,monospace" font-size="14">Turn running · Tools 3 · Processes 0 · Subagents 0</text>
+    <text x="34" y="246" fill="#9fcfe0" font-family="ui-monospace,monospace" font-size="15" font-weight="700" letter-spacing="2">OBSERVED TOOL CALLS</text>
+    <g transform="translate(34 270)">
+      <rect width="712" height="132" rx="10" fill="url(#card)" stroke="#31586e"/><rect width="5" height="132" rx="3" fill="#67cdf1"/>
+      <text x="25" y="39" fill="#dff5fc" font-family="system-ui,sans-serif" font-size="21" font-weight="650">search_files</text>
+      <text x="25" y="73" fill="#9fd2e5" font-family="ui-monospace,monospace" font-size="17">running</text>
+      <text x="25" y="106" fill="#8daab8" font-family="ui-monospace,monospace" font-size="14">Call call-search-1 · turn turn-7</text>
+    </g>
+    <g transform="translate(34 420)">
+      <rect width="712" height="132" rx="10" fill="url(#card)" stroke="#31586e"/><rect width="5" height="132" rx="3" fill="#67cdf1"/>
+      <text x="25" y="39" fill="#dff5fc" font-family="system-ui,sans-serif" font-size="21" font-weight="650">read_file</text>
+      <text x="25" y="73" fill="#9fd2e5" font-family="ui-monospace,monospace" font-size="17">running</text>
+      <text x="25" y="106" fill="#8daab8" font-family="ui-monospace,monospace" font-size="14">Call call-read-2 · turn turn-7</text>
+    </g>
+    <g transform="translate(34 570)">
+      <rect width="712" height="132" rx="10" fill="url(#card)" stroke="#31586e"/><rect width="5" height="132" rx="3" fill="#77b99e"/>
+      <text x="25" y="39" fill="#dff5fc" font-family="system-ui,sans-serif" font-size="21" font-weight="650">list_directory</text>
+      <text x="25" y="73" fill="#9fd2e5" font-family="ui-monospace,monospace" font-size="17">completed · 0.8s</text>
+      <text x="25" y="106" fill="#8daab8" font-family="ui-monospace,monospace" font-size="14">Call call-done-3 · turn turn-7</text>
+    </g>
+    <text x="34" y="748" fill="#718b98" font-family="system-ui,sans-serif" font-size="16">Names and exact IDs are touch-readable; arguments and output are not retained.</text>
+  </g>
+</svg>
