@@ -12,7 +12,7 @@ import time
 import uuid
 from pathlib import Path
 
-from display_state.integration import TERMINAL, clean, write_snapshot
+from display_state.integration import TERMINAL, TOOL_TERMINAL, clean, write_snapshot
 
 log = logging.getLogger(__name__)
 
@@ -197,7 +197,7 @@ class Observer:
                         for a in s.get("subagents", [])
                     )
                     and all(
-                        t.get("status") in TERMINAL
+                        t.get("status") in TOOL_TERMINAL
                         for t in s.get("tools", [])
                     )
                 ),
@@ -370,7 +370,7 @@ class Observer:
         else:
             if len(tools) >= 64:
                 settled = next(
-                    (row for row in tools if row.get("status") in TERMINAL),
+                    (row for row in tools if row.get("status") in TOOL_TERMINAL),
                     None,
                 )
                 if settled is None:
@@ -399,7 +399,7 @@ class Observer:
         if existing is None:
             if len(tools) >= 64:
                 settled = next(
-                    (row for row in tools if row.get("status") in TERMINAL),
+                    (row for row in tools if row.get("status") in TOOL_TERMINAL),
                     None,
                 )
                 if settled is None:
@@ -441,6 +441,7 @@ class Observer:
     @staticmethod
     def mark_unsettled_tools_unknown(session):
         """A finished turn cannot truthfully leave a tool marked as still running."""
+        first_unknown = None
         for tool in session.get("tools", []):
             if tool.get("status") == "running":
                 tool.update(
@@ -448,6 +449,15 @@ class Observer:
                     evidence="turn ended without matching tool completion",
                     observed_finished_at=time.time(),
                 )
+                first_unknown = first_unknown or tool
+        if first_unknown is not None and not session.get("tool_outcome"):
+            session["tool_outcome"] = {
+                "status": "unknown",
+                "tool_name": first_unknown.get("tool_name") or "tool",
+                "tool_call_id": first_unknown.get("tool_call_id"),
+                "message": "A turn ended without exact tool completion evidence.",
+                "observed_at": time.time(),
+            }
 
     def track_subagent_start(self, session, event):
         child_session_id = event.get("child_session_id")

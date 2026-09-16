@@ -3,6 +3,7 @@ import json
 import sys
 import threading
 import time
+from datetime import datetime
 from pathlib import Path
 from types import SimpleNamespace
 
@@ -10,6 +11,8 @@ import pytest
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "scripts"))
 from display_state.integration import (
+    TERMINAL,
+    TOOL_TERMINAL,
     clean,
     observed_work,
     provider_telemetry,
@@ -18,6 +21,14 @@ from display_state.integration import (
 )
 from display_state.observer import Observer
 from display_state.rpc_monitor import Connection, Monitor, RpcError
+
+
+def apply_callback(observer, hook, **kwargs):
+    observer.callback(hook)(**kwargs)
+    received_hook, event = observer.events.get_nowait()
+    assert received_hook == hook
+    observer.apply(received_hook, event)
+    return event
 
 
 def test_rpc_snapshot_reports_server_relative_age_without_mutating_cache(monkeypatch):
@@ -152,11 +163,13 @@ def test_display_observer_plugin_accepts_complete_project_archive(tmp_path):
 
 def observer_with_background(reason="yielded_to_background"):
     observer = Observer()
-    observer.apply("on_session_start", {"session_id": "parent"})
+    start_event = apply_callback(observer, "on_session_start", session_id="parent")
+    profile = start_event["profile"]
     observer.apply(
         "post_tool_call",
         {
             "session_id": "parent",
+            "profile": profile,
             "tool_name": "terminal",
             "result": {
                 "session_id": "process1",
@@ -165,7 +178,10 @@ def observer_with_background(reason="yielded_to_background"):
             },
         },
     )
-    observer.apply("on_session_end", {"session_id": "parent", "completed": True})
+    observer.apply(
+        "on_session_end",
+        {"session_id": "parent", "profile": profile, "completed": True},
+    )
     return observer
 
 
@@ -496,7 +512,8 @@ def test_uncertain_tool_result_survives_turn_completion_without_success_claim():
 
 def test_concurrent_tool_calls_keep_exact_identity_and_settle_independently():
     observer = Observer()
-    observer.apply("on_session_start", {"session_id": "parent"})
+    start_event = apply_callback(observer, "on_session_start", session_id="parent")
+    profile = start_event["profile"]
     barrier = threading.Barrier(3)
 
     def publish(call_id, tool_name):
@@ -522,7 +539,7 @@ def test_concurrent_tool_calls_keep_exact_identity_and_settle_independently():
         hook, event = observer.events.get_nowait()
         observer.apply(hook, event)
 
-    session = observer.sessions[("unknown", "parent")]
+    session = observer.sessions[(profile, "parent")]
     assert {row["tool_call_id"] for row in session["tools"]} == {
         "call-search",
         "call-read",
@@ -539,6 +556,7 @@ def test_concurrent_tool_calls_keep_exact_identity_and_settle_independently():
         "post_tool_call",
         {
             "session_id": "parent",
+            "profile": profile,
             "turn_id": "turn-1",
             "tool_call_id": "call-read",
             "tool_name": "read_file",
@@ -551,6 +569,83 @@ def test_concurrent_tool_calls_keep_exact_identity_and_settle_independently():
     assert observed_work(
         {"sources": [{"sessions": [session], "fresh": True, "age_seconds": 0}]}
     )["summary"] == "1 tool call active"
+
+
+@pytest.mark.parametrize("tool_status", ["blocked", "timeout"])
+def test_tool_terminal_statuses_are_bounded_without_evicting_unknown(tool_status):
+    observer = Observer()
+    start_event = apply_callback(observer, "on_session_start", session_id="parent")
+    profile = start_event["profile"]
+    apply_callback(
+        observer,
+        "pre_tool_call",
+        session_id="parent",
+        turn_id="turn-1",
+        tool_call_id="call-lost",
+        tool_name="search_files",
+    )
+    observer.apply(
+        "on_session_end",
+        {"session_id": "parent", "profile": profile, "completed": True},
+    )
+
+    for index in range(63):
+        apply_callback(
+            observer,
+            "post_tool_call",
+            session_id="parent",
+            tool_call_id=f"call-{index}",
+            tool_name="tool",
+            status=tool_status,
+        )
+
+    apply_callback(
+        observer,
+        "post_tool_call",
+        session_id="parent",
+        tool_call_id="call-overflow",
+        tool_name="tool",
+        status=tool_status,
+    )
+    session = observer.sessions[(profile, "parent")]
+    call_ids = {row["tool_call_id"] for row in session["tools"]}
+    assert len(session["tools"]) == 64
+    assert "call-lost" in call_ids
+    assert "call-overflow" in call_ids
+    assert observer.dropped == 0
+    assert tool_status in TOOL_TERMINAL
+    assert tool_status not in TERMINAL
+
+
+@pytest.mark.parametrize("tool_status", ["blocked", "timeout"])
+def test_tool_terminal_status_allows_session_eviction_but_not_blocked_background(tool_status):
+    observer = Observer()
+    profile = "synthetic-profile"
+    for index in range(64):
+        blocked_background = index == 0
+        observer.sessions[(profile, f"session-{index}")] = {
+            "session_id": f"session-{index}",
+            "profile": profile,
+            "status": "completed",
+            "tools": [] if blocked_background else [{"status": tool_status}],
+            "processes": (
+                [{"session_id": "background", "status": "blocked"}]
+                if blocked_background
+                else []
+            ),
+            "delegations": [],
+            "subagents": [],
+        }
+
+    observer.apply(
+        "on_session_start",
+        {"profile": profile, "session_id": "replacement"},
+    )
+
+    assert len(observer.sessions) == 64
+    assert (profile, "session-0") in observer.sessions
+    assert (profile, "session-1") not in observer.sessions
+    assert (profile, "replacement") in observer.sessions
 
 
 def test_finished_turn_marks_missing_tool_completion_unknown():
@@ -571,11 +666,82 @@ def test_finished_turn_marks_missing_tool_completion_unknown():
     assert session["tools"][0]["evidence"] == (
         "turn ended without matching tool completion"
     )
+    assert session["tool_outcome"] == {
+        "status": "unknown",
+        "tool_name": "mcp.crm.update",
+        "tool_call_id": "call-lost",
+        "message": "A turn ended without exact tool completion evidence.",
+        "observed_at": session["tool_outcome"]["observed_at"],
+    }
     outcome = observed_work(
         {"sources": [{"sessions": [session], "fresh": True, "age_seconds": 0}]}
     )
     assert outcome["state"] == "unknown"
     assert outcome["summary"] == "Tool outcome unknown; observation incomplete"
+
+
+def test_missing_tool_unknown_wins_public_state_over_recent_log_completion(tmp_path, monkeypatch):
+    import hermes_display_server as server
+
+    observer = Observer()
+    start_event = apply_callback(observer, "on_session_start", session_id="parent")
+    profile = start_event["profile"]
+    apply_callback(
+        observer,
+        "pre_tool_call",
+        session_id="parent",
+        turn_id="turn-1",
+        tool_call_id="call-lost",
+        tool_name="mcp.crm.update",
+    )
+    observer.apply(
+        "on_session_end",
+        {"session_id": "parent", "profile": profile, "completed": True},
+    )
+    session = observer.sessions[(profile, "parent")]
+    session["last_event_at"] = time.time() - 31
+    snapshot = {
+        "schema_version": 1,
+        "coverage": "observed",
+        "sources": [{
+            "schema_version": 1,
+            "owner": observer.owner,
+            "observed_at": time.time(),
+            "fresh": True,
+            "age_seconds": 0,
+            "sessions": [session],
+        }],
+    }
+    log_path = tmp_path / "agent.log"
+    stamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    log_path.write_text(
+        "\n".join([
+            f'{stamp} INFO [parent] agent.conversation_loop: conversation turn: session=parent model=test provider=test platform=cli history=1 msg="Check display"',
+            f"{stamp} INFO [parent] agent.conversation_loop: Turn ended: reason=text_response(finish_reason=stop) session=parent",
+        ]) + "\n",
+        encoding="utf-8",
+    )
+    log_work = server.recent_agent_work(log_path)
+    assert log_work["state"] == "recent_activity"
+
+    monkeypatch.setattr(server, "LOG_DIR", tmp_path)
+    monkeypatch.setattr(server, "read_snapshots", lambda: snapshot)
+    monkeypatch.setattr(server, "active_session_summary", lambda *args, **kwargs: {"count": 0, "sessions": []})
+    monkeypatch.setattr(server, "active_agent_count", lambda: 0)
+    monkeypatch.setattr(server, "kanban_snapshot", lambda: {"active": 0, "summary": "0 active task(s)", "tasks": []})
+    monkeypatch.setattr(server, "system_snapshot", lambda: {"cpu": 0.1, "memory": 0.2, "temp_c": 50})
+    monkeypatch.setattr(server, "gateway_ok_recently", lambda text: True)
+    monkeypatch.setattr(server, "load_manual_override", lambda: {})
+    monkeypatch.setattr(server, "load_provider_route_rail", lambda: {"providers": []})
+    monkeypatch.setattr(server, "load_remote_memory_status", lambda: {"state": "unknown"})
+    monkeypatch.setattr(server, "persist_display_bus", lambda *args: None)
+
+    state = server.build_state()
+    work = state["live"]["current_work"]
+    assert work["state"] == "unknown"
+    assert work["source"] == "hermes_observer"
+    assert state["live"]["resolver"]["reason_codes"] == ["observer_unknown"]
+    assert "Last activity completed just now." not in json.dumps(work)
 
 
 def test_new_turn_rotates_tool_rail_and_preserves_prior_unknown_evidence():

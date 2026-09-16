@@ -14,6 +14,9 @@ from display_state.privacy import augury_clean
 TERMINAL = frozenset(
     {"completed", "failed", "interrupted", "error", "exited", "stalled", "cancelled"}
 )
+# Tool hooks accept blocked and timeout as terminal call outcomes. Keep them out
+# of the shared session/background set because blocked work there is unsettled.
+TOOL_TERMINAL = TERMINAL | frozenset({"blocked", "timeout"})
 ACTIVE = frozenset({"running", "dispatched", "finalizing", "stalling"})
 MAX_AGE = 20
 
