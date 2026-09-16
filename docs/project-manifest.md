@@ -17,6 +17,8 @@ This repository is intentionally trimmed to the files needed to run, test, and o
 - `scripts/hermes_display_server.py` — local static server and `/api/hermes-state` API.
 - `scripts/avatar_event_bus.py` — loopback avatar event validation and SSE support.
 - `scripts/display_state/` — display-state helper module boundary.
+- `scripts/display_state/collector.py` — read-only profile-scoped scheduler incident collection, bounded discovery with fail-closed coverage flags, exact counts within the bounded scan, and five-card detail selection. Ambient state uses fixed scheduler labels and opaque IDs; diagnostic details stay in the private integration inspector. Recent incidents notify only while idle, and family mode excludes them.
+- `tests/python/test_cron_incident_snapshot.py` — incident availability, profile scope, credential redaction, age, and count regressions.
 - `scripts/display_state/integration.py` — bounded private observer snapshot I/O, work-state projection, redaction, and provider-call telemetry parsing.
 - `scripts/display_state/observer.py` — opt-in in-process Hermes lifecycle/background-work observer.
 - `scripts/display_state/rpc_monitor.py` — optional loopback RPC inspection and bounded pause/resume control client.

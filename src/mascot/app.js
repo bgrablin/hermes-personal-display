@@ -2231,7 +2231,7 @@
       const cronIncidentCount = recentCronIncidentCount(live);
       const cronIncident = firstRecentCronIncident(live);
       const cronIncidentSignature = cronIncident
-        ? `${safeDisplayText(cronIncident.profile, 64)}:${safeDisplayText(cronIncident.id, 80)}`
+        ? safeDisplayText(cronIncident.id, 80)
         : '';
       const newIdleCronIncident = !isFreshCurrentWork(live)
         && cronIncidentSignature && cronIncidentSignature !== lastCronIncidentSignature;
@@ -2300,7 +2300,7 @@
       const taskHint = isCurrentWork
         ? safeDisplayText(work.visual_kind || work.kind || source, 18)
         : cronIncidentCount > 0
-          ? safeDisplayText(cronIncident?.job || cronIncident?.failure_type || 'needs review', 18)
+          ? 'Scheduled task'
         : Number.isFinite(queuedTaskCount) && queuedTaskCount > 0
           ? 'queued calmly'
           : 'no queued work';
@@ -3954,7 +3954,7 @@
     if (tempLabel) return { label: tempLabel, detail: 'THERMAL WATCH', severity: tempSeverity === 'hot' ? 'critical' : 'watch' };
     if (freshnessTier === 'stale') return { label: 'FEED STALE', detail: 'WAITING FOR TELEMETRY', severity: 'offline' };
     const cronIncident = firstRecentCronIncident(live);
-    if (!isFreshCurrentWork(live) && cronIncident) return { label: 'SCHEDULER ALERT', detail: safeDisplayText(cronIncident.job || cronIncident.failure_type || 'task needs review', 28).toUpperCase(), severity: 'watch' };
+    if (!isFreshCurrentWork(live) && cronIncident) return { label: 'SCHEDULER ALERT', detail: 'SCHEDULED TASK', severity: 'watch' };
     return null;
   }
 
@@ -3981,7 +3981,7 @@
     if (state === 'needs_attention') return displaySentence(activity.summary || 'Waiting for confirmation.');
     if (state === 'critical_local_issue') return displaySentence(activity.summary || 'Local issue needs attention.');
     const cronIncident = firstRecentCronIncident(live);
-    if (!isFreshCurrentWork(live) && cronIncident) return displaySentence(`${cronIncident.job || 'Scheduled task'} needs review. Tap Tasks for durable incident details.`);
+    if (!isFreshCurrentWork(live) && cronIncident) return displaySentence('Scheduled task needs review. Tap Tasks for durable incident details.');
     return '';
   }
 
@@ -4163,8 +4163,8 @@
     if (cronIncident) {
       return {
         label: 'SCHEDULER WATCH',
-        summary: displaySentence(`${cronIncident.job || 'Scheduled task'} · ${cronIncident.failure_type || 'failure'} needs review.`),
-        chips: ['CRON', String(cronIncident.state || 'detected').toUpperCase()]
+        summary: 'Scheduled task needs review.',
+        chips: ['SCHEDULER', 'RECENT']
       };
     }
 
@@ -4535,9 +4535,10 @@
   // feature reads its own flag.
   const FAMILY_AUDIENCE_PARAMS = Object.freeze(['audience', 'family', 'view']);
   function parseFamilyAudience(params) {
-    return ['family', 'theater'].includes((params.get('audience') || '').toLowerCase())
-      || ['1', 'true', 'yes'].includes((params.get('family') || '').toLowerCase())
-      || (params.get('view') || '').toLowerCase() === 'theater';
+    const value = (key) => String(params.get(key) || '').trim().toLowerCase();
+    return ['family', 'theater'].includes(value('audience'))
+      || ['1', 'true', 'yes'].includes(value('family'))
+      || value('view') === 'theater';
   }
   function familyModeTargetUrl(toFamily) {
     const url = new URL(window.location.href);

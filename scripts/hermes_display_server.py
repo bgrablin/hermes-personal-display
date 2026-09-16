@@ -198,8 +198,24 @@ def sanitize_kanban_snapshot(kanban: dict) -> dict:
     }
 
 
+def _cron_coverage_fields(raw: dict) -> dict:
+    def nonnegative_int(value: object) -> int:
+        try:
+            return max(0, int(str(value or "0")))
+        except (TypeError, ValueError, OverflowError):
+            return 0
+
+    return {
+        "profiles_checked": nonnegative_int(raw.get("profiles_checked")),
+        "read_errors": nonnegative_int(raw.get("read_errors")),
+        "profiles_truncated": bool(raw.get("profiles_truncated")),
+        "discovery_error": bool(raw.get("discovery_error")),
+    }
+
+
 def sanitize_cron_incident_snapshot(snapshot: dict) -> dict:
     raw = snapshot if isinstance(snapshot, dict) else {}
+    coverage = _cron_coverage_fields(raw)
     incidents = []
     for row in list(raw.get("incidents") or [])[:5]:
         if not isinstance(row, dict):
@@ -231,7 +247,11 @@ def sanitize_cron_incident_snapshot(snapshot: dict) -> dict:
         recent_count = max(0, int(raw.get("recent") or 0))
     except (TypeError, ValueError):
         open_count = recent_count = 0
-    available = bool(raw.get("available"))
+    available = bool(raw.get("available")) and not any([
+        coverage["read_errors"],
+        coverage["profiles_truncated"],
+        coverage["discovery_error"],
+    ])
     if not available:
         return {
             "available": False,
@@ -239,6 +259,7 @@ def sanitize_cron_incident_snapshot(snapshot: dict) -> dict:
             "recent": 0,
             "summary": "Scheduler incident data unavailable",
             "incidents": [],
+            **coverage,
         }
     return {
         "available": True,
@@ -246,27 +267,44 @@ def sanitize_cron_incident_snapshot(snapshot: dict) -> dict:
         "recent": min(recent_count, open_count),
         "summary": clean_log_msg(raw.get("summary") or f"{open_count} open scheduler incidents", 72),
         "incidents": incidents,
+        **coverage,
     }
+
+
+def _ambient_incident_id(row: dict) -> str:
+    """Return a stable opaque identity without exposing private incident fields."""
+    material = json.dumps(
+        [row.get("profile"), row.get("id"), row.get("job_id")],
+        ensure_ascii=True,
+        separators=(",", ":"),
+    )
+    return hashlib.sha256(material.encode("utf-8")).hexdigest()[:32]
 
 
 def cron_incident_ambient_snapshot(snapshot: dict) -> dict:
     """Return the minimum incident fields needed by the display-safe ambient packet."""
     full = sanitize_cron_incident_snapshot(snapshot)
     if not full["available"]:
-        return {"available": False, "open": 0, "recent": 0, "incidents": []}
+        return {
+            "available": False,
+            "open": 0,
+            "recent": 0,
+            "category": "scheduler",
+            "label": "Scheduled task",
+            "incidents": [],
+        }
     incidents = [{
-        "id": row["id"],
-        "job": row["job"],
-        "profile": row["profile"],
-        "state": row["state"],
-        "failure_type": row["failure_type"],
-        "age_seconds": row["age_seconds"],
+        "id": _ambient_incident_id(row),
+        "category": "scheduler",
+        "label": "Scheduled task",
         "recent": row["recent"],
     } for row in full["incidents"]]
     return {
         "available": True,
         "open": full["open"],
         "recent": full["recent"],
+        "category": "scheduler",
+        "label": "Scheduled task",
         "incidents": incidents,
     }
 
@@ -832,6 +870,21 @@ def family_safe_state(source_state: dict) -> dict:
     state["optic_state_packet"] = optic_state
     state["puppet_state_packet"] = optic_state
     return state
+
+
+def family_audience_requested(params: dict) -> bool:
+    """Recognize every public family/theater query alias consistently."""
+    def value_for(name: str) -> str:
+        raw = params.get(name, "")
+        if isinstance(raw, (list, tuple)):
+            raw = raw[0] if raw else ""
+        return str(raw or "").strip().lower()
+
+    return (
+        value_for("audience") in {"family", "theater"}
+        or value_for("family") in {"1", "true", "yes"}
+        or value_for("view") == "theater"
+    )
 
 
 def request_provider_route_rail_refresh() -> dict:
@@ -1464,7 +1517,7 @@ class Handler(SimpleHTTPRequestHandler):
         if parsed.path == "/api/hermes-state":
             params = parse_qs(parsed.query)
             fixture = params.get("fixture", [None])[0]
-            audience = params.get("audience", [None])[0]
+            family_audience = family_audience_requested(params)
             try:
                 state = build_state_from_fixture_name(fixture) if fixture else cached_build_state()
             except FixtureLookupError:
@@ -1477,9 +1530,9 @@ class Handler(SimpleHTTPRequestHandler):
                 safe_reason = scrub(exc.__class__.__name__)
                 print(f"Display state API degraded: {safe_reason}", flush=True)
                 state = degraded_state(safe_reason)
-                json_response(self, 503, family_safe_state(state) if audience == "family" else state)
+                json_response(self, 503, family_safe_state(state) if family_audience else state)
                 return
-            json_response(self, 200, family_safe_state(state) if audience == "family" else state)
+            json_response(self, 200, family_safe_state(state) if family_audience else state)
             return
         if parsed.path == "/api/augury-feed":
             if not self.loopback_only("Augury feed is operator-only and accepts localhost requests only"):

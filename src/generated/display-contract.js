@@ -1080,6 +1080,9 @@
             "available": {
               "type": "boolean"
             },
+            "discovery_error": {
+              "type": "boolean"
+            },
             "incidents": {
               "items": {
                 "additionalProperties": false,
@@ -1157,6 +1160,17 @@
               "type": "array"
             },
             "open": {
+              "minimum": 0,
+              "type": "integer"
+            },
+            "profiles_checked": {
+              "minimum": 0,
+              "type": "integer"
+            },
+            "profiles_truncated": {
+              "type": "boolean"
+            },
+            "read_errors": {
               "minimum": 0,
               "type": "integer"
             },

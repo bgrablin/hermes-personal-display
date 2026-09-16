@@ -4,6 +4,7 @@ from __future__ import annotations
 import json
 import os
 import re
+import stat
 import sqlite3
 import subprocess
 from contextlib import closing
@@ -251,25 +252,124 @@ def blocked_kanban_task(kanban: dict) -> dict | None:
 # === cron incidents ===
 
 
-def _cron_profile_homes() -> list[tuple[str, Path]]:
-    """Return bounded, profile-scoped cron stores without following profile symlinks."""
+def _cron_profile_homes() -> tuple[list[tuple[str, Path]], dict[str, bool]]:
+    """Return bounded profile homes plus discovery coverage flags.
+
+    The configured Hermes home may itself be a supported symlink. Profile
+    directories below it may not be symlinks, and enumeration stops after one
+    entry beyond the explicit bound so a large directory is never sorted or
+    walked without a limit.
+    """
     homes: list[tuple[str, Path]] = [("default", HERMES_HOME)]
     profiles = HERMES_HOME / "profiles"
+    discovery_error = False
+    profiles_truncated = False
     try:
-        children = sorted(
-            (path for path in profiles.iterdir() if path.is_dir() and not path.is_symlink()),
-            key=lambda path: path.name,
-        )[:CRON_PROFILE_LIMIT]
-    except (FileNotFoundError, NotADirectoryError, OSError):
-        children = []
+        profiles_stat = profiles.lstat()
+    except FileNotFoundError:
+        return homes, {"discovery_error": False, "profiles_truncated": False}
+    except OSError:
+        return homes, {"discovery_error": True, "profiles_truncated": False}
+
+    if stat.S_ISLNK(profiles_stat.st_mode) or not stat.S_ISDIR(profiles_stat.st_mode):
+        return homes, {"discovery_error": True, "profiles_truncated": False}
+
+    children: list[Path] = []
+    try:
+        entries = profiles.iterdir()
+        for index in range(CRON_PROFILE_LIMIT + 1):
+            try:
+                path = next(entries)
+            except StopIteration:
+                break
+            if index >= CRON_PROFILE_LIMIT:
+                profiles_truncated = True
+                break
+            try:
+                path_stat = path.lstat()
+            except OSError:
+                discovery_error = True
+                continue
+            if stat.S_ISLNK(path_stat.st_mode) or not stat.S_ISDIR(path_stat.st_mode):
+                discovery_error = True
+                continue
+            children.append(path)
+    except OSError:
+        discovery_error = True
+
+    # Sorting is safe only after the bounded collection above.
+    children.sort(key=lambda path: path.name)
     homes.extend((augury_clean(path.name, 64) or "profile", path) for path in children)
-    return homes
+    return homes, {"discovery_error": discovery_error, "profiles_truncated": profiles_truncated}
 
 
-def _cron_job_names(home: Path) -> dict[str, str]:
-    jobs_path = home / "cron" / "jobs.json"
+def _path_is_contained(home: Path, path: Path) -> bool:
+    """Return true only when an existing path resolves below its profile home."""
     try:
-        if not jobs_path.is_file() or jobs_path.stat().st_size > 2_000_000:
+        path.resolve(strict=True).relative_to(home.resolve(strict=True))
+        return True
+    except (OSError, RuntimeError, ValueError):
+        return False
+
+
+def _cron_store_paths(home: Path) -> tuple[Path | None, Path | None, bool, bool]:
+    """Return safe cron paths and ``(path_error, store_present)`` coverage."""
+    cron_dir = home / "cron"
+    try:
+        cron_stat = cron_dir.lstat()
+    except FileNotFoundError:
+        return None, None, False, False
+    except OSError:
+        return None, None, True, True
+
+    if stat.S_ISLNK(cron_stat.st_mode) or not stat.S_ISDIR(cron_stat.st_mode):
+        return None, None, True, True
+    if not _path_is_contained(home, cron_dir):
+        return None, None, True, True
+
+    db_path = home / "cron" / "executions.db"
+    jobs_path = home / "cron" / "jobs.json"
+    db_present = False
+    jobs_present = False
+    for path in (db_path, jobs_path):
+        try:
+            path_stat = path.lstat()
+        except FileNotFoundError:
+            continue
+        except OSError:
+            return None, None, True, True
+        if path == db_path:
+            db_present = True
+        else:
+            jobs_present = True
+        if stat.S_ISLNK(path_stat.st_mode) or not stat.S_ISREG(path_stat.st_mode):
+            return None, None, True, db_present or jobs_present
+        if not _path_is_contained(home, path):
+            return None, None, True, db_present or jobs_present
+    return (
+        db_path if db_present else None,
+        jobs_path if jobs_present else None,
+        False,
+        db_present,
+    )
+
+
+def _cron_job_names(home: Path, jobs_path: Path | None = None) -> dict[str, str]:
+    jobs_path = jobs_path or home / "cron" / "jobs.json"
+    try:
+        path_stat = jobs_path.lstat()
+    except FileNotFoundError:
+        return {}
+    except OSError:
+        raise
+    if (
+        stat.S_ISLNK(path_stat.st_mode)
+        or not stat.S_ISREG(path_stat.st_mode)
+        or not _path_is_contained(home, jobs_path)
+    ):
+        raise OSError("unsafe cron job manifest")
+    try:
+        if path_stat.st_size > 2_000_000:
             return {}
         payload = json.loads(jobs_path.read_text(encoding="utf-8"))
     except (OSError, ValueError, TypeError):
@@ -311,13 +411,20 @@ def cron_incident_snapshot() -> dict:
     stores_checked = 0
     ledger_stores = 0
     read_errors = 0
-    for profile, home in _cron_profile_homes():
-        db_path = home / "cron" / "executions.db"
-        if not db_path.is_file():
+    homes, discovery = _cron_profile_homes()
+    discovery_error = bool(discovery.get("discovery_error"))
+    profiles_truncated = bool(discovery.get("profiles_truncated"))
+    for profile, home in homes:
+        db_path, jobs_path, path_error, store_present = _cron_store_paths(home)
+        if store_present:
+            stores_checked += 1
+        if path_error:
+            read_errors += 1
             continue
-        stores_checked += 1
+        if db_path is None:
+            continue
         try:
-            uri = db_path.resolve().as_uri() + "?mode=ro"
+            uri = db_path.resolve(strict=True).as_uri() + "?mode=ro"
             with closing(sqlite3.connect(uri, uri=True, timeout=0.25)) as con:
                 con.row_factory = sqlite3.Row
                 exists = con.execute(
@@ -349,7 +456,11 @@ def cron_incident_snapshot() -> dict:
         except (OSError, sqlite3.Error):
             read_errors += 1
             continue
-        names = _cron_job_names(home)
+        try:
+            names = _cron_job_names(home, jobs_path)
+        except OSError:
+            read_errors += 1
+            continue
         for row in rows:
             job_id = str(row["job_id"] or "")
             age = _incident_age_seconds(row["last_seen_at"], now)
@@ -367,7 +478,13 @@ def cron_incident_snapshot() -> dict:
                 "error": augury_clean(row["error"], 240),
                 "output_file": augury_clean(row["output_file"], 180),
             })
-    available = stores_checked > 0 and read_errors == 0 and ledger_stores == stores_checked
+    available = (
+        not discovery_error
+        and not profiles_truncated
+        and stores_checked > 0
+        and read_errors == 0
+        and ledger_stores == stores_checked
+    )
     if not available:
         return {
             "available": False,
@@ -377,6 +494,8 @@ def cron_incident_snapshot() -> dict:
             "incidents": [],
             "profiles_checked": stores_checked,
             "read_errors": read_errors,
+            "profiles_truncated": profiles_truncated,
+            "discovery_error": discovery_error,
         }
     incidents.sort(key=lambda row: row.get("last_seen_at") or "", reverse=True)
     incidents = incidents[:CRON_INCIDENT_LIMIT]
@@ -388,6 +507,8 @@ def cron_incident_snapshot() -> dict:
         "incidents": incidents,
         "profiles_checked": stores_checked,
         "read_errors": read_errors,
+        "profiles_truncated": profiles_truncated,
+        "discovery_error": discovery_error,
     }
 
 

@@ -2,44 +2,134 @@
 set -euo pipefail
 
 # Local safety guard for the public OSS repo.
-# Allow normal pushes to bgrablin/hermes-personal-display only from clean main.
-# Block old private-history branches, tags, and non-main refs from being pushed by accident.
+# Main remains pushable only from local main. The two temporary review branches
+# are update-only and must be pushed from their matching local refs. Every
+# allowed tip must descend from the current public main, so old private-history
+# branches, tags, and arbitrary ref sources remain blocked.
 
-remote_name="${1:-}"
 remote_url="${2:-}"
+zero_oid="0000000000000000000000000000000000000000"
+expected_identity_name="bgrablin"
+expected_identity_email="5216789+bgrablin@users.noreply.github.com"
+expected_identity="${expected_identity_name} <${expected_identity_email}>"
 
 if [[ "$remote_url" != *"github.com/bgrablin/hermes-personal-display"* ]]; then
   exit 0
 fi
 
-public_main="$(git ls-remote "$remote_url" refs/heads/main | awk '{print $1}')"
+public_main="$(git ls-remote "$remote_url" refs/heads/main | awk 'NF >= 1 {print $1; exit}')"
 if [[ -z "$public_main" ]]; then
   echo "pre-push: unable to resolve public main on $remote_url" >&2
   exit 1
 fi
 
+fail() {
+  echo "pre-push: $*" >&2
+  exit 1
+}
+
+verify_outgoing_commits() {
+  local tip="$1"
+  local configured_name configured_email signing_key key_details expected_fingerprint
+  local sha author committer signature_status signature_fingerprint commit_list
+  local commits=()
+
+  if ! commit_list="$(git rev-list "${public_main}..${tip}")"; then
+    fail "unable to enumerate outgoing commits for ${tip:0:12}"
+  fi
+  if [[ -n "$commit_list" ]]; then
+    mapfile -t commits <<< "$commit_list"
+  fi
+  if (( ${#commits[@]} == 0 )); then
+    return 0
+  fi
+
+  configured_name="$(git config user.name 2>/dev/null || true)"
+  configured_email="$(git config user.email 2>/dev/null || true)"
+  if [[ "$configured_name" != "$expected_identity_name" || "$configured_email" != "$expected_identity_email" ]]; then
+    fail "outgoing commits require the bgrablin Git identity"
+  fi
+
+  if [[ "$(git config --bool commit.gpgSign 2>/dev/null || true)" != "true" ]]; then
+    fail "commit.gpgSign is not true for outgoing commits"
+  fi
+
+  signing_key="$(git config --path user.signingkey 2>/dev/null || true)"
+  if [[ -z "$signing_key" || ! -f "$signing_key" ]]; then
+    fail "configured signing public key is missing"
+  fi
+
+  if ! key_details="$(ssh-keygen -lf "$signing_key" 2>/dev/null)"; then
+    fail "configured signing public key cannot be fingerprinted"
+  fi
+  expected_fingerprint="$(awk 'NR == 1 {print $2}' <<<"$key_details")"
+  if [[ -z "$expected_fingerprint" ]]; then
+    fail "configured signing public key has no usable fingerprint"
+  fi
+
+  # The installed git verify-outgoing alias follows @{upstream}..HEAD (or all
+  # remote refs) and filters by configured committer email. A pre-push can carry
+  # several explicit ref tips, so verify each exact public_main..tip range here
+  # and check both author and committer identities.
+  for sha in "${commits[@]}"; do
+    author="$(git show -s --format='%an <%ae>' "$sha")"
+    committer="$(git show -s --format='%cn <%ce>' "$sha")"
+    if [[ "$author" != "$expected_identity" || "$committer" != "$expected_identity" ]]; then
+      fail "outgoing commit ${sha:0:12} must use bgrablin as author and committer"
+    fi
+
+    signature_status="$(git show -s --format='%G?' "$sha")"
+    signature_fingerprint="$(git show -s --format='%GF' "$sha")"
+    if [[ "$signature_status" != "G" || "$signature_fingerprint" != "$expected_fingerprint" ]]; then
+      fail "outgoing commit ${sha:0:12} is not validly signed with the configured key"
+    fi
+  done
+}
+
 while read -r local_ref local_oid remote_ref remote_oid; do
   [[ -z "${local_ref:-}" ]] && continue
 
-  if [[ "$remote_ref" != "refs/heads/main" ]]; then
-    echo "pre-push: blocked push to $remote_ref on public repo; only refs/heads/main is allowed" >&2
+  case "$remote_ref" in
+    refs/heads/main)
+      if [[ "$local_ref" != "refs/heads/main" ]]; then
+        echo "pre-push: blocked push from $local_ref; only local main may push to public main" >&2
+        exit 1
+      fi
+      ;;
+    refs/heads/feat/cron-incident-watch|refs/heads/feat/concurrent-tool-activity)
+      if [[ "$local_ref" != "$remote_ref" ]]; then
+        fail "blocked push from $local_ref; feature updates require the matching local branch"
+      fi
+      ;;
+    *)
+      fail "blocked push to $remote_ref on public repo; only refs/heads/main, refs/heads/feat/cron-incident-watch, and refs/heads/feat/concurrent-tool-activity are allowed"
+      ;;
+  esac
+
+  if [[ "$local_oid" == "$zero_oid" ]]; then
+    if [[ "$remote_ref" == "refs/heads/main" ]]; then
+      echo "pre-push: blocked deletion of public main" >&2
+    else
+      echo "pre-push: blocked deletion of public $remote_ref" >&2
+    fi
     exit 1
   fi
 
-  if [[ "$local_ref" != "refs/heads/main" ]]; then
-    echo "pre-push: blocked push from $local_ref; only local main may push to public main" >&2
-    exit 1
+  if [[ "$remote_ref" == refs/heads/feat/cron-incident-watch || "$remote_ref" == refs/heads/feat/concurrent-tool-activity ]] && [[ "$remote_oid" == "$zero_oid" ]]; then
+    fail "blocked creation of public $remote_ref; feature refs are update-only"
   fi
 
-  if [[ "$local_oid" == 0000000000000000000000000000000000000000 ]]; then
-    echo "pre-push: blocked deletion of public main" >&2
-    exit 1
-  fi
-
-  # Local main must contain the clean public root. This prevents accidentally
-  # pushing the old private history line, which has no ancestry relationship to it.
+  # Every allowed ref must contain the clean public root. This prevents
+  # accidentally pushing the old private history line, which has no ancestry
+  # relationship to it.
   if ! git merge-base --is-ancestor "$public_main" "$local_oid"; then
-    echo "pre-push: blocked because local main does not descend from current public main" >&2
+    if [[ "$remote_ref" == "refs/heads/main" ]]; then
+      echo "pre-push: blocked because local main does not descend from current public main" >&2
+    else
+      fail "blocked because $remote_ref does not descend from current public main"
+    fi
     exit 1
   fi
+
+  verify_outgoing_commits "$local_oid"
 done

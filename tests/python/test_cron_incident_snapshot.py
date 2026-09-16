@@ -101,6 +101,8 @@ def test_missing_incident_store_is_read_only_and_unavailable(tmp_path, monkeypat
         "incidents": [],
         "profiles_checked": 0,
         "read_errors": 0,
+        "profiles_truncated": False,
+        "discovery_error": False,
     }
     assert not (tmp_path / "cron").exists()
 
@@ -136,3 +138,129 @@ def test_one_unreadable_profile_suppresses_partial_totals(tmp_path, monkeypatch)
     assert snapshot["recent"] == 0
     assert snapshot["incidents"] == []
     assert snapshot["read_errors"] == 1
+
+
+def test_symlinked_profile_store_fails_closed_without_cross_profile_reads(tmp_path, monkeypatch):
+    monkeypatch.setattr(collector, "HERMES_HOME", tmp_path)
+    now = datetime.now(timezone.utc).isoformat()
+    write_incidents(tmp_path, [
+        ("inc-default", "job-default", "detected", "provider", now, now,
+         "provider unavailable", None),
+    ])
+    external = tmp_path / "outside-profile"
+    write_incidents(external, [
+        ("inc-external", "job-external", "detected", "provider", now, now,
+         "must not be read", None),
+    ])
+    profiles = tmp_path / "profiles"
+    profiles.mkdir()
+    (profiles / "silver").symlink_to(external, target_is_directory=True)
+
+    snapshot = collector.cron_incident_snapshot()
+
+    assert snapshot["available"] is False
+    assert snapshot["open"] == 0
+    assert snapshot["incidents"] == []
+    assert snapshot["discovery_error"] is True
+    assert "inc-external" not in json.dumps(snapshot)
+
+
+def test_symlinked_cron_directory_fails_closed(tmp_path, monkeypatch):
+    monkeypatch.setattr(collector, "HERMES_HOME", tmp_path)
+    now = datetime.now(timezone.utc).isoformat()
+    write_incidents(tmp_path, [
+        ("inc-default", "job-default", "detected", "provider", now, now,
+         "provider unavailable", None),
+    ])
+    external = tmp_path / "outside-cron"
+    write_incidents(external, [
+        ("inc-external", "job-external", "detected", "provider", now, now,
+         "must not be read", None),
+    ])
+    profile = tmp_path / "profiles" / "silver"
+    profile.mkdir(parents=True)
+    (profile / "cron").symlink_to(external / "cron", target_is_directory=True)
+
+    snapshot = collector.cron_incident_snapshot()
+
+    assert snapshot["available"] is False
+    assert snapshot["read_errors"] == 1
+    assert snapshot["open"] == 0
+    assert "inc-external" not in json.dumps(snapshot)
+
+
+def test_symlinked_database_fails_closed(tmp_path, monkeypatch):
+    monkeypatch.setattr(collector, "HERMES_HOME", tmp_path)
+    now = datetime.now(timezone.utc).isoformat()
+    external = tmp_path / "outside-db"
+    write_incidents(external, [
+        ("inc-external", "job-external", "detected", "provider", now, now,
+         "must not be read", None),
+    ])
+    cron_dir = tmp_path / "cron"
+    cron_dir.mkdir(parents=True)
+    (cron_dir / "executions.db").symlink_to(external / "cron" / "executions.db")
+
+    snapshot = collector.cron_incident_snapshot()
+
+    assert snapshot["available"] is False
+    assert snapshot["read_errors"] == 1
+    assert snapshot["open"] == 0
+    assert "inc-external" not in json.dumps(snapshot)
+
+
+def test_symlinked_job_manifest_fails_closed(tmp_path, monkeypatch):
+    monkeypatch.setattr(collector, "HERMES_HOME", tmp_path)
+    now = datetime.now(timezone.utc).isoformat()
+    write_incidents(tmp_path, [
+        ("inc-default", "job-default", "detected", "provider", now, now,
+         "provider unavailable", None),
+    ])
+    external_jobs = tmp_path / "outside-jobs.json"
+    external_jobs.write_text(json.dumps({"jobs": [{"id": "job-default", "name": "private name"}]}), encoding="utf-8")
+    (tmp_path / "cron" / "jobs.json").symlink_to(external_jobs)
+
+    snapshot = collector.cron_incident_snapshot()
+
+    assert snapshot["available"] is False
+    assert snapshot["read_errors"] == 1
+    assert snapshot["open"] == 0
+
+
+def test_profile_enumeration_overflow_fails_closed_before_sorting(tmp_path, monkeypatch):
+    monkeypatch.setattr(collector, "HERMES_HOME", tmp_path)
+    now = datetime.now(timezone.utc).isoformat()
+    write_incidents(tmp_path, [
+        ("inc-default", "job-default", "detected", "provider", now, now,
+         "provider unavailable", None),
+    ])
+    profiles = tmp_path / "profiles"
+    profiles.mkdir()
+    for index in range(collector.CRON_PROFILE_LIMIT + 1):
+        (profiles / f"profile-{index:02d}").mkdir()
+
+    snapshot = collector.cron_incident_snapshot()
+
+    assert snapshot["available"] is False
+    assert snapshot["open"] == 0
+    assert snapshot["incidents"] == []
+    assert snapshot["profiles_truncated"] is True
+    assert snapshot["discovery_error"] is False
+
+
+def test_profile_discovery_error_fails_closed_for_malformed_entry(tmp_path, monkeypatch):
+    monkeypatch.setattr(collector, "HERMES_HOME", tmp_path)
+    now = datetime.now(timezone.utc).isoformat()
+    write_incidents(tmp_path, [
+        ("inc-default", "job-default", "detected", "provider", now, now,
+         "provider unavailable", None),
+    ])
+    profiles = tmp_path / "profiles"
+    profiles.mkdir()
+    (profiles / "not-a-profile").write_text("malformed profile entry", encoding="utf-8")
+
+    snapshot = collector.cron_incident_snapshot()
+
+    assert snapshot["available"] is False
+    assert snapshot["open"] == 0
+    assert snapshot["discovery_error"] is True

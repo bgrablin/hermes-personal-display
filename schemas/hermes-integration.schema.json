@@ -186,6 +186,10 @@
         "open": { "type": "integer", "minimum": 0 },
         "recent": { "type": "integer", "minimum": 0 },
         "summary": { "type": "string", "maxLength": 72 },
+        "profiles_checked": { "type": "integer", "minimum": 0 },
+        "read_errors": { "type": "integer", "minimum": 0 },
+        "profiles_truncated": { "type": "boolean" },
+        "discovery_error": { "type": "boolean" },
         "incidents": {
           "type": "array",
           "maxItems": 5,

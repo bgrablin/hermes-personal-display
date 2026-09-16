@@ -1196,8 +1196,8 @@ test.describe('Hermes kiosk smoke and visual regression anchors', () => {
         current_work: { active: false, state: 'quiet_watch', summary: 'Quiet watch.', age_seconds: null, source: 'local' },
         kanban: { active: 0, tasks: [] },
         cron_incidents: { available: true, open: 1, recent: 1, incidents: [{
-          id: 'job-1_abcd', job: 'Improve Hermes Display Screen', profile: 'silver',
-          state: 'alerted', failure_type: 'timeout', age_seconds: 120, recent: true,
+          id: 'a1f3c41702507ef80bdeafdb913e12a0', category: 'scheduler',
+          label: 'Scheduled task', recent: true,
         }] },
         resolver: { display_state: 'quiet_watch', priority: 70, reason_codes: ['quiet_watch'], secondary_badges: [] },
         route_rail: { as_of_ms: null, age_seconds: null, active_provider_id: '', providers: [] },
@@ -1214,10 +1214,14 @@ test.describe('Hermes kiosk smoke and visual regression anchors', () => {
     });
     await page.goto(`${runtimeUrl('idle_watch', testInfo)}&live=1`);
     await expect(page.locator('[data-cb-state]')).toHaveText('ATTENTION');
-    await expect(page.locator('[data-cb-activity]')).toContainText('Improve Hermes Display Screen');
+    await expect(page.locator('[data-cb-activity]')).toHaveText('Scheduled task needs review.');
     await expect(page.locator('[data-cb-top-alert]')).toHaveText('SCHEDULER ALERT');
     await expect(page.locator('[data-cb-tasks]')).toHaveText('1 CRON ALERT');
-    await expect(page.locator('[data-cb-task-hint]')).toHaveText(/Improve Hermes Di/i);
+    await expect(page.locator('[data-cb-task-hint]')).toHaveText('Scheduled task');
+    await expect(page.locator('body')).not.toContainText('Improve Hermes Display Screen');
+    await expect(page.locator('body')).not.toContainText('silver');
+    await expect(page.locator('body')).not.toContainText('timeout');
+    await expect(page.locator('body')).not.toContainText('/home/brian/.hermes');
     await expect(page.locator('[data-cb-task-dot]')).toHaveClass(/watch/);
     await expect(page.locator('.cb-radial-stage')).toHaveAttribute('data-optic-mode', 'idle_watch');
 
