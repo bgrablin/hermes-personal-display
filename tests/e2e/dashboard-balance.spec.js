@@ -148,7 +148,14 @@ test('blue motes remain outside the smaller eye and move smoothly at the expande
     })),
   }));
   const before = await sample();
-  await page.waitForTimeout(450);
+  // Hosted runners occasionally deliver only a handful of animation frames in
+  // a fixed wall-clock sleep. Wait for observed motion instead of assuming a
+  // 450 ms delay always represents the same number of rendered frames.
+  await expect.poll(async () => {
+    const current = await sample();
+    return Math.min(...current.motes.map((mote, i) =>
+      Math.hypot(mote.x - before.motes[i].x, mote.y - before.motes[i].y)));
+  }, { timeout: 2500 }).toBeGreaterThan(5);
   const after = await sample();
   expect(after.budget).toBe('high');
   expect(after.reduced).toBe('false');
