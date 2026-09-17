@@ -19,7 +19,8 @@ from display_state.integration import (
     read_snapshots,
     write_snapshot,
 )
-from display_state.observer import Observer
+from display_state.observer import Observer, interruption_attribution
+from display_state.resolver import resolve_display_state
 from display_state.rpc_monitor import Connection, Monitor, RpcError
 
 
@@ -200,6 +201,7 @@ def test_agent_loop_stopped_marks_exact_turn_interrupted_without_settling_backgr
     session = next(iter(observer.sessions.values()))
     assert session["status"] == "interrupted"
     assert session["interruption"] == {
+        "actor": "user",
         "reason": "user_stop",
         "invalidation_reason": "session_interrupt",
         "platform": "tui",
@@ -216,7 +218,66 @@ def test_agent_loop_stopped_marks_exact_turn_interrupted_without_settling_backgr
         {"sources": [{"sessions": [session], "fresh": True, "age_seconds": 0}]}
     )
     assert settled["state"] == "recent_activity"
-    assert settled["summary"] == "Observed turn was interrupted"
+    assert settled["summary"] == "Turn stopped by request"
+
+
+def test_session_end_preserves_bounded_system_interrupt_attribution():
+    observer = Observer()
+    event = apply_callback(
+        observer,
+        "on_session_end",
+        session_id="parent",
+        turn_id="turn-1",
+        platform="gateway",
+        interrupted=True,
+        turn_exit_reason="interrupted_during_api_call(turn_liveness_watchdog)",
+    )
+    assert event["turn_exit_reason"] == (
+        "interrupted_during_api_call(turn_liveness_watchdog)"
+    )
+    session = next(iter(observer.sessions.values()))
+    assert session["status"] == "interrupted"
+    assert session["interruption"] == {
+        "actor": "system",
+        "phase": "api_call",
+        "issuer": "turn_liveness_watchdog",
+        "exit_reason": "interrupted_during_api_call(turn_liveness_watchdog)",
+        "platform": "gateway",
+        "observed_at": session["interruption"]["observed_at"],
+    }
+    work = observed_work(
+        {"sources": [{"sessions": [session], "fresh": True, "age_seconds": 0}]}
+    )
+    assert work["state"] == "system_interrupted"
+    assert work["summary"] == "Hermes stopped the turn"
+    resolved = resolve_display_state(
+        {"work": work, "gateway_ok": True, "kanban": {}},
+        {"measurements": {}},
+        {"tier": "fresh", "valid_measurements": 0},
+    )
+    assert resolved["display_state"] == "needs_attention"
+    assert resolved["reason_codes"] == ["observer_system_interrupt"]
+
+
+@pytest.mark.parametrize(
+    ("reason", "expected"),
+    [
+        ("interrupted_by_user", {"actor": "user", "exit_reason": "interrupted_by_user"}),
+        (
+            "interrupted_during_api_call",
+            {
+                "actor": "user",
+                "phase": "api_call",
+                "exit_reason": "interrupted_during_api_call",
+            },
+        ),
+        ("interrupted_by_system(gateway shutdown)", None),
+        ("local_processing_error(secret-bearing prose)", None),
+        ("interrupted_by_system(" + "x" * 65 + ")", None),
+    ],
+)
+def test_interrupt_attribution_accepts_only_structured_bounded_reasons(reason, expected):
+    assert interruption_attribution(reason) == expected
 
 
 def test_new_turn_clears_previous_interrupt_detail():

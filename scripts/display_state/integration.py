@@ -250,16 +250,32 @@ def observed_work(snapshot):
                         for a in session.get("subagents", [])
                     )
                 )
+                interruption_actor = (
+                    (session.get("interruption") or {}).get("actor")
+                    if interrupted
+                    else None
+                )
                 summary = (
                     "Observed work ended with an error"
                     if hard_failed
+                    else "Hermes stopped the turn"
+                    if interruption_actor == "system"
+                    else "Turn stopped by request"
+                    if interruption_actor == "user"
                     else "Observed turn was interrupted"
                     if interrupted
                     else "Observed turn and background work settled"
                 )
+                state = (
+                    "failed"
+                    if hard_failed
+                    else "system_interrupted"
+                    if interruption_actor == "system"
+                    else "recent_activity"
+                )
                 return {
                     "active": False,
-                    "state": "failed" if hard_failed else "recent_activity",
+                    "state": state,
                     "kind": "tool",
                     "summary": summary,
                     "detail": summary,

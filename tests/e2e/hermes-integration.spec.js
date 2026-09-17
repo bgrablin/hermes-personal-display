@@ -37,6 +37,12 @@ gatewayInterruptSnapshot.sources[0].sessions[0].interruption = {
   reason: 'tool_invalidation', platform: 'gateway',
 };
 
+const systemInterruptSnapshot = structuredClone(interruptedSnapshot);
+systemInterruptSnapshot.sources[0].sessions[0].interruption = {
+  actor: 'system', issuer: 'turn_liveness_watchdog', phase: 'api_call',
+  exit_reason: 'interrupted_during_api_call(turn_liveness_watchdog)', platform: 'gateway',
+};
+
 const concurrentToolsSnapshot = structuredClone(snapshot);
 concurrentToolsSnapshot.sources[0].sessions[0] = {
   profile: '/srv/hermes/.hermes', session_id: 'parent', status: 'running',
@@ -80,6 +86,20 @@ test('non-user interruption reason stays readable without an invalidation reason
   // missing invalidation_reason rather than leaving an empty Reason entry.
   await expect(card).not.toContainText('Reason undefined');
   await expect(card).not.toContainText('Reason null');
+});
+
+test('system interruption has a distinct cause and visual treatment', async ({ page }, info) => {
+  await page.route('**/api/hermes-integration', route => route.fulfill({ json: systemInterruptSnapshot }));
+  await page.goto('/src/character-runtime.html?kiosk=1&orientation=landscape&mode=completed');
+  await page.locator('.cb-bottom-rail .cb-cell').last().press('Enter');
+  const card = page.locator('.cb-integration .cb-interruption-detail');
+  await expect(card).toHaveAttribute('data-actor', 'system');
+  await expect(card).toContainText('Stopped by Hermes');
+  await expect(card).toContainText('Cause turn liveness watchdog');
+  await expect(card).toContainText('During provider request');
+  await expect(card).toContainText('Surface gateway');
+  await expect(card).toBeInViewport();
+  await page.screenshot({ path: `test-results/system-interruption-${info.project.name}.png`, animations: 'disabled' });
 });
 
 test('private integration shows background units, exact controls and literal text', async ({ page }, info) => {

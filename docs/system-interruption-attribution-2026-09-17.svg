@@ -1,0 +1,63 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="800" viewBox="0 0 1200 800" role="img" aria-labelledby="title desc">
+  <title id="title">System interruption attribution preview</title>
+  <desc id="desc">Synthetic Hermes home display showing a smaller blue eye, blue motes, and a touch-readable card attributing an interrupted turn to the turn liveness watchdog.</desc>
+  <defs>
+    <radialGradient id="bg" cx="50%" cy="43%" r="66%">
+      <stop offset="0" stop-color="#15232e"/>
+      <stop offset=".45" stop-color="#080e14"/>
+      <stop offset="1" stop-color="#030609"/>
+    </radialGradient>
+    <radialGradient id="iris" cx="45%" cy="42%" r="58%">
+      <stop offset="0" stop-color="#05080d"/>
+      <stop offset=".33" stop-color="#9db2ee"/>
+      <stop offset=".68" stop-color="#315d88"/>
+      <stop offset="1" stop-color="#06121a"/>
+    </radialGradient>
+    <linearGradient id="panel" x1="0" y1="0" x2="1" y2="1">
+      <stop stop-color="#181f29" stop-opacity=".98"/>
+      <stop offset="1" stop-color="#091016" stop-opacity=".98"/>
+    </linearGradient>
+    <linearGradient id="alert" x1="0" y1="0" x2="1" y2="1">
+      <stop stop-color="#361b22"/>
+      <stop offset="1" stop-color="#181d20"/>
+    </linearGradient>
+    <filter id="glow"><feGaussianBlur stdDeviation="16"/></filter>
+  </defs>
+  <rect width="1200" height="800" fill="url(#bg)"/>
+  <path d="M78 122h250M872 122h250" stroke="#8ea7d5" stroke-opacity=".17"/>
+  <text x="78" y="92" fill="#a6b4dc" font-family="ui-monospace,monospace" font-size="18" letter-spacing="4">AUGURY · ACTIVITY</text>
+  <text x="872" y="92" fill="#a6b4dc" font-family="ui-monospace,monospace" font-size="18" letter-spacing="4">ROUTE · PROVIDERS</text>
+  <text x="78" y="156" fill="#7e929e" font-family="ui-monospace,monospace" font-size="12" letter-spacing="2">SYSTEM INTERRUPTION OBSERVED</text>
+  <text x="78" y="190" fill="#c9d4dc" font-family="system-ui,sans-serif" font-size="19">Turn stopped without a user request.</text>
+  <text x="872" y="159" fill="#91a8e8" font-family="ui-monospace,monospace" font-size="17" letter-spacing="2">CHATGPT</text>
+  <text x="1098" y="159" fill="#91a8e8" font-family="ui-monospace,monospace" font-size="17" text-anchor="end">READY</text>
+  <text x="872" y="206" fill="#8192c6" font-family="ui-monospace,monospace" font-size="17" letter-spacing="2">CLAUDE</text>
+  <text x="1098" y="206" fill="#8192c6" font-family="ui-monospace,monospace" font-size="17" text-anchor="end">READY</text>
+
+  <circle cx="574" cy="324" r="150" fill="#7897e8" opacity=".13" filter="url(#glow)"/>
+  <circle cx="574" cy="324" r="126" fill="#03080d" stroke="#7689be" stroke-opacity=".38" stroke-width="2"/>
+  <circle cx="574" cy="324" r="99" fill="url(#iris)" stroke="#a4b4e2" stroke-opacity=".6"/>
+  <g stroke="#e1b879" stroke-opacity=".52" stroke-width="1">
+    <path d="M574 230v54M609 236l-20 52M642 257l-42 40M663 290l-58 21M666 328l-62-3M654 365l-54-26M629 395l-42-45M593 415l-10-58M555 416l12-59M519 399l38-48M492 369l58-31M480 332l67-7M486 294l63 18M506 261l48 37M537 239l28 48"/>
+  </g>
+  <circle cx="574" cy="324" r="37" fill="#020409" stroke="#7b89a7"/>
+  <circle cx="560" cy="309" r="6" fill="#eef5ff" opacity=".72"/>
+  <circle cx="587" cy="337" r="3" fill="#eef5ff" opacity=".52"/>
+  <g fill="#77badd">
+    <circle cx="414" cy="249" r="4"/><circle cx="723" cy="225" r="3"/><circle cx="752" cy="362" r="4"/><circle cx="443" cy="415" r="3"/><circle cx="630" cy="474" r="4"/>
+  </g>
+
+  <rect x="319" y="475" width="584" height="236" rx="18" fill="url(#panel)" stroke="#657887" stroke-opacity=".65"/>
+  <text x="354" y="511" fill="#9bb4c7" font-family="ui-monospace,monospace" font-size="12" letter-spacing="2">OBSERVED PROFILE · FRESH</text>
+  <text x="354" y="540" fill="#d8e4ec" font-family="ui-monospace,monospace" font-size="15">Turn interrupted · background work tracked independently</text>
+  <rect x="354" y="561" width="514" height="117" rx="8" fill="url(#alert)" stroke="#9d5f68"/>
+  <rect x="354" y="561" width="4" height="117" rx="2" fill="#ed8292"/>
+  <text x="376" y="590" fill="#ffd9df" font-family="ui-monospace,monospace" font-size="13" font-weight="700" letter-spacing="1.5">TURN INTERRUPTED</text>
+  <text x="376" y="623" fill="#ffe0e5" font-family="system-ui,sans-serif" font-size="22">Stopped by Hermes</text>
+  <text x="376" y="652" fill="#e2aeb7" font-family="ui-monospace,monospace" font-size="12">CAUSE TURN LIVENESS WATCHDOG · DURING PROVIDER REQUEST · SURFACE GATEWAY</text>
+
+  <line x1="0" y1="741" x2="1200" y2="741" stroke="#6e8291" stroke-opacity=".24"/>
+  <circle cx="84" cy="770" r="5" fill="#ed8292"/>
+  <text x="100" y="776" fill="#c8d2da" font-family="ui-monospace,monospace" font-size="15" letter-spacing="2">ATTENTION · HERMES STOPPED THIS TURN</text>
+  <text x="1120" y="776" fill="#6d7d86" font-family="ui-monospace,monospace" font-size="11" text-anchor="end" letter-spacing="2">SYNTHETIC PREVIEW · NO CONTROL</text>
+</svg>

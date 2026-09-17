@@ -151,6 +151,26 @@
                     "observed_at"
                   ],
                   "properties": {
+                    "actor": {
+                      "enum": [
+                        "user",
+                        "system"
+                      ]
+                    },
+                    "issuer": {
+                      "type": "string",
+                      "maxLength": 64
+                    },
+                    "phase": {
+                      "enum": [
+                        "turn",
+                        "api_call"
+                      ]
+                    },
+                    "exit_reason": {
+                      "type": "string",
+                      "maxLength": 96
+                    },
                     "reason": {
                       "type": "string",
                       "maxLength": 800

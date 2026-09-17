@@ -1243,12 +1243,32 @@
                     "interruption": {
                       "additionalProperties": false,
                       "properties": {
+                        "actor": {
+                          "enum": [
+                            "user",
+                            "system"
+                          ]
+                        },
+                        "exit_reason": {
+                          "maxLength": 96,
+                          "type": "string"
+                        },
                         "invalidation_reason": {
                           "maxLength": 800,
                           "type": "string"
                         },
+                        "issuer": {
+                          "maxLength": 64,
+                          "type": "string"
+                        },
                         "observed_at": {
                           "type": "number"
+                        },
+                        "phase": {
+                          "enum": [
+                            "turn",
+                            "api_call"
+                          ]
                         },
                         "platform": {
                           "maxLength": 800,

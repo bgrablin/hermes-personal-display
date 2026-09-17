@@ -16,6 +16,35 @@ from display_state.integration import TERMINAL, TOOL_TERMINAL, clean, write_snap
 
 log = logging.getLogger(__name__)
 
+_SYSTEM_INTERRUPT_RE = re.compile(
+    r"^interrupted_(?P<phase>by_system|during_api_call)"
+    r"\((?P<issuer>[a-z0-9][a-z0-9_.:-]{0,63})\)$"
+)
+
+
+def interruption_attribution(turn_exit_reason):
+    """Keep only Hermes' bounded interrupt identity contract, never error prose."""
+    if not isinstance(turn_exit_reason, str):
+        return None
+    reason = turn_exit_reason.strip().lower()
+    if reason == "interrupted_by_user":
+        return {"actor": "user", "exit_reason": reason}
+    if reason == "interrupted_during_api_call":
+        return {
+            "actor": "user",
+            "phase": "api_call",
+            "exit_reason": reason,
+        }
+    match = _SYSTEM_INTERRUPT_RE.fullmatch(reason)
+    if not match:
+        return None
+    return {
+        "actor": "system",
+        "phase": "api_call" if match.group("phase") == "during_api_call" else "turn",
+        "issuer": match.group("issuer"),
+        "exit_reason": reason,
+    }
+
 
 def process_identity(process):
     return {
@@ -88,6 +117,7 @@ class Observer:
                     "platform",
                     "reason",
                     "invalidation_reason",
+                    "turn_exit_reason",
                 )
                 if key in kwargs
             }
@@ -264,6 +294,13 @@ class Observer:
                 s.pop("interruption", None)
             elif event.get("interrupted"):
                 s["status"] = "interrupted"
+                attribution = interruption_attribution(event.get("turn_exit_reason"))
+                if attribution:
+                    interruption = s.setdefault("interruption", {})
+                    interruption.update(attribution)
+                    if event.get("platform"):
+                        interruption["platform"] = event["platform"]
+                    interruption["observed_at"] = time.time()
             elif event.get("completed"):
                 s["status"] = "completed"
             elif s.get("status") != "interrupted":
@@ -279,6 +316,10 @@ class Observer:
                 for key in ("reason", "invalidation_reason", "platform")
                 if event.get(key)
             }
+            # This hook is emitted only for explicit surface stops (/stop, /new,
+            # and session.interrupt). The later on_session_end event may enrich it
+            # with Hermes' durable turn-exit attribution.
+            s["interruption"]["actor"] = "user"
             s["interruption"]["observed_at"] = time.time()
         elif hook in ("pre_tool_call", "pre_api_request"):
             s["status"] = "running"
