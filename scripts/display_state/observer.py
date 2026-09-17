@@ -117,10 +117,12 @@ class Observer:
                     "platform",
                     "reason",
                     "invalidation_reason",
-                    "turn_exit_reason",
                 )
                 if key in kwargs
             }
+            attribution = interruption_attribution(kwargs.get("turn_exit_reason"))
+            if attribution:
+                event["interruption_attribution"] = attribution
             if event.get("child_goal"):
                 event["child_goal"] = clean(event["child_goal"])[:240]
             try:
@@ -276,6 +278,7 @@ class Observer:
                         "observed_at": time.time(),
                     }
                 s["tools"] = []
+                s.pop("interruption", None)
             s["turn_id"] = event_turn_id
         if session_key and hook != "agent_loop_stopped":
             s["session_key"] = session_key
@@ -294,13 +297,13 @@ class Observer:
                 s.pop("interruption", None)
             elif event.get("interrupted"):
                 s["status"] = "interrupted"
-                attribution = interruption_attribution(event.get("turn_exit_reason"))
+                attribution = event.get("interruption_attribution")
                 if attribution:
-                    interruption = s.setdefault("interruption", {})
-                    interruption.update(attribution)
+                    interruption = dict(attribution)
                     if event.get("platform"):
                         interruption["platform"] = event["platform"]
                     interruption["observed_at"] = time.time()
+                    s["interruption"] = interruption
             elif event.get("completed"):
                 s["status"] = "completed"
             elif s.get("status") != "interrupted":

@@ -232,9 +232,13 @@ def test_session_end_preserves_bounded_system_interrupt_attribution():
         interrupted=True,
         turn_exit_reason="interrupted_during_api_call(turn_liveness_watchdog)",
     )
-    assert event["turn_exit_reason"] == (
-        "interrupted_during_api_call(turn_liveness_watchdog)"
-    )
+    assert "turn_exit_reason" not in event
+    assert event["interruption_attribution"] == {
+        "actor": "system",
+        "phase": "api_call",
+        "issuer": "turn_liveness_watchdog",
+        "exit_reason": "interrupted_during_api_call(turn_liveness_watchdog)",
+    }
     session = next(iter(observer.sessions.values()))
     assert session["status"] == "interrupted"
     assert session["interruption"] == {
@@ -271,6 +275,15 @@ def test_session_end_preserves_bounded_system_interrupt_attribution():
                 "exit_reason": "interrupted_during_api_call",
             },
         ),
+        (
+            "interrupted_by_system(gateway_shutdown)",
+            {
+                "actor": "system",
+                "phase": "turn",
+                "issuer": "gateway_shutdown",
+                "exit_reason": "interrupted_by_system(gateway_shutdown)",
+            },
+        ),
         ("interrupted_by_system(gateway shutdown)", None),
         ("local_processing_error(secret-bearing prose)", None),
         ("interrupted_by_system(" + "x" * 65 + ")", None),
@@ -278,6 +291,48 @@ def test_session_end_preserves_bounded_system_interrupt_attribution():
 )
 def test_interrupt_attribution_accepts_only_structured_bounded_reasons(reason, expected):
     assert interruption_attribution(reason) == expected
+
+
+def test_callback_discards_unrecognized_turn_exit_reason_before_queueing():
+    observer = Observer()
+    observer.callback("on_session_end")(
+        session_id="parent",
+        interrupted=True,
+        turn_exit_reason="local_processing_error(secret-bearing prose)",
+    )
+    hook, event = observer.events.get_nowait()
+    assert hook == "on_session_end"
+    assert "turn_exit_reason" not in event
+    assert "interruption_attribution" not in event
+
+
+def test_new_turn_replaces_prior_interrupt_metadata_instead_of_merging_it():
+    observer = Observer()
+    apply_callback(
+        observer,
+        "agent_loop_stopped",
+        session_id="parent",
+        turn_id="turn-1",
+        platform="tui",
+        reason="user_stop",
+        invalidation_reason="session_interrupt",
+    )
+    apply_callback(
+        observer,
+        "on_session_end",
+        session_id="parent",
+        turn_id="turn-2",
+        interrupted=True,
+        turn_exit_reason="interrupted_by_system(gateway_shutdown)",
+    )
+    interruption = observer.sessions[("unknown", "parent")]["interruption"]
+    assert interruption == {
+        "actor": "system",
+        "phase": "turn",
+        "issuer": "gateway_shutdown",
+        "exit_reason": "interrupted_by_system(gateway_shutdown)",
+        "observed_at": interruption["observed_at"],
+    }
 
 
 def test_new_turn_clears_previous_interrupt_detail():
