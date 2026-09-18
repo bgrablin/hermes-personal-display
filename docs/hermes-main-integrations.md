@@ -1,9 +1,9 @@
 # Hermes main integrations
 
-Current follow-up baseline: display `main` **c35839049979692d545b9ec17e9da6974ceeefa2**.
-Upstream contracts inspected through Hermes `main` **6005aa1fd9aac8b1024ace50fec8cd1c85a04bae**.
-Branch: `feat/interruption-attribution`. This document describes repository behavior, including the proposed follow-up, not the deployed display.
-Latest source-review and implementation checkpoint: [September 17](checkpoints/2026-09-17.md).
+Current source baseline: display `main` **0ecfd1f976cfd0438458503c26d689dc9f51e6ea**.
+Upstream contracts inspected through Hermes `main` **e83b1d51f13a08b424636f0b519db86a35aa7bd7**.
+Branch: `docs/compatibility-checkpoint-2026-09-18`. This document describes repository behavior, not the deployed display.
+Latest source-review checkpoint: [September 18](checkpoints/2026-09-18.md).
 
 ## Merged capability inventory
 
@@ -36,6 +36,8 @@ The display collector reads these snapshots without importing Hermes or launchin
 The private endpoint `/api/hermes-integration` contains lifecycle sources, RPC inspection and recent provider telemetry. It accepts loopback requests only. Its schema lives in `schemas/hermes-integration.schema.json` and is included in generated browser/Python contracts. Private details are not added to the family state projection or public avatar-event bus. Strings use the existing credential-only private redactor before bounding; the browser inserts them as text. Provider telemetry is explicitly a recent log observation, not a current route, cumulative billing figure, or quota estimate. Missing cache values remain unknown.
 
 The optional RPC monitor connects only to explicitly configured local WebSocket endpoints. Use an SSH tunnel for another host. It does not start, resume, activate, or reattach sessions. Each target is pinned to connection name, profile, runtime ID and durable ID. `session.status` verifies the durable ID before `session.control.read` or any action. Unavailable targets remain unavailable; no foreground-session fallback exists.
+
+Hermes now requires WebSocket clients that answer server-to-client approval, clarify, sudo, secret, connection or bridge requests to advertise `client.capabilities {server_requests: true}` after `gateway.ready`. That is intentionally **not** the display monitor's role: it never attaches to a session, renders those requests, or claims it can answer them. Do not add the advertisement without also adding the complete owner-bound request lifecycle. The passive reader may continue its exact-owner status/control reads without becoming a prompt surface.
 
 RPC reads continue after `message.complete`. Revision equality deduplicates identical control snapshots. Matching sequenced `session.control.update` events invalidate the exact target; serialized periodic reads hydrate it again. Events do not overwrite in-flight reads. Reconnection clears event watermarks and hydrates from the owning process. This is polling with event invalidation, not an assertion of a globally ordered event log.
 
