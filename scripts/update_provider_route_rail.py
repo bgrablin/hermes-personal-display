@@ -22,9 +22,11 @@ import re
 import subprocess
 import sys
 import time
+import urllib.parse
+import urllib.request
+import uuid
 from pathlib import Path
 from typing import Any
-import urllib.request
 
 HOME = Path(os.path.expanduser("~"))
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
@@ -52,10 +54,12 @@ PROVIDER_PLAN = {
         "request_cap": 800,
     },
     "alibaba-token-plan": {
-        # Alibaba Cloud Model Studio Token Plan ($10/mo flat-token tier). The
-        # plan key is contractually interactive-tool-only and Credits usage is
-        # visible only behind the console login, so the row shows local
-        # credential readiness and never invents percentage headroom.
+        # Alibaba Cloud Model Studio Token Plan ($10/mo flat-token tier).
+        # Monthly usage comes from the console's own usage API, replayed with the
+        # operator's exported console session cookie (see fetch_alibaba_token_plan_usage).
+        # The PLAN API KEY is never used for this: the Token Plan terms restrict it to
+        # interactive coding/agent tool use. Without a usable console session the row
+        # degrades to inferred READY and never invents a percentage.
         "label": "ALIBABA",
         "tier_label": "TOKEN PLAN",
         "rank": 3,
@@ -323,6 +327,146 @@ def alibaba_route_configured() -> bool:
     except Exception as exc:
         print(f"alibaba credential check failed: {type(exc).__name__}: {exc}", file=sys.stderr)
         return False
+
+
+ALIBABA_CONSOLE_PAGE = "https://modelstudio.console.alibabacloud.com/ap-southeast-1/subscription/token-plan/personal"
+ALIBABA_CONSOLE_API = "https://bailian-singapore-cs.alibabacloud.com/data/api.json"
+ALIBABA_USAGE_ACTION = "zeldaHttp.apikeyMgr./tokenplan/personal/api/v2/usage"
+ALIBABA_SUBSCRIPTION_ACTION = "zeldaHttp.apikeyMgr./tokenplan/personal/api/v2/subscription"
+ALIBABA_SUBSCRIPTION_COMMODITY = "sfm_tokenplansolo_public_intl"
+ALIBABA_COOKIE_JAR = Path(
+    os.environ.get("HERMES_ALIBABA_COOKIE_JAR") or (HOME / ".hermes" / "state" / "aliyun-console-cookies.txt")
+)
+ALIBABA_CONSOLE_TIMEOUT_S = 12.0
+
+
+def load_alibaba_cookie_header(jar: Path | None = None) -> str:
+    """Return the console Cookie header from the operator's exported jar, or "".
+
+    The jar holds a live Model Studio console session for this host only (0600).
+    It is never copied into a display artifact; the rail publishes numbers only.
+    """
+    path = jar or ALIBABA_COOKIE_JAR
+    try:
+        raw = path.read_text(encoding="utf-8", errors="replace").strip()
+    except OSError:
+        return ""
+    parts = [chunk.strip() for chunk in raw.split(";") if "=" in chunk]
+    return "; ".join(parts)
+
+
+def _alibaba_console_call(action: str, data: dict[str, Any], cookie_header: str) -> dict[str, Any]:
+    """POST one Model Studio console gateway call and return the decoded envelope."""
+    payload: dict[str, Any] = {
+        "Api": action,
+        "V": "1.0",
+        "Data": {
+            "cornerstoneParam": {
+                "feTraceId": str(uuid.uuid4()),
+                "feURL": ALIBABA_CONSOLE_PAGE,
+                "protocol": "V2",
+                "console": "ONE_CONSOLE",
+                "productCode": "p_efm",
+                "switchAgent": 1620176,
+                "switchUserType": 3,
+                "domain": "modelstudio.console.alibabacloud.com",
+                "consoleSite": "MODELSTUDIO_ALBABACLOUD",
+                "userNickName": "",
+                "userPrincipalName": "",
+                "xsp_lang": "en-US",
+            },
+            **data,
+        },
+    }
+    body = urllib.parse.urlencode({"params": json.dumps(payload, separators=(",", ":"))}).encode("utf-8")
+    request = urllib.request.Request(
+        f"{ALIBABA_CONSOLE_API}?action=IntlBroadScopeAspnGateway&product=sfm_bailian&api={action}&_v=",
+        data=body,
+        method="POST",
+        headers={
+            "Content-Type": "application/x-www-form-urlencoded",
+            "Referer": ALIBABA_CONSOLE_PAGE,
+            "User-Agent": "hermes-personal-display",
+            "Cookie": cookie_header,
+        },
+    )
+    with urllib.request.urlopen(request, timeout=ALIBABA_CONSOLE_TIMEOUT_S) as response:
+        decoded = json.loads(response.read().decode("utf-8", "replace")) or {}
+    return decoded if isinstance(decoded, dict) else {}
+
+
+def _alibaba_payload(doc: dict[str, Any]) -> dict[str, Any] | None:
+    """Return the inner data object of a console envelope, or None when not SUCCESS."""
+    node = ((doc.get("data") or {}).get("DataV2") or {}).get("data")
+    if not isinstance(node, dict):
+        return None
+    if str(node.get("code") or "").upper() not in {"", "SUCCESS"}:
+        return None
+    inner = node.get("data")
+    return inner if isinstance(inner, dict) else None
+
+
+def fetch_alibaba_token_plan_usage() -> tuple[float | None, str | None, float | None]:
+    """Return (headroom, tier_label, reset_at_epoch_s) from the console usage API.
+
+    The endpoint reports the share of the subscription month already consumed.
+    The rail renders remaining headroom, as it does for every other row. Every
+    failure mode (no jar, expired console session, changed payload) returns None
+    so the row degrades to inferred READY instead of a fabricated percentage.
+    """
+    cookie = load_alibaba_cookie_header()
+    if not cookie:
+        print("alibaba usage: no console cookie jar; row stays READY", file=sys.stderr)
+        return None, None, None
+    try:
+        usage = _alibaba_payload(_alibaba_console_call(ALIBABA_USAGE_ACTION, {}, cookie))
+        if usage is None:
+            print("alibaba usage: console session rejected; row stays READY", file=sys.stderr)
+            return None, None, None
+        used = usage.get("per1MonthPercentage")
+        if isinstance(used, bool) or not isinstance(used, (int, float)):
+            return None, None, None
+        used = float(used)
+        if 0.0 <= used <= 1.0:
+            used *= 100.0  # the console reports a fraction of the monthly allowance
+        if not math.isfinite(used) or used < 0.0 or used > 100.0:
+            return None, None, None
+        headroom = max(0.0, min(1.0, 1.0 - used / 100.0))
+        reset_at = None
+        reset_ms = usage.get("per1MonthResetTime")
+        if isinstance(reset_ms, (int, float)) and not isinstance(reset_ms, bool) and reset_ms > 0:
+            reset_at = float(reset_ms) / 1000.0
+        tier = None
+        subscription = _alibaba_payload(
+            _alibaba_console_call(
+                ALIBABA_SUBSCRIPTION_ACTION,
+                {"queryInstanceInfoRequest": {"commodityCode": ALIBABA_SUBSCRIPTION_COMMODITY}},
+                cookie,
+            )
+        )
+        if subscription:
+            spec = str(subscription.get("specCode") or "").strip().upper()
+            tier = spec or None
+        return headroom, tier or PROVIDER_PLAN["alibaba-token-plan"]["tier_label"], reset_at
+    except Exception as exc:
+        print(f"alibaba usage probe failed: {type(exc).__name__}: {exc}", file=sys.stderr)
+        return None, None, None
+
+
+def apply_alibaba_usage(providers: list[dict]) -> None:
+    """Fill the Alibaba row from the console usage API when the session works."""
+    headroom, tier, reset_at = fetch_alibaba_token_plan_usage()
+    if headroom is None:
+        return
+    for provider in providers:
+        if provider.get("id") != "alibaba-token-plan":
+            continue
+        provider["state"] = "confirmed"
+        provider["headroom"] = headroom
+        provider["secondary_headroom"] = None
+        provider["tier_label"] = tier or PROVIDER_PLAN["alibaba-token-plan"]["tier_label"]
+        provider["reset_at_epoch_s"] = reset_at
+        provider["last_used_age_s"] = 0
 
 
 OPENCODE_GO_USAGE_URL = "https://opencode.ai/zen/go/v1/usage"
@@ -659,8 +803,13 @@ def main() -> int:
     # percentage rail Brian expects for ChatGPT/Codex, Claude, and OpenCode Go.
     apply_confirmed_quota(providers)
 
-    # Alibaba Token Plan has no quota denominator and its key must not be
-    # sent by unattended timers; local credential presence shows READY.
+    # Alibaba Token Plan monthly usage from the operator's exported console
+    # session. When that session is missing or expired the row falls through to
+    # the local credential-readiness path below and shows READY, never a guess.
+    apply_alibaba_usage(providers)
+
+    # Alibaba Token Plan fallback: the plan key must not be sent by unattended
+    # timers; local credential presence shows READY without a percentage.
     apply_alibaba_readiness(providers)
 
     # Fallback only: ccusage estimates Claude Code blocks when the Anthropic

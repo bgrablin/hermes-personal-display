@@ -65,6 +65,14 @@ Do not confuse `launch-kiosk.sh` with the live `xsession-minix-kiosk.sh` path. T
    endpoint is unreachable or a window reports a non-ok status, the row degrades
    to unknown instead of inventing remaining percentage headroom.
 
+   The Alibaba Token Plan row reads the Model Studio console usage API from the
+   operator's exported console session, so the rail needs a mode-0600 cookie jar
+   at `~/.hermes/state/aliyun-console-cookies.txt` (override with
+   `HERMES_ALIBABA_COOKIE_JAR`). The plan API key is never used for this: the
+   TPlan terms restrict it to interactive tool use. When the jar is absent or
+   the session has expired, the row degrades to `READY · QUOTA NOT PUBLISHED`
+   instead of a guessed percentage; re-export the console cookies to restore it.
+
    The two `HERMES_DISPLAY_*` integration values are optional. The snapshot
    directory must be shared with each enabled observer when Hermes and the
    display server use different homes. The RPC path must name a separate
