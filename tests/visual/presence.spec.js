@@ -31,7 +31,7 @@ test('visual rehearsal: balanced rails, orbiting lights, and activity color', as
         route_rail: { as_of_ms: Date.now(), age_seconds: 0, active_provider_id: 'openai-codex', providers: [
           { id: 'openai-codex', label: 'CHATGPT', state: 'confirmed', headroom: .76, reachable: true },
           { id: 'anthropic', label: 'CLAUDE', state: 'confirmed', headroom: .54, reachable: true },
-          { id: 'google-gemini-cli', label: 'GEMINI', state: 'inferred', headroom: .82, reachable: true },
+          { id: 'alibaba-token-plan', label: 'ALIBABA', state: 'inferred', headroom: .82, reachable: true },
         ] },
       },
     } });

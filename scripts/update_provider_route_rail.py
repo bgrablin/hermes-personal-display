@@ -51,12 +51,16 @@ PROVIDER_PLAN = {
         "window_minutes": 300,
         "request_cap": 800,
     },
-    "nous": {
-        "label": "GEMINI",
-        "tier_label": "NOUS",
+    "alibaba-token-plan": {
+        # Alibaba Cloud Model Studio Token Plan ($10/mo flat-token tier). No
+        # machine-readable subscription quota endpoint exists; the row shows
+        # route readiness from a bounded catalog reachability probe and never
+        # invents percentage headroom.
+        "label": "ALIBABA",
+        "tier_label": "TOKEN PLAN",
         "rank": 3,
-        "window_minutes": 60,
-        "request_cap": 600,
+        "window_minutes": None,
+        "request_cap": None,
     },
     "opencode-go": {
         # Confirmed quota comes from OpenCode Go's authenticated usage endpoint
@@ -80,7 +84,7 @@ PROVIDER_PLAN = {
     },
 }
 
-ALLOWED_PROVIDER_IDS = set(PROVIDER_PLAN.keys()) | {"google-gemini", "google-gemini-cli", "gemini"}
+ALLOWED_PROVIDER_IDS = set(PROVIDER_PLAN.keys())
 
 # Match either the standalone API-call summary or the surrounding client
 # create/close noise. Only the API-call summary carries token counts but the
@@ -129,8 +133,6 @@ def scan_log(path: Path, oldest_needed: float) -> dict[str, dict]:
                 if not m:
                     continue
                 prov = m.group("provider")
-                if prov in {"google-gemini", "google-gemini-cli", "gemini"}:
-                    prov = "nous"
                 if prov not in ALLOWED_PROVIDER_IDS:
                     continue
                 bucket = counts.setdefault(
@@ -295,33 +297,42 @@ def fetch_anthropic_headroom() -> tuple[float | None, float | None, float | None
         return None, None, None
 
 
-def fetch_nous_headroom() -> tuple[float | None, str | None, float | None]:
-    """Return confirmed Nous credit headroom, plan, and subscription reset."""
+def fetch_alibaba_reachability() -> bool:
+    """Return whether the Alibaba Token Plan route answers a bounded catalog probe.
+
+    Read-only GET /models against the pooled credential's base URL. This proves
+    route readiness only; there is no quota denominator, so the caller must keep
+    headroom null and render the row as inferred READY. Fails closed to False.
+    """
     try:
         _load_hermes_env_and_path()
-        from agent.account_usage import build_nous_credits_snapshot
-        from hermes_cli.nous_account import get_nous_portal_account_info
+        from agent.credential_pool import load_pool
 
-        account = get_nous_portal_account_info(force_fresh=True)
-        snapshot = build_nous_credits_snapshot(account)
-        if not snapshot or not snapshot.windows:
-            return None, None, None
-        window = snapshot.windows[0]
-        if window.used_percent is None:
-            return None, None, None
-        headroom = max(0.0, min(1.0, 1.0 - float(window.used_percent) / 100.0))
-        tier = str(snapshot.plan or "NOUS").strip().upper()[:12] or "NOUS"
-        reset_at = None
-        period_end = getattr(getattr(account, "subscription", None), "current_period_end", None)
-        if period_end:
-            try:
-                reset_at = dt.datetime.fromisoformat(str(period_end).replace("Z", "+00:00")).timestamp()
-            except (TypeError, ValueError):
-                reset_at = None
-        return headroom, tier, reset_at
+        pool = load_pool("alibaba-token-plan")
+        entry = pool.peek() if pool else None
+        if entry is None:
+            entries = getattr(pool, "_entries", None) or []
+            entry = entries[0] if entries else None
+        if entry is None:
+            return False
+        key = str(getattr(entry, "runtime_api_key", "") or "").strip()
+        base = str(getattr(entry, "runtime_base_url", "") or "").strip().rstrip("/")
+        if not key or not base:
+            return False
+        request = urllib.request.Request(
+            f"{base}/models",
+            headers={
+                "Authorization": f"Bearer {key}",
+                "Accept": "application/json",
+                "User-Agent": "hermes-personal-display",
+            },
+            method="GET",
+        )
+        with urllib.request.urlopen(request, timeout=12.0) as response:
+            return 200 <= int(getattr(response, "status", 0) or 0) < 300
     except Exception as exc:
-        print(f"nous quota probe failed: {type(exc).__name__}: {exc}", file=sys.stderr)
-        return None, None, None
+        print(f"alibaba reachability probe failed: {type(exc).__name__}: {exc}", file=sys.stderr)
+        return False
 
 
 OPENCODE_GO_USAGE_URL = "https://opencode.ai/zen/go/v1/usage"
@@ -408,10 +419,6 @@ def load_config_fallback_routes() -> dict[str, tuple[str, str]]:
         model = str(entry.get("model") or "").strip()
         if provider and model:
             routes[provider] = (provider, model)
-            # The route rail's Gemini row is backed by the configured Nous
-            # Gemini fallback, not the removed google-gemini-cli provider.
-            if provider == "nous" and "gemini" in model.lower():
-                routes["nous"] = (provider, model)
     return routes
 
 
@@ -425,7 +432,7 @@ def route_resolves(provider: str, model: str) -> bool:
         if isinstance(resolved, dict):
             # Some API-key providers return a structural route with an empty key;
             # that is not a usable authenticated route.
-            if provider in {"gemini", "anthropic", "openrouter", "nous", "opencode-go", "openai-codex"}:
+            if provider in {"gemini", "anthropic", "openrouter", "opencode-go", "openai-codex", "alibaba-token-plan"}:
                 return bool(str(resolved.get("api_key") or "").strip())
         return True
     except Exception:
@@ -461,7 +468,6 @@ def apply_route_availability(providers: list[dict]) -> None:
 def apply_confirmed_quota(providers: list[dict]) -> None:
     codex_headroom, codex_secondary, codex_tier, codex_reset_at = fetch_codex_headroom()
     anthropic_headroom, anthropic_secondary, anthropic_reset_at = fetch_anthropic_headroom()
-    nous_headroom, nous_tier, nous_reset_at = fetch_nous_headroom()
     opencode_go_headroom, opencode_go_secondary, opencode_go_tier, opencode_go_reset_at = fetch_opencode_go_headroom()
 
     quota_updates: dict[str, dict[str, Any]] = {}
@@ -483,15 +489,6 @@ def apply_confirmed_quota(providers: list[dict]) -> None:
             "reset_at_epoch_s": anthropic_reset_at,
             "last_used_age_s": 0,
         }
-    if nous_headroom is not None:
-        quota_updates["nous"] = {
-            "state": "confirmed",
-            "headroom": nous_headroom,
-            "secondary_headroom": None,
-            "tier_label": nous_tier or PROVIDER_PLAN["nous"]["tier_label"],
-            "reset_at_epoch_s": nous_reset_at,
-            "last_used_age_s": 0,
-        }
     if opencode_go_headroom is not None:
         quota_updates["opencode-go"] = {
             "state": "confirmed",
@@ -506,6 +503,23 @@ def apply_confirmed_quota(providers: list[dict]) -> None:
         update = quota_updates.get(provider["id"])
         if update:
             provider.update(update)
+
+
+def apply_alibaba_readiness(providers: list[dict]) -> None:
+    """Show the Alibaba Token Plan row as inferred READY from a live catalog probe.
+
+    Reachability is not quota: headroom stays None so the renderer shows READY
+    without a percentage or gauge. A failed probe leaves the row unknown.
+    """
+    for provider in providers:
+        if provider["id"] != "alibaba-token-plan" or provider.get("state") not in {"unknown", None, ""}:
+            continue
+        if fetch_alibaba_reachability():
+            provider["state"] = "inferred"
+            provider["headroom"] = None
+            provider["secondary_headroom"] = None
+            provider["tier_label"] = PROVIDER_PLAN["alibaba-token-plan"]["tier_label"]
+            provider["last_used_age_s"] = 0
 
 
 def build_providers(now: float, counts: dict[str, dict]) -> tuple[list[dict], str]:
@@ -651,8 +665,12 @@ def main() -> int:
     providers, active_id = build_providers(now, counts)
 
     # Prefer real provider/account quota signals. This restores the
-    # percentage rail Brian expects for ChatGPT/Codex, Claude, and Gemini.
+    # percentage rail Brian expects for ChatGPT/Codex, Claude, and OpenCode Go.
     apply_confirmed_quota(providers)
+
+    # Alibaba Token Plan has no quota denominator; a live catalog probe shows
+    # the row as inferred READY without inventing a percentage.
+    apply_alibaba_readiness(providers)
 
     # Fallback only: ccusage estimates Claude Code blocks when the Anthropic
     # OAuth usage endpoint is unavailable. Do not overwrite confirmed usage.

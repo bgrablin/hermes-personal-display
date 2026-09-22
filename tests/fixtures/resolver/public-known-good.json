@@ -34,7 +34,7 @@
     "providers": [
       {"id": "openai-codex", "label": "CHATGPT", "tier_label": "PROLITE", "rank": 1, "state": "confirmed", "headroom": 0.82, "secondary_headroom": 0.75, "reachable": true, "last_used_age_s": 0, "stale_age_s": 0},
       {"id": "anthropic", "label": "CLAUDE", "tier_label": "MAX", "rank": 2, "state": "confirmed", "headroom": 0.93, "secondary_headroom": 0.88, "reachable": true, "last_used_age_s": 120, "stale_age_s": 0},
-      {"id": "google-gemini-cli", "label": "GEMINI", "tier_label": "STD", "rank": 3, "state": "confirmed", "headroom": 0.91, "secondary_headroom": 0.91, "reachable": true, "last_used_age_s": 360, "stale_age_s": 0},
+      {"id": "alibaba-token-plan", "label": "ALIBABA", "tier_label": "STD", "rank": 3, "state": "confirmed", "headroom": 0.91, "secondary_headroom": 0.91, "reachable": true, "last_used_age_s": 360, "stale_age_s": 0},
       {"id": "opencode-go", "label": "OCGO", "tier_label": "SUB", "rank": 4, "state": "confirmed", "headroom": 0.87, "secondary_headroom": 0.87, "reachable": true, "last_used_age_s": 600, "stale_age_s": 0}
     ]
   },

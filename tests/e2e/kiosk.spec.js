@@ -555,7 +555,7 @@ test.describe('Hermes kiosk smoke and visual regression anchors', () => {
             providers: [
               { id: 'openai-codex', label: 'CHATGPT', state: 'confirmed', headroom: 0.76, reachable: true },
               { id: 'anthropic', label: 'CLAUDE', state: 'inferred', headroom: 0.54, reachable: true },
-              { id: 'google-gemini-cli', label: 'GEMINI', state: 'stale', headroom: 0.25, reachable: true, stale_age_s: 670 },
+              { id: 'alibaba-token-plan', label: 'ALIBABA', state: 'stale', headroom: 0.25, reachable: true, stale_age_s: 670 },
               { id: 'opencode-go', label: 'OCGO', state: 'unknown', headroom: null, reachable: true },
             ],
           },
@@ -899,7 +899,7 @@ test.describe('Hermes kiosk smoke and visual regression anchors', () => {
         trackOpacity: Number.parseFloat(getComputedStyle(node.querySelector('.cb-route-track')).opacity),
       };
     }));
-    expect(snapshot.map((row) => row.label)).toEqual(['CHATGPT', 'CLAUDE', 'GEMINI', 'OCGO', 'XAI']);
+    expect(snapshot.map((row) => row.label)).toEqual(['CHATGPT', 'CLAUDE', 'ALIBABA', 'OCGO', 'XAI']);
     for (const row of snapshot) {
       expect(row).toMatchObject({ value: 'UNK', glyph: '○', state: 'unknown', active: 'false', headroomTier: 'none', collapsed: 'true' });
       expect(row.rowOpacity).toBeGreaterThan(.75); // Unknown stays readable without claiming headroom.
@@ -939,11 +939,11 @@ test.describe('Hermes kiosk smoke and visual regression anchors', () => {
             route_rail: {
               as_of_ms: Date.now(),
               age_seconds: 0,
-              active_provider_id: 'google-gemini-cli',
+              active_provider_id: 'alibaba-token-plan',
               providers: [
                 { id: 'openai-codex', label: 'CHATGPT', tier_label: 'PRO', state: 'confirmed', headroom: 0.79, reachable: true },
                 { id: 'anthropic', label: 'CLAUDE', tier_label: 'MAX', state: 'confirmed', headroom: 0.95, reset_at_epoch_s: Date.now() / 1000 + 10_800, reachable: true },
-                { id: 'google-gemini-cli', label: 'GEMINI', tier_label: 'CLI', state: 'confirmed', headroom: 1.0, reachable: true },
+                { id: 'alibaba-token-plan', label: 'ALIBABA', tier_label: 'TOKEN PLAN', state: 'confirmed', headroom: 1.0, reachable: true },
                 { id: 'opencode-go', label: 'OCGO', tier_label: 'GO', state: 'confirmed', headroom: 0.7, secondary_headroom: 0.9, reset_at_epoch_s: Date.now() / 1000 + 900_000, reachable: true },
                 { id: 'xai-oauth', label: 'XAI', tier_label: 'SUPERGROK', state: 'inferred', headroom: null, reachable: true },
               ],
@@ -1028,7 +1028,7 @@ test.describe('Hermes kiosk smoke and visual regression anchors', () => {
               providers: [
                 { id: 'openai-codex', label: 'CHATGPT', state: 'unknown', headroom: null, reachable: true },
                 { id: 'anthropic', label: 'CLAUDE', state: 'unknown', headroom: null, reachable: true },
-                { id: 'google-gemini-cli', label: 'GEMINI', state: 'unknown', headroom: null, reachable: true },
+                { id: 'alibaba-token-plan', label: 'ALIBABA', state: 'unknown', headroom: null, reachable: true },
                 { id: 'opencode-go', label: 'OCGO', tier_label: 'GO', state: 'confirmed', headroom: 0.55, secondary_headroom: 0.8, reachable: true },
                 { id: 'xai-oauth', label: 'XAI', state: 'unknown', headroom: null, reachable: true },
               ],
@@ -1075,7 +1075,7 @@ test.describe('Hermes kiosk smoke and visual regression anchors', () => {
           providers: [
             { id: 'openai-codex', label: 'CHATGPT', tier_label: 'PRO', state: 'confirmed', headroom: 0.40, reachable: true },
             { id: 'anthropic', label: 'CLAUDE', tier_label: 'MAX', state: 'confirmed', headroom: claudeHeadroom, reachable: true },
-            { id: 'google-gemini-cli', label: 'GEMINI', tier_label: 'CLI', state: 'inferred', headroom: 0.55, reachable: true },
+            { id: 'alibaba-token-plan', label: 'ALIBABA', tier_label: 'TOKEN PLAN', state: 'inferred', headroom: 0.55, reachable: true },
             { id: 'opencode-go', label: 'OCGO', tier_label: '', state: 'unknown', headroom: null, reachable: true },
           ],
         },

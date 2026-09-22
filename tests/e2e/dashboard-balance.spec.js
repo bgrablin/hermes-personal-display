@@ -205,7 +205,7 @@ test('provider marks sit before each name and inherit the route state color', as
     providers: [
       { id: 'openai-codex', label: 'CHATGPT', state: polls < 2 ? 'confirmed' : 'error', headroom: 0.76, reachable: true },
       { id: 'anthropic', label: 'CLAUDE', state: 'inferred', headroom: 0.54, reachable: true },
-      { id: 'google', label: 'GEMINI', state: 'stale', headroom: 0.25, reachable: true, stale_age_s: 670 },
+      { id: 'alibaba-token-plan', label: 'ALIBABA', state: 'stale', headroom: 0.25, reachable: true, stale_age_s: 670 },
       { id: 'opencode-go', label: 'OCGO', state: 'unknown', headroom: null, reachable: true },
       { id: 'xai-oauth', label: 'XAI', state: 'disabled', headroom: null, reachable: false },
     ],
@@ -227,7 +227,7 @@ test('provider marks sit before each name and inherit the route state color', as
       iconGap: label.getBoundingClientRect().left - icon.getBoundingClientRect().right,
     };
   }));
-  expect(marks.map(mark => mark.icon)).toEqual(['✦', '✧', '✺', '◆', '𝕏']);
+  expect(marks.map(mark => mark.icon)).toEqual(['✦', '✧', '❖', '◆', '𝕏']);
   for (const mark of marks) {
     expect(mark.iconBeforeLabel).toBe(true);
     expect(mark.iconColor).toBe(mark.rowColor);

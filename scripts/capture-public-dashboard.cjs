@@ -58,7 +58,7 @@ function publicState() {
         providers: [
           { id: 'openai-codex', label: 'CHATGPT', tier_label: 'DEMO', rank: 1, state: 'confirmed', headroom: 0.72, reachable: true },
           { id: 'anthropic', label: 'CLAUDE', tier_label: 'DEMO', rank: 2, state: 'confirmed', headroom: 0.84, reachable: true },
-          { id: 'google', label: 'GEMINI', tier_label: 'DEMO', rank: 3, state: 'confirmed', headroom: 0.63, reachable: true },
+          { id: 'alibaba-token-plan', label: 'ALIBABA', tier_label: 'DEMO', rank: 3, state: 'confirmed', headroom: 0.63, reachable: true },
           { id: 'opencode-go', label: 'OCGO', tier_label: 'DEMO', rank: 4, state: 'inferred', reachable: true },
           { id: 'xai-oauth', label: 'XAI', tier_label: '', rank: 5, state: 'unknown', headroom: null, reachable: false },
         ],

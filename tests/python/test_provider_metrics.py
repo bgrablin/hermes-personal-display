@@ -337,7 +337,6 @@ def test_confirmed_opencode_go_usage_overrides_unknown_state(monkeypatch: pytest
     reset_at = time.time() + 86_400
     monkeypatch.setattr(updater, "fetch_codex_headroom", lambda: (None, None, None, None))
     monkeypatch.setattr(updater, "fetch_anthropic_headroom", lambda: (None, None, None))
-    monkeypatch.setattr(updater, "fetch_nous_headroom", lambda: (None, None, None))
     monkeypatch.setattr(
         updater,
         "fetch_opencode_go_headroom",
@@ -354,19 +353,25 @@ def test_confirmed_opencode_go_usage_overrides_unknown_state(monkeypatch: pytest
     assert go["reset_at_epoch_s"] == reset_at
 
 
-def test_nous_portal_usage_becomes_confirmed_headroom(monkeypatch: pytest.MonkeyPatch) -> None:
-    reset_at = time.time() + 86_400
+def test_alibaba_reachable_route_becomes_inferred_ready_without_headroom(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
     providers, _ = updater.build_providers(time.time(), {})
-    monkeypatch.setattr(updater, "fetch_codex_headroom", lambda: (None, None, None, None))
-    monkeypatch.setattr(updater, "fetch_anthropic_headroom", lambda: (None, None, None))
-    monkeypatch.setattr(updater, "fetch_nous_headroom", lambda: (0.37, "PLUS", reset_at))
-    monkeypatch.setattr(updater, "fetch_opencode_go_headroom", lambda: (None, None, None, None))
-    updater.apply_confirmed_quota(providers)
-    nous = next(row for row in providers if row["id"] == "nous")
-    assert nous["state"] == "confirmed"
-    assert nous["headroom"] == pytest.approx(0.37)
-    assert nous["tier_label"] == "PLUS"
-    assert nous["reset_at_epoch_s"] == reset_at
+    monkeypatch.setattr(updater, "fetch_alibaba_reachability", lambda: True)
+    updater.apply_alibaba_readiness(providers)
+    alibaba = next(row for row in providers if row["id"] == "alibaba-token-plan")
+    assert alibaba["state"] == "inferred"
+    assert alibaba["headroom"] is None
+    assert alibaba["tier_label"] == "TOKEN PLAN"
+
+
+def test_alibaba_unreachable_route_stays_unknown(monkeypatch: pytest.MonkeyPatch) -> None:
+    providers, _ = updater.build_providers(time.time(), {})
+    monkeypatch.setattr(updater, "fetch_alibaba_reachability", lambda: False)
+    updater.apply_alibaba_readiness(providers)
+    alibaba = next(row for row in providers if row["id"] == "alibaba-token-plan")
+    assert alibaba["state"] == "unknown"
+    assert alibaba["headroom"] is None
 
 
 def test_anthropic_confirmed_headroom_preserves_primary_reset(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -374,7 +379,6 @@ def test_anthropic_confirmed_headroom_preserves_primary_reset(monkeypatch: pytes
     providers, _ = updater.build_providers(time.time(), {})
     monkeypatch.setattr(updater, "fetch_codex_headroom", lambda: (None, None, None, None))
     monkeypatch.setattr(updater, "fetch_anthropic_headroom", lambda: (0.25, 0.8, reset_at))
-    monkeypatch.setattr(updater, "fetch_nous_headroom", lambda: (None, None, None))
     monkeypatch.setattr(updater, "fetch_opencode_go_headroom", lambda: (None, None, None, None))
     updater.apply_confirmed_quota(providers)
     claude = next(row for row in providers if row["id"] == "anthropic")
