@@ -52,10 +52,10 @@ PROVIDER_PLAN = {
         "request_cap": 800,
     },
     "alibaba-token-plan": {
-        # Alibaba Cloud Model Studio Token Plan ($10/mo flat-token tier). No
-        # machine-readable subscription quota endpoint exists; the row shows
-        # route readiness from a bounded catalog reachability probe and never
-        # invents percentage headroom.
+        # Alibaba Cloud Model Studio Token Plan ($10/mo flat-token tier). The
+        # plan key is contractually interactive-tool-only and Credits usage is
+        # visible only behind the console login, so the row shows local
+        # credential readiness and never invents percentage headroom.
         "label": "ALIBABA",
         "tier_label": "TOKEN PLAN",
         "rank": 3,
@@ -297,12 +297,13 @@ def fetch_anthropic_headroom() -> tuple[float | None, float | None, float | None
         return None, None, None
 
 
-def fetch_alibaba_reachability() -> bool:
-    """Return whether the Alibaba Token Plan route answers a bounded catalog probe.
+def alibaba_route_configured() -> bool:
+    """Return whether a Token Plan credential is configured locally.
 
-    Read-only GET /models against the pooled credential's base URL. This proves
-    route readiness only; there is no quota denominator, so the caller must keep
-    headroom null and render the row as inferred READY. Fails closed to False.
+    Deliberately makes NO network call: the Token Plan terms restrict the plan
+    API key to interactive coding/agent tool use, so an unattended timer must
+    never send it anywhere. A configured pooled credential is readiness
+    evidence only; headroom stays None and the row renders as inferred READY.
     """
     try:
         _load_hermes_env_and_path()
@@ -315,23 +316,12 @@ def fetch_alibaba_reachability() -> bool:
             entry = entries[0] if entries else None
         if entry is None:
             return False
-        key = str(getattr(entry, "runtime_api_key", "") or "").strip()
-        base = str(getattr(entry, "runtime_base_url", "") or "").strip().rstrip("/")
-        if not key or not base:
-            return False
-        request = urllib.request.Request(
-            f"{base}/models",
-            headers={
-                "Authorization": f"Bearer {key}",
-                "Accept": "application/json",
-                "User-Agent": "hermes-personal-display",
-            },
-            method="GET",
+        return bool(
+            str(getattr(entry, "runtime_api_key", "") or "").strip()
+            and str(getattr(entry, "runtime_base_url", "") or "").strip()
         )
-        with urllib.request.urlopen(request, timeout=12.0) as response:
-            return 200 <= int(getattr(response, "status", 0) or 0) < 300
     except Exception as exc:
-        print(f"alibaba reachability probe failed: {type(exc).__name__}: {exc}", file=sys.stderr)
+        print(f"alibaba credential check failed: {type(exc).__name__}: {exc}", file=sys.stderr)
         return False
 
 
@@ -506,15 +496,16 @@ def apply_confirmed_quota(providers: list[dict]) -> None:
 
 
 def apply_alibaba_readiness(providers: list[dict]) -> None:
-    """Show the Alibaba Token Plan row as inferred READY from a live catalog probe.
+    """Show the Alibaba Token Plan row as inferred READY when a credential exists.
 
-    Reachability is not quota: headroom stays None so the renderer shows READY
-    without a percentage or gauge. A failed probe leaves the row unknown.
+    Local-only check; the plan key never leaves this host from the timer.
+    Headroom stays None so the renderer shows READY without a percentage or
+    gauge. No configured credential leaves the row unknown.
     """
     for provider in providers:
         if provider["id"] != "alibaba-token-plan" or provider.get("state") not in {"unknown", None, ""}:
             continue
-        if fetch_alibaba_reachability():
+        if alibaba_route_configured():
             provider["state"] = "inferred"
             provider["headroom"] = None
             provider["secondary_headroom"] = None
@@ -668,8 +659,8 @@ def main() -> int:
     # percentage rail Brian expects for ChatGPT/Codex, Claude, and OpenCode Go.
     apply_confirmed_quota(providers)
 
-    # Alibaba Token Plan has no quota denominator; a live catalog probe shows
-    # the row as inferred READY without inventing a percentage.
+    # Alibaba Token Plan has no quota denominator and its key must not be
+    # sent by unattended timers; local credential presence shows READY.
     apply_alibaba_readiness(providers)
 
     # Fallback only: ccusage estimates Claude Code blocks when the Anthropic

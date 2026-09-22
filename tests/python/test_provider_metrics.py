@@ -353,11 +353,11 @@ def test_confirmed_opencode_go_usage_overrides_unknown_state(monkeypatch: pytest
     assert go["reset_at_epoch_s"] == reset_at
 
 
-def test_alibaba_reachable_route_becomes_inferred_ready_without_headroom(
+def test_alibaba_configured_route_becomes_inferred_ready_without_headroom(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     providers, _ = updater.build_providers(time.time(), {})
-    monkeypatch.setattr(updater, "fetch_alibaba_reachability", lambda: True)
+    monkeypatch.setattr(updater, "alibaba_route_configured", lambda: True)
     updater.apply_alibaba_readiness(providers)
     alibaba = next(row for row in providers if row["id"] == "alibaba-token-plan")
     assert alibaba["state"] == "inferred"
@@ -365,9 +365,9 @@ def test_alibaba_reachable_route_becomes_inferred_ready_without_headroom(
     assert alibaba["tier_label"] == "TOKEN PLAN"
 
 
-def test_alibaba_unreachable_route_stays_unknown(monkeypatch: pytest.MonkeyPatch) -> None:
+def test_alibaba_unconfigured_route_stays_unknown(monkeypatch: pytest.MonkeyPatch) -> None:
     providers, _ = updater.build_providers(time.time(), {})
-    monkeypatch.setattr(updater, "fetch_alibaba_reachability", lambda: False)
+    monkeypatch.setattr(updater, "alibaba_route_configured", lambda: False)
     updater.apply_alibaba_readiness(providers)
     alibaba = next(row for row in providers if row["id"] == "alibaba-token-plan")
     assert alibaba["state"] == "unknown"
