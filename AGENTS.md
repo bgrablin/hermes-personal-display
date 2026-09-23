@@ -20,6 +20,7 @@ This repository is a local browser kiosk and ambient status display for Hermes A
 # Tests and verification
 
 - The default completion gate is `npm test`; it runs unit, stack, contract-freshness, Python server, publication-safety, and build-id checks.
+- `NODE_ENV=production` in the ambient environment makes `npm install` (and `hermes verify`'s bootstrap) prune devDependencies, so the gate dies at `test:unit` with exit 127 and vitest missing. Run it with `env -u NODE_ENV npm test`, or restore the tree with `env -u NODE_ENV npm ci`.
 - For UI or runtime changes, also run `npx playwright install --with-deps chromium` when needed and `npm run test:e2e -- --workers=1`; `npm run test:all` is the full local gate.
 - Run focused guards as relevant: `npm run check:client-events`, `npm run check:kiosk`, `npm run check:augury-feed`, and `./scripts/verify-project.sh`.
 - `npm run review:presence` records the synthetic visual rehearsal under `test-results/presence/`.
