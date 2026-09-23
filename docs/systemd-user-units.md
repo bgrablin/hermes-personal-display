@@ -73,6 +73,28 @@ Do not confuse `launch-kiosk.sh` with the live `xsession-minix-kiosk.sh` path. T
    the session has expired, the row degrades to `READY · QUOTA NOT PUBLISHED`
    instead of a guessed percentage; re-export the console cookies to restore it.
 
+   The same refresh publishes confirmed provider headroom to Prometheus for a
+   dashboard. The `50-provider-quota-metrics.conf` drop-in runs
+   `scripts/export_provider_quota_metrics.py` as an `ExecStartPost`, writing
+   `/var/lib/node_exporter/textfile/hermes_provider_quota.prom` (override with
+   `HERMES_PROVIDER_QUOTA_TEXTFILE`). Serve the exporter on a private interface,
+   allow only the Prometheus collector through the host firewall, and configure
+   a dedicated scrape job in your target inventory. A provider with no confirmed
+   reading exports `hermes_provider_quota_confirmed 0` and no percentage: a
+   missing number must never render as a real quota. Alert on
+   `hermes_provider_route_rail_age_seconds` to catch a frozen snapshot.
+
+   Install that drop-in once per host (the base unit stays unchanged):
+
+   ```bash
+   mkdir -p ~/.config/systemd/user/hermes-route-rail-refresh.service.d
+   cat > ~/.config/systemd/user/hermes-route-rail-refresh.service.d/50-provider-quota-metrics.conf <<'EOF'
+   [Service]
+   ExecStartPost=/usr/bin/python3 %h/projects/hermes-personal-display/scripts/export_provider_quota_metrics.py
+   EOF
+   systemctl --user daemon-reload
+   ```
+
    The two `HERMES_DISPLAY_*` integration values are optional. The snapshot
    directory must be shared with each enabled observer when Hermes and the
    display server use different homes. The RPC path must name a separate
