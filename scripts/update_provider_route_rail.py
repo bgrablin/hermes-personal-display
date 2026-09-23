@@ -270,35 +270,123 @@ def fetch_codex_headroom() -> tuple[float | None, float | None, str | None, floa
         return None, None, None, None
 
 
+ANTHROPIC_USAGE_URL = "https://api.anthropic.com/api/oauth/usage"
+ANTHROPIC_PROBE_TIMEOUT_S = 12.0
+ANTHROPIC_MAX_PROBE_ATTEMPTS = 4
+
+
+def _anthropic_pool_tokens() -> list[str]:
+    """Pooled Anthropic OAuth tokens, highest priority first. Values are never logged."""
+    from agent.credential_pool import load_pool
+
+    pool = load_pool("anthropic")
+    entries = list(getattr(pool, "_entries", None) or []) if pool is not None else []
+    if not entries and pool is not None:
+        entry = pool.peek()
+        entries = [entry] if entry else []
+    tokens: list[str] = []
+    for entry in sorted(entries, key=lambda item: getattr(item, "priority", 0)):
+        token = str(getattr(entry, "runtime_api_key", "") or getattr(entry, "access_token", "") or "").strip()
+        if token and token not in tokens:
+            tokens.append(token)
+    return tokens
+
+
+def _anthropic_usage_window(payload: dict[str, Any], name: str) -> tuple[float | None, float | None]:
+    """Return (headroom, reset_at_epoch_s) for one usage window, or (None, None)."""
+    node = payload.get(name)
+    if not isinstance(node, dict):
+        return None, None
+    used = node.get("utilization")
+    if isinstance(used, bool) or not isinstance(used, (int, float)):
+        return None, None
+    used = float(used)
+    if 0.0 <= used <= 1.0:
+        used *= 100.0  # the endpoint has shipped both fraction and percent scales
+    if not math.isfinite(used) or used < 0.0 or used > 100.0:
+        return None, None
+    reset_at = None
+    raw_reset = str(node.get("resets_at") or "").strip()
+    if raw_reset:
+        try:
+            reset_at = dt.datetime.fromisoformat(raw_reset.replace("Z", "+00:00")).timestamp()
+        except ValueError:
+            reset_at = None
+    return max(0.0, min(1.0, 1.0 - used / 100.0)), reset_at
+
+
+def _parse_anthropic_usage(payload: dict[str, Any]) -> tuple[float | None, float | None, float | None]:
+    """Map an oauth usage payload to (5h headroom, weekly headroom, primary reset)."""
+    primary, primary_reset = _anthropic_usage_window(payload, "five_hour")
+    secondary, _ = _anthropic_usage_window(payload, "seven_day")
+    return primary, secondary, primary_reset
+
+
 def fetch_anthropic_headroom() -> tuple[float | None, float | None, float | None]:
-    """Return confirmed Anthropic five-hour/weekly headroom and primary reset."""
+    """Return confirmed Anthropic five-hour/weekly headroom and primary reset.
+
+    Every pooled OAuth credential is tried in priority order and the first usable
+    answer wins. A single rate-limited (429) or expired top-priority entry must
+    not blank the row while a healthy lower-priority credential exists, which is
+    how the CLAUDE row used to disappear overnight.
+    """
     try:
         _load_hermes_env_and_path()
-        from agent.account_usage import fetch_account_usage
-
-        snap = fetch_account_usage("anthropic")
-        if not snap or not snap.windows:
-            return None, None, None
-        primary = None
-        primary_reset = None
-        secondary = None
-        for window in snap.windows:
-            label = str(window.label or "").lower()
-            if window.used_percent is None:
+        tokens = _anthropic_pool_tokens()[:ANTHROPIC_MAX_PROBE_ATTEMPTS]
+        failures: list[str] = []
+        for token in tokens:
+            try:
+                request = urllib.request.Request(
+                    ANTHROPIC_USAGE_URL,
+                    headers={
+                        "Authorization": f"Bearer {token}",
+                        "Accept": "application/json",
+                        "anthropic-beta": "oauth-2025-04-20",
+                        "User-Agent": "hermes-personal-display",
+                    },
+                )
+                with urllib.request.urlopen(request, timeout=ANTHROPIC_PROBE_TIMEOUT_S) as response:
+                    decoded = json.loads(response.read().decode("utf-8", "replace")) or {}
+            except Exception as exc:
+                failures.append(type(exc).__name__)
                 continue
-            remaining = max(0.0, min(1.0, 1.0 - float(window.used_percent) / 100.0))
-            if primary is None and ("session" in label or "five" in label):
-                primary = remaining
-                primary_reset = window.reset_at.timestamp() if window.reset_at else None
-            elif secondary is None and "week" in label:
-                secondary = remaining
-        if primary is None and snap.windows[0].used_percent is not None:
-            primary = max(0.0, min(1.0, 1.0 - float(snap.windows[0].used_percent) / 100.0))
-            primary_reset = snap.windows[0].reset_at.timestamp() if snap.windows[0].reset_at else None
-        return primary, secondary, primary_reset
+            primary, secondary, primary_reset = _parse_anthropic_usage(decoded if isinstance(decoded, dict) else {})
+            if primary is not None:
+                return primary, secondary, primary_reset
+            failures.append("no-windows")
+        if failures:
+            print(f"anthropic quota probe: no credential answered ({', '.join(failures)})", file=sys.stderr)
+            return None, None, None
+        return _anthropic_headroom_from_hermes_snapshot()
     except Exception as exc:
         print(f"anthropic quota probe failed: {type(exc).__name__}: {exc}", file=sys.stderr)
         return None, None, None
+
+
+def _anthropic_headroom_from_hermes_snapshot() -> tuple[float | None, float | None, float | None]:
+    """Last resort when the credential pool exposes no token: Hermes' own resolution."""
+    from agent.account_usage import fetch_account_usage
+
+    snap = fetch_account_usage("anthropic")
+    if not snap or not snap.windows:
+        return None, None, None
+    primary = None
+    primary_reset = None
+    secondary = None
+    for window in snap.windows:
+        label = str(window.label or "").lower()
+        if window.used_percent is None:
+            continue
+        remaining = max(0.0, min(1.0, 1.0 - float(window.used_percent) / 100.0))
+        if primary is None and ("session" in label or "five" in label):
+            primary = remaining
+            primary_reset = window.reset_at.timestamp() if window.reset_at else None
+        elif secondary is None and "week" in label:
+            secondary = remaining
+    if primary is None and snap.windows[0].used_percent is not None:
+        primary = max(0.0, min(1.0, 1.0 - float(snap.windows[0].used_percent) / 100.0))
+        primary_reset = snap.windows[0].reset_at.timestamp() if snap.windows[0].reset_at else None
+    return primary, secondary, primary_reset
 
 
 def alibaba_route_configured() -> bool:
