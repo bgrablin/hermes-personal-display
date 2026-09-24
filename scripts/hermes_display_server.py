@@ -548,6 +548,9 @@ def load_provider_route_rail() -> dict:
         # countdown when a provider is exhausted at 0 % headroom.
         if isinstance(item.get("reset_at_epoch_s"), (int, float)):
             row["reset_at_epoch_s"] = float(item["reset_at_epoch_s"])
+        if (provider_id == "anthropic" and state == "unknown" and not stale_route
+                and item.get("quota_source_state") == "rate_limited"):
+            row["quota_source_state"] = "rate_limited"
         safe["providers"].append(row)
     safe["providers"].sort(key=lambda row: row.get("rank", 99))
     active = str(raw.get("active_provider_id") or "")[:32]

@@ -24,6 +24,7 @@ METRIC_HELP = {
     "hermes_provider_quota_remaining_percent": "Share of the provider quota still available (0-100) from a confirmed reading.",
     "hermes_provider_quota_secondary_remaining_percent": "Share of the provider secondary (weekly) quota still available (0-100).",
     "hermes_provider_quota_confirmed": "1 when the provider quota reading is confirmed, 0 when inferred or unknown.",
+    "hermes_provider_quota_probe_rate_limited": "1 when the quota metadata endpoint returned HTTP 429 and its probe is in cooldown; not a subscription-exhaustion signal.",
     "hermes_provider_quota_reset_timestamp_seconds": "Unix timestamp when the provider quota resets, when published.",
     "hermes_provider_route_rail_active": "1 for the provider currently selected on the route rail.",
     "hermes_provider_route_rail_observed_timestamp_seconds": "Unix timestamp of the route-rail snapshot these values came from.",
@@ -82,6 +83,10 @@ def render_textfile(artifact: dict, now: float | None = None) -> str:
         ]
         confirmed = str(provider.get("state") or "") == "confirmed"
         samples["hermes_provider_quota_confirmed"].append(f"hermes_provider_quota_confirmed{_labels(base)} {1 if confirmed else 0}")
+        if not confirmed and provider.get("quota_source_state") == "rate_limited":
+            samples["hermes_provider_quota_probe_rate_limited"].append(
+                f"hermes_provider_quota_probe_rate_limited{_labels(base)} 1"
+            )
         if confirmed:
             remaining = _percent(provider.get("headroom"))
             if remaining is not None:

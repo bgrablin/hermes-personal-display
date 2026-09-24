@@ -22,6 +22,7 @@ import re
 import subprocess
 import sys
 import time
+import urllib.error
 import urllib.parse
 import urllib.request
 import uuid
@@ -273,6 +274,17 @@ def fetch_codex_headroom() -> tuple[float | None, float | None, str | None, floa
 ANTHROPIC_USAGE_URL = "https://api.anthropic.com/api/oauth/usage"
 ANTHROPIC_PROBE_TIMEOUT_S = 12.0
 ANTHROPIC_MAX_PROBE_ATTEMPTS = 4
+ANTHROPIC_429_BACKOFF_S = 1800
+
+
+def anthropic_probe_rate_limited() -> bool:
+    """Whether a recent 429 is holding off this read-only quota probe."""
+    try:
+        path = HOME / ".hermes/state/anthropic-quota-probe.json"
+        retry_after = json.loads(path.read_text(encoding="utf-8")).get("retry_after", 0)
+        return isinstance(retry_after, (int, float)) and not isinstance(retry_after, bool) and retry_after > time.time()
+    except (OSError, ValueError, AttributeError):
+        return False
 
 
 def _anthropic_pool_tokens() -> list[str]:
@@ -331,9 +343,13 @@ def fetch_anthropic_headroom() -> tuple[float | None, float | None, float | None
     how the CLAUDE row used to disappear overnight.
     """
     try:
+        state_path = HOME / ".hermes/state/anthropic-quota-probe.json"
+        if anthropic_probe_rate_limited():
+            return None, None, None
         _load_hermes_env_and_path()
         tokens = _anthropic_pool_tokens()[:ANTHROPIC_MAX_PROBE_ATTEMPTS]
         failures: list[str] = []
+        rate_limited = False
         for token in tokens:
             try:
                 request = urllib.request.Request(
@@ -347,14 +363,26 @@ def fetch_anthropic_headroom() -> tuple[float | None, float | None, float | None
                 )
                 with urllib.request.urlopen(request, timeout=ANTHROPIC_PROBE_TIMEOUT_S) as response:
                     decoded = json.loads(response.read().decode("utf-8", "replace")) or {}
+            except urllib.error.HTTPError as exc:
+                rate_limited |= exc.code == 429
+                failures.append(f"HTTP {exc.code}")
+                continue
             except Exception as exc:
                 failures.append(type(exc).__name__)
                 continue
             primary, secondary, primary_reset = _parse_anthropic_usage(decoded if isinstance(decoded, dict) else {})
             if primary is not None:
+                state_path.unlink(missing_ok=True)
                 return primary, secondary, primary_reset
             failures.append("no-windows")
         if failures:
+            if rate_limited:
+                state_path.parent.mkdir(parents=True, exist_ok=True)
+                temp_path = state_path.with_suffix(".tmp")
+                descriptor = os.open(temp_path, os.O_CREAT | os.O_TRUNC | os.O_WRONLY, 0o600)
+                with os.fdopen(descriptor, "w", encoding="utf-8") as stream:
+                    json.dump({"retry_after": time.time() + ANTHROPIC_429_BACKOFF_S}, stream)
+                os.replace(temp_path, state_path)
             print(f"anthropic quota probe: no credential answered ({', '.join(failures)})", file=sys.stderr)
             return None, None, None
         return _anthropic_headroom_from_hermes_snapshot()
@@ -725,6 +753,8 @@ def apply_confirmed_quota(providers: list[dict]) -> None:
         update = quota_updates.get(provider["id"])
         if update:
             provider.update(update)
+        elif provider["id"] == "anthropic" and anthropic_probe_rate_limited():
+            provider["quota_source_state"] = "rate_limited"
 
 
 def apply_alibaba_readiness(providers: list[dict]) -> None:

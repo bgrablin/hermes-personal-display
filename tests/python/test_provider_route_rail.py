@@ -214,6 +214,23 @@ def test_display_server_passes_route_reset_at_epoch_s(tmp_path: Path, monkeypatc
     assert rail["providers"][0]["reset_at_epoch_s"] == pytest.approx(reset_at)
 
 
+def test_display_server_passes_only_bounded_rate_limit_diagnostic(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    route_path = tmp_path / "provider_route_rail.json"
+    route_path.write_text(json.dumps({
+        "as_of_ms": int(time.time() * 1000),
+        "providers": [{
+            "id": "anthropic", "label": "CLAUDE", "rank": 2, "state": "unknown",
+            "headroom": None, "quota_source_state": "rate_limited", "secret": "must-not-pass",
+        }],
+    }), encoding="utf-8")
+    monkeypatch.setattr(server, "PROVIDER_ROUTE_RAIL_PATH", route_path)
+
+    row = server.load_provider_route_rail()["providers"][0]
+    assert row["state"] == "unknown" and row["headroom"] is None
+    assert row["quota_source_state"] == "rate_limited"
+    assert "secret" not in row
+
+
 def test_display_server_accepts_opencode_go_route_and_drops_unknown_fields(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:

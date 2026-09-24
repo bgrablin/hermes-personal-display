@@ -79,6 +79,18 @@ def test_unconfirmed_provider_publishes_no_percentage():
     assert 'provider="opencode-go"' not in "\n".join(primary_lines(body))
 
 
+def test_rate_limited_source_exports_diagnostic_without_fabricating_quota():
+    snapshot = artifact()
+    claude = snapshot["providers"][0]
+    claude.update(state="unknown", headroom=None, secondary_headroom=None, quota_source_state="rate_limited")
+    body = exporter.render_textfile(snapshot, now=1_790_000_060.0)
+    assert 'hermes_provider_quota_probe_rate_limited{provider="anthropic",label="CLAUDE",tier="max_5h_7d"} 1' in body
+    assert 'provider="anthropic"' not in "\n".join(primary_lines(body))
+    assert 'provider="anthropic"' not in "\n".join(
+        line for line in lines(body) if line.startswith("hermes_provider_quota_secondary_remaining_percent{")
+    )
+
+
 @pytest.mark.parametrize("bad", [None, 1.5, -0.2, True, "57"])
 def test_unusable_headroom_values_are_omitted(bad):
     snapshot = artifact()

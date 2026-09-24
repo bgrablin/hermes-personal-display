@@ -1027,7 +1027,7 @@ test.describe('Hermes kiosk smoke and visual regression anchors', () => {
               active_provider_id: '',
               providers: [
                 { id: 'openai-codex', label: 'CHATGPT', state: 'unknown', headroom: null, reachable: true },
-                { id: 'anthropic', label: 'CLAUDE', state: 'unknown', headroom: null, reachable: true },
+                { id: 'anthropic', label: 'CLAUDE', state: 'unknown', headroom: null, quota_source_state: 'rate_limited', reachable: true },
                 { id: 'alibaba-token-plan', label: 'ALIBABA', state: 'unknown', headroom: null, reachable: true },
                 { id: 'opencode-go', label: 'OCGO', tier_label: 'GO', state: 'confirmed', headroom: 0.55, secondary_headroom: 0.8, reachable: true },
                 { id: 'xai-oauth', label: 'XAI', state: 'unknown', headroom: null, reachable: true },
@@ -1046,6 +1046,9 @@ test.describe('Hermes kiosk smoke and visual regression anchors', () => {
     await expect(go).toHaveAttribute('data-has-headroom', 'true');
     await expect(go.locator('[data-route-value]')).toHaveText('55%');
     await expect(go.locator('[data-route-tier]')).toContainText('GO');
+    const claude = page.locator('.cb-route-row').nth(1);
+    await expect(claude.locator('[data-route-value]')).toHaveText('API 429');
+    await expect(claude.locator('[data-route-tier]')).toContainText('USAGE API LIMITED');
     await expect.poll(async () => go.evaluate((row) => ({
       track: Number.parseFloat(getComputedStyle(row.querySelector('.cb-route-track')).opacity),
       whisker: Number.parseFloat(getComputedStyle(row.querySelector('.cb-route-whisker')).opacity),

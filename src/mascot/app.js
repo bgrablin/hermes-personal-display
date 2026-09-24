@@ -2530,12 +2530,13 @@
       }
       setConceptBText(entry.icon, providerIcons[provider.id] || '○');
       setConceptBText(entry.label, safeDisplayText(provider.label || 'ROUTE', 8).toUpperCase());
+      const sourceLimited = state === 'unknown' && provider.id === 'anthropic' && provider.quota_source_state === 'rate_limited';
       const unknownRouteCopy = state === 'disabled' ? 'OFF' : state === 'error' ? 'ERR' : 'UNK';
       const creditsUsedSummary = knownCreditsUsed ? `${formatRouteCredits(creditsUsed)}` : '';
       const routeValue = knownHeadroom
         ? `${state === 'inferred' ? '~' : ''}${Math.round(clamped * 100)}%`
         : knownCreditsUsed ? creditsUsedSummary
-          : state === 'inferred' && provider.reachable !== false ? 'READY' : unknownRouteCopy;
+          : state === 'inferred' && provider.reachable !== false ? 'READY' : sourceLimited ? 'API 429' : unknownRouteCopy;
       setConceptBText(entry.value, routeValue);
       const tier = safeDisplayText(provider.tier_label || '', 14).toUpperCase();
       const age = provider.stale_age_s != null ? formatRouteAge(provider.stale_age_s) : provider.last_used_age_s != null && idx === activeIndex ? formatRouteAge(provider.last_used_age_s) : '';
@@ -2543,7 +2544,7 @@
       const creditsContext = knownCreditsUsed
         ? `${creditsUsedSummary}${knownCreditsLimit ? `/${formatRouteCredits(creditsLimit)}` : ''} CR${knownCreditsLimit ? '' : ' USED'}`
         : '';
-      setConceptBText(entry.tier, collapsed ? '' : [resetCountdown, creditsContext, tier, age].filter(Boolean).join('  ·  '));
+      setConceptBText(entry.tier, collapsed ? '' : [sourceLimited ? 'USAGE API LIMITED' : resetCountdown, creditsContext, tier, age].filter(Boolean).join('  ·  '));
       setConceptBText(entry.glyph, glyphs[state] || '○');
     });
     setConceptBDataset(root, 'activeIndex', activeIndex >= 0 ? String(activeIndex) : 'none');

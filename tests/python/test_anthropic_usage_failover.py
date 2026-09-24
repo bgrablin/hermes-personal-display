@@ -3,6 +3,8 @@ from __future__ import annotations
 
 import json
 import sys
+import urllib.error
+from email.message import Message
 from pathlib import Path
 
 import pytest
@@ -73,6 +75,39 @@ def test_all_credentials_failing_degrades_to_none(monkeypatch: pytest.MonkeyPatc
         "token-b": {"unexpected": "shape"},
     })
     assert updater.fetch_anthropic_headroom() == (None, None, None)
+
+
+def test_quota_endpoint_429_backs_off_without_freezing_a_percentage(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    now = [1_790_256_800.0]
+    monkeypatch.setattr(updater.time, "time", lambda: now[0])
+    monkeypatch.setattr(updater, "HOME", tmp_path)
+    monkeypatch.setattr(updater, "_anthropic_pool_tokens", lambda: ["SECRET-TOKEN-VALUE"])
+    monkeypatch.setattr(updater, "_load_hermes_env_and_path", lambda: None)
+    attempts = []
+
+    def fake_urlopen(request, timeout):
+        attempts.append(request)
+        if len(attempts) == 1:
+            raise urllib.error.HTTPError(request.full_url, 429, "Rate limited", Message(), None)
+        return _Response({"five_hour": {"utilization": 25.0}, "seven_day": {"utilization": 10.0}})
+
+    monkeypatch.setattr(updater.urllib.request, "urlopen", fake_urlopen)
+    assert updater.fetch_anthropic_headroom() == (None, None, None)
+    now[0] += 240  # The next regular rail refresh must not hammer this endpoint.
+    assert updater.fetch_anthropic_headroom() == (None, None, None)
+    assert len(attempts) == 1
+    state = (tmp_path / ".hermes/state/anthropic-quota-probe.json").read_text()
+    assert "SECRET-TOKEN-VALUE" not in state
+    monkeypatch.setattr(updater, "fetch_codex_headroom", lambda: (None, None, None, None))
+    monkeypatch.setattr(updater, "fetch_opencode_go_headroom", lambda: (None, None, None, None))
+    rows = [{"id": "anthropic", "state": "unknown", "headroom": None}]
+    updater.apply_confirmed_quota(rows)
+    assert rows[0]["quota_source_state"] == "rate_limited"
+    now[0] += 1800
+    assert updater.fetch_anthropic_headroom()[:2] == pytest.approx((0.75, 0.9))
+    assert len(attempts) == 2
 
 
 def test_pool_without_tokens_uses_the_hermes_snapshot_fallback(
