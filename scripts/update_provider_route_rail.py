@@ -49,7 +49,7 @@ PROVIDER_PLAN = {
     },
     "anthropic": {
         "label": "CLAUDE",
-        "tier_label": "MAX 5H/7D",
+        "tier_label": "5H/7D",
         "rank": 2,
         "window_minutes": 300,
         "request_cap": 800,

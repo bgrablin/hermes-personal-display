@@ -17,6 +17,12 @@ import update_provider_route_rail as updater  # noqa: E402
 import hermes_display_server as server  # noqa: E402
 
 
+def test_claude_route_plan_does_not_assert_a_subscription_tier() -> None:
+    providers, _ = updater.build_providers(1_000.0, {})
+    claude = next(row for row in providers if row["id"] == "anthropic")
+    assert claude["tier_label"] == "5H/7D"
+
+
 class _FakeEntry:
     runtime_api_key = "test-token"
     runtime_base_url = "https://chatgpt.com/backend-api/codex"
