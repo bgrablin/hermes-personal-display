@@ -334,13 +334,13 @@ def _parse_anthropic_usage(payload: dict[str, Any]) -> tuple[float | None, float
     windows = [payload.get(name) for name in ("five_hour", "seven_day")]
     # A weekly value above 1 disambiguates a five-hour reading of exactly 1:
     # it is 1% used, not a fully exhausted fractional window.
-    percent_scale = any(
-        isinstance(node, dict)
-        and isinstance(node.get("utilization"), (int, float))
-        and not isinstance(node["utilization"], bool)
-        and 1 < node["utilization"] <= 100
-        for node in windows
-    )
+    raw_values = (node.get("utilization") for node in windows if isinstance(node, dict))
+    used_values = [value for value in raw_values if isinstance(value, (int, float)) and not isinstance(value, bool)]
+    percent_scale = any(1 < value <= 100 for value in used_values)
+    if not percent_scale and any(0 < value <= 1 for value in used_values):
+        # A nonzero value at or below 1 can be a fraction or a percentage.
+        # With no other window establishing the scale, neither is confirmed.
+        return None, None, None
     primary, primary_reset = _anthropic_usage_window(payload, "five_hour", percent_scale=percent_scale)
     secondary, _ = _anthropic_usage_window(payload, "seven_day", percent_scale=percent_scale)
     return primary, secondary, primary_reset

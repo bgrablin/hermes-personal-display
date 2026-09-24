@@ -148,6 +148,14 @@ def test_percent_scale_one_percent_used_does_not_mean_exhausted() -> None:
     assert secondary == pytest.approx(0.60)
 
 
+@pytest.mark.parametrize("five_hour,seven_day", [(1.0, None), (0.5, 0.4)])
+def test_usage_scale_without_percent_evidence_stays_unknown(five_hour: float, seven_day: float | None) -> None:
+    payload = {"five_hour": {"utilization": five_hour}}
+    if seven_day is not None:
+        payload["seven_day"] = {"utilization": seven_day}
+    assert updater._parse_anthropic_usage(payload) == (None, None, None)
+
+
 @pytest.mark.parametrize("payload", [
     {},
     {"seven_day": None},
