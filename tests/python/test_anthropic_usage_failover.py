@@ -139,6 +139,15 @@ def test_utilization_scales_map_to_the_same_headroom(used: float, expected: floa
     assert headroom == pytest.approx(expected)
 
 
+def test_percent_scale_one_percent_used_does_not_mean_exhausted() -> None:
+    primary, secondary, _ = updater._parse_anthropic_usage({
+        "five_hour": {"utilization": 1.0},
+        "seven_day": {"utilization": 40.0},
+    })
+    assert primary == pytest.approx(0.99)
+    assert secondary == pytest.approx(0.60)
+
+
 @pytest.mark.parametrize("payload", [
     {},
     {"seven_day": None},

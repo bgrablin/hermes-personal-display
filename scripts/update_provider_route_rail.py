@@ -304,7 +304,9 @@ def _anthropic_pool_tokens() -> list[str]:
     return tokens
 
 
-def _anthropic_usage_window(payload: dict[str, Any], name: str) -> tuple[float | None, float | None]:
+def _anthropic_usage_window(
+    payload: dict[str, Any], name: str, *, percent_scale: bool = False
+) -> tuple[float | None, float | None]:
     """Return (headroom, reset_at_epoch_s) for one usage window, or (None, None)."""
     node = payload.get(name)
     if not isinstance(node, dict):
@@ -313,8 +315,8 @@ def _anthropic_usage_window(payload: dict[str, Any], name: str) -> tuple[float |
     if isinstance(used, bool) or not isinstance(used, (int, float)):
         return None, None
     used = float(used)
-    if 0.0 <= used <= 1.0:
-        used *= 100.0  # the endpoint has shipped both fraction and percent scales
+    if 0.0 <= used <= 1.0 and not percent_scale:
+        used *= 100.0  # fractional response; the endpoint also ships percent values
     if not math.isfinite(used) or used < 0.0 or used > 100.0:
         return None, None
     reset_at = None
@@ -329,8 +331,18 @@ def _anthropic_usage_window(payload: dict[str, Any], name: str) -> tuple[float |
 
 def _parse_anthropic_usage(payload: dict[str, Any]) -> tuple[float | None, float | None, float | None]:
     """Map an oauth usage payload to (5h headroom, weekly headroom, primary reset)."""
-    primary, primary_reset = _anthropic_usage_window(payload, "five_hour")
-    secondary, _ = _anthropic_usage_window(payload, "seven_day")
+    windows = [payload.get(name) for name in ("five_hour", "seven_day")]
+    # A weekly value above 1 disambiguates a five-hour reading of exactly 1:
+    # it is 1% used, not a fully exhausted fractional window.
+    percent_scale = any(
+        isinstance(node, dict)
+        and isinstance(node.get("utilization"), (int, float))
+        and not isinstance(node["utilization"], bool)
+        and 1 < node["utilization"] <= 100
+        for node in windows
+    )
+    primary, primary_reset = _anthropic_usage_window(payload, "five_hour", percent_scale=percent_scale)
+    secondary, _ = _anthropic_usage_window(payload, "seven_day", percent_scale=percent_scale)
     return primary, secondary, primary_reset
 
 
