@@ -2210,6 +2210,7 @@ test.describe('Hermes kiosk smoke and visual regression anchors', () => {
             freshness: { tier: 'fresh', valid_measurements: 3, stale_measurements: [] },
             system: { cpu: 0.2, memory: 0.4, temp_c: 55 },
             current_work: { active: true, kind: 'shell', summary: 'Synthetic private work detail.', age_seconds: 1, source: 'terminal' },
+            resolver: { display_state: 'needs_attention', priority: 90, reason_codes: ['needs_attention'] },
           },
           safety: { boundary: 'local_trusted_display', contains_credentials: false },
         }),
@@ -2219,6 +2220,9 @@ test.describe('Hermes kiosk smoke and visual regression anchors', () => {
     await expect(page.locator('.cb-radial-stage')).toHaveAttribute('data-privacy', 'sensitive');
     await expect(page.locator('[data-cb-activity]')).toHaveText('Private activity hidden.');
     await expect(page.locator('[data-cb-source]')).toHaveText('LOCAL · PRIVATE');
+    await expect(page.locator('[data-cb-top-alert]')).toHaveText('WAITING FOR BRIAN');
+    await expect(page.locator('[data-cb-top-alert-detail]')).toHaveText('PRIVATE ACTIVITY HIDDEN.');
+    await expect(page.locator('[data-cb-attention]')).toHaveText('Private activity hidden.');
     expect(await page.locator('[data-cb-activity]').evaluate(node => getComputedStyle(node).filter)).toBe('none');
     expect(await page.locator('.cb-activity').textContent()).not.toContain('Synthetic private work detail.');
   });

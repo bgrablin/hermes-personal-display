@@ -230,6 +230,25 @@ describe('adopted stack contracts', () => {
     expect(packet.caption.text).toBe('Watching local systems quietly.');
   });
 
+  it('redacts credential-shaped current-work identifiers without scanning provider metadata', () => {
+    const window = runScripts(['src/state.js']);
+    for (const field of ['source', 'session_label', 'tool', 'last_tool']) {
+      const packet = window.HermesDisplayState.normalizePersonaPacket({
+        mood: 'idle',
+        caption: { text: 'Watching local systems quietly.' },
+        live: {
+          ...(field === 'last_tool' ? { last_tool: 'ghp_syntheticcredential' }
+            : { current_work: { [field]: 'ghp_syntheticcredential' } }),
+          route_rail: { providers: [{ id: 'alibaba-token-plan' }] },
+        },
+        safety: { contains_credentials: false },
+      });
+      expect(packet.safety.contains_credentials, field).toBe(true);
+      expect(packet.caption.text).toBe('[redacted credential-like text]');
+      expect(JSON.stringify(packet)).not.toContain('ghp_syntheticcredential');
+    }
+  });
+
   it('redacts credential-like browser captions and suppresses snippets', () => {
     const window = runScripts(['src/state.js']);
     const packet = window.HermesDisplayState.normalizePersonaPacket({

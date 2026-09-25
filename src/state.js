@@ -366,17 +366,23 @@
     const skin = ALLOWED_SKINS.has(combined.skin) ? combined.skin : (displayPreset.skin || preset.skin);
     const skinDefaults = SKINS[skin];
     const palette = { ...skinDefaults.palette, ...(combined.palette || {}) };
-    // Only inspect prose that can become display copy. Scanning the whole packet
-    // mistakes route identifiers such as "alibaba-token-plan" for credentials and
-    // keeps the operator caption blurred even when the server marked it safe.
+    // Inspect rendered copy and current-work identifiers, but not provider
+    // metadata: a route such as "alibaba-token-plan" is not private activity.
+    const work = combined.live?.current_work;
+    const credentialWorkFields = ['source', 'session_label', 'tool'].filter(
+      (field) => typeof work?.[field] === 'string' && SECRET_PATTERN.test(work[field])
+    );
+    const credentialLastTool = typeof combined.live?.last_tool === 'string'
+      && SECRET_PATTERN.test(combined.live.last_tool);
     const displayCopy = [
       combined.caption?.text,
       combined.display?.text,
       typeof combined.snippet === 'string' ? combined.snippet : combined.snippet?.text,
-      combined.live?.current_work?.summary,
-      combined.live?.current_work?.detail,
+      work?.summary,
+      work?.detail,
     ];
     const containsCredentials = Boolean(combined.safety?.contains_credentials)
+      || credentialWorkFields.length > 0 || credentialLastTool
       || displayCopy.some((text) => typeof text === 'string' && SECRET_PATTERN.test(text));
     const motion = normalizeMotion(combined.motion, displayPreset.motion);
 
@@ -384,6 +390,16 @@
       ...preset,
       ...combined,
       state_preset: presetKey,
+      live: credentialWorkFields.length || credentialLastTool ? {
+        ...combined.live,
+        ...(credentialLastTool ? { last_tool: '[redacted credential-like text]' } : {}),
+        ...(credentialWorkFields.length ? {
+          current_work: {
+            ...work,
+            ...Object.fromEntries(credentialWorkFields.map((field) => [field, '[redacted credential-like text]']))
+          }
+        } : {})
+      } : combined.live,
       state_label: safeText(combined.state_label, displayPreset.label, 28),
       motion,
       mood,

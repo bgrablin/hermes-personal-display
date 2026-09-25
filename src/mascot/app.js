@@ -2130,8 +2130,10 @@
       const cpuTemp = measurementValue(sys, 'cpu_temp_c', 'temp_c');
       setConceptBText(refs.feedAge, freshnessTier === 'fresh' ? feedAge : telemetryTrend(cpuPct, cpuTemp, trends));
       const activity = buildActivityCard(live, currentPacket, liveStatus);
+      const visibleActivity = behaviorService?.overlays?.privacy === 'sensitive'
+        ? { ...activity, summary: 'Private activity hidden.' } : activity;
       const gatewayText = live.gateway_ok === false ? 'GATEWAY WATCH' : 'GATEWAY OK';
-      const reason = conceptBAttentionReason(live, currentPacket, activity, freshnessTier, gatewayText);
+      const reason = conceptBAttentionReason(live, currentPacket, visibleActivity, freshnessTier, gatewayText);
       if (reason) {
         attention.classList.remove('quiet');
         setConceptBText(refs.attention, reason);
@@ -2279,14 +2281,15 @@
       setConceptBStatusText(refs.state, familyAudience ? familyState : label);
       if (refs.stateDot && refs.stateDot.style.background !== instrumentAccent) refs.stateDot.style.background = instrumentAccent;
       const hidePrivateActivity = !familyAudience && behaviorService?.overlays?.privacy === 'sensitive';
+      const visibleActivity = hidePrivateActivity ? { ...activity, summary: 'Private activity hidden.' } : activity;
       setConceptBStatusText(refs.activity, familyAudience ? familySafeStatusPhrase(label, freshnessTier, live.gateway_ok)
-        : hidePrivateActivity ? 'Private activity hidden.' : displaySentence(activity.summary));
+        : displaySentence(visibleActivity.summary));
       setConceptBText(refs.source, familyAudience ? 'SPARKLE MODE · HOLD CORNER TO LEAVE'
         : hidePrivateActivity ? 'LOCAL · PRIVATE' : safeDisplayText(source, 32).toUpperCase());
       applyConceptBFeel(live, activity, freshnessTier);
 
       const gatewayText = live.gateway_ok === false ? 'GATEWAY WATCH' : 'GATEWAY OK';
-      const alert = familyAudience ? null : conceptBTopAlert(live, activity, freshnessTier, gatewayText, tempSeverity);
+      const alert = familyAudience ? null : conceptBTopAlert(live, visibleActivity, freshnessTier, gatewayText, tempSeverity);
       if (alert) {
         refs.topAlert.classList.remove('quiet');
         refs.topAlert.dataset.severity = alert.severity;
