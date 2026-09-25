@@ -123,6 +123,29 @@ def test_pool_without_tokens_uses_the_hermes_snapshot_fallback(
     assert updater.fetch_anthropic_headroom() == (0.5, 0.25, 123.0)
 
 
+def test_rate_limited_source_does_not_publish_ccusage_headroom(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    backoff = tmp_path / ".hermes/state/anthropic-quota-probe.json"
+    backoff.parent.mkdir(parents=True)
+    backoff.write_text(json.dumps({"retry_after": updater.time.time() + 1800}))
+    output = tmp_path / "provider_route_rail.json"
+    monkeypatch.setattr(updater, "OUT_PATH", output)
+    monkeypatch.setattr(updater, "scan_log", lambda *_: {})
+    monkeypatch.setattr(updater, "fetch_codex_headroom", lambda: (None, None, None, None))
+    monkeypatch.setattr(updater, "fetch_opencode_go_headroom", lambda: (None, None, None, None))
+    monkeypatch.setattr(updater, "load_claude_code_headroom", lambda: (0.65, 0))
+    monkeypatch.setattr(updater, "apply_alibaba_usage", lambda rows: None)
+    monkeypatch.setattr(updater, "apply_alibaba_readiness", lambda rows: None)
+    monkeypatch.setattr(updater, "apply_route_availability", lambda rows: None)
+
+    assert updater.main() == 0
+    claude = next(row for row in json.loads(output.read_text())["providers"] if row["id"] == "anthropic")
+    assert claude["quota_source_state"] == "rate_limited"
+    assert claude["headroom"] is None
+    assert claude["state"] == "unknown"
+
+
 def test_probe_failure_logs_no_credential_material(
     monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
 ) -> None:

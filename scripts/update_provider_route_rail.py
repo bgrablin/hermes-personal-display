@@ -947,7 +947,11 @@ def main() -> int:
     claude_headroom, claude_last_age = load_claude_code_headroom()
     if claude_headroom is not None:
         for provider in providers:
-            if provider["id"] == "anthropic" and provider.get("state") != "confirmed":
+            if (
+                provider["id"] == "anthropic"
+                and provider.get("state") != "confirmed"
+                and provider.get("quota_source_state") != "rate_limited"
+            ):
                 provider["headroom"] = claude_headroom
                 provider["state"] = "inferred"
                 if claude_last_age is not None:
