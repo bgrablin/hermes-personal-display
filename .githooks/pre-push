@@ -96,7 +96,7 @@ while read -r local_ref local_oid remote_ref remote_oid; do
         exit 1
       fi
       ;;
-    refs/heads/feat/cron-incident-watch|refs/heads/feat/concurrent-tool-activity|refs/heads/fix/claude-quota-throttle|refs/heads/docs/compatibility-checkpoint-2026-09-18)
+    refs/heads/feat/cron-incident-watch|refs/heads/feat/concurrent-tool-activity|refs/heads/fix/claude-quota-throttle|refs/heads/docs/compatibility-checkpoint-2026-09-18|refs/heads/fix/display-privacy-mem)
       if [[ "$local_ref" != "$remote_ref" ]]; then
         fail "blocked push from $local_ref; approved branches require matching local refs"
       fi
