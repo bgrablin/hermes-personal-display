@@ -123,7 +123,7 @@ def test_pool_without_tokens_uses_the_hermes_snapshot_fallback(
     assert updater.fetch_anthropic_headroom() == (0.5, 0.25, 123.0)
 
 
-def test_rate_limited_source_does_not_publish_ccusage_headroom(
+def test_rate_limited_source_does_not_publish_inferred_headroom(
     monkeypatch: pytest.MonkeyPatch, tmp_path: Path
 ) -> None:
     backoff = tmp_path / ".hermes/state/anthropic-quota-probe.json"
@@ -131,7 +131,9 @@ def test_rate_limited_source_does_not_publish_ccusage_headroom(
     backoff.write_text(json.dumps({"retry_after": updater.time.time() + 1800}))
     output = tmp_path / "provider_route_rail.json"
     monkeypatch.setattr(updater, "OUT_PATH", output)
-    monkeypatch.setattr(updater, "scan_log", lambda *_: {})
+    monkeypatch.setattr(updater, "scan_log", lambda *_: {
+        "anthropic": {"requests": 275, "last_ts": updater.time.time()},
+    })
     monkeypatch.setattr(updater, "fetch_codex_headroom", lambda: (None, None, None, None))
     monkeypatch.setattr(updater, "fetch_opencode_go_headroom", lambda: (None, None, None, None))
     monkeypatch.setattr(updater, "load_claude_code_headroom", lambda: (0.65, 0))

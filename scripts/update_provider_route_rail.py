@@ -767,6 +767,9 @@ def apply_confirmed_quota(providers: list[dict]) -> None:
             provider.update(update)
         elif provider["id"] == "anthropic" and anthropic_probe_rate_limited():
             provider["quota_source_state"] = "rate_limited"
+            provider["state"] = "unknown"
+            provider["headroom"] = None
+            provider["secondary_headroom"] = None
 
 
 def apply_alibaba_readiness(providers: list[dict]) -> None:
