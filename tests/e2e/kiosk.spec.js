@@ -915,6 +915,18 @@ test.describe('Hermes kiosk smoke and visual regression anchors', () => {
     expect(unsafeText).not.toMatch(/org_|req_|sk-|gh[pousr]_|\$\d|@/i);
   });
 
+  test('Concept B route labels clear the MEM reading at panel resolution', async ({ page }, testInfo) => {
+    test.skip(testInfo.project.name !== 'minix-sf10t-landscape', 'MINIX-only landscape project');
+    await page.goto(runtimeUrl('idle_watch', testInfo));
+    await expect(page.locator('[data-cb-arc="mem"] .cb-arc-value')).toHaveText(/%$/);
+    const gap = await page.evaluate(() => {
+      const mem = document.querySelector('[data-cb-arc="mem"] .cb-arc-value').getBoundingClientRect();
+      const route = document.querySelector('.cb-route-row[data-index="2"] .cb-route-label').getBoundingClientRect();
+      return route.left - mem.right;
+    });
+    expect(gap).toBeGreaterThanOrEqual(24);
+  });
+
   test('Concept B route rail value lane clears max headroom whiskers', async ({ page }, testInfo) => {
     test.skip(testInfo.project.name !== 'minix-sf10t-landscape', 'MINIX-only landscape project');
     await page.route('**/api/hermes-state', async (route) => {
@@ -957,6 +969,14 @@ test.describe('Hermes kiosk smoke and visual regression anchors', () => {
     await page.goto(`${runtimeUrl('tool_shell', testInfo)}&live=1`);
     await expect(page.locator('.cb-route-rail')).toBeVisible();
     await expect(page.locator('[data-route-value]').nth(2)).toHaveText('100%');
+    await expect(page.locator('.cb-radial-stage')).toHaveAttribute('data-privacy', 'normal');
+    await expect(page.locator('[data-cb-arc="mem"] .cb-arc-value')).toHaveText('35%');
+    const activeGap = await page.evaluate(() => {
+      const mem = document.querySelector('[data-cb-arc="mem"] .cb-arc-value').getBoundingClientRect();
+      const route = document.querySelector('.cb-route-row[data-index="2"] .cb-route-label').getBoundingClientRect();
+      return route.left - mem.right;
+    });
+    expect(activeGap).toBeGreaterThanOrEqual(24);
     await expect(page.locator('[data-route-tier]').nth(1)).toContainText('reset 2h');
     await expect.poll(() => page.locator('.cb-route-row').evaluateAll((rows) => rows.slice(0, 3).every((row) => {
       const whiskerEl = row.querySelector('.cb-route-whisker');
@@ -2171,6 +2191,38 @@ test.describe('Hermes kiosk smoke and visual regression anchors', () => {
     await expect(page.locator('.cb-radial-stage')).toHaveAttribute('data-privacy', 'sensitive');
   });
 
+  test('Concept B sensitive packet renders bounded activity without a blur', async ({ page }, testInfo) => {
+    test.skip(testInfo.project.name !== 'minix-sf10t-landscape', 'MINIX-only landscape project');
+    await page.route('**/api/hermes-state', async (route) => {
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({
+          schema_version: '0.4.0',
+          generated_at: new Date().toISOString(),
+          mood: 'thinking_focused',
+          skin: 'retro-robot-core',
+          state_preset: 'working',
+          caption: { text: 'Synthetic private work detail.', tone: 'focused', priority: 'active' },
+          snippet: { id: 'test', text: 'operator only', kind: 'system', sensitivity: 'operator_only' },
+          live: {
+            gateway_ok: true,
+            freshness: { tier: 'fresh', valid_measurements: 3, stale_measurements: [] },
+            system: { cpu: 0.2, memory: 0.4, temp_c: 55 },
+            current_work: { active: true, kind: 'shell', summary: 'Synthetic private work detail.', age_seconds: 1, source: 'terminal' },
+          },
+          safety: { boundary: 'local_trusted_display', contains_credentials: false },
+        }),
+      });
+    });
+    await page.goto(`${runtimeUrl('tool_shell', testInfo)}&live=1`);
+    await expect(page.locator('.cb-radial-stage')).toHaveAttribute('data-privacy', 'sensitive');
+    await expect(page.locator('[data-cb-activity]')).toHaveText('Private activity hidden.');
+    await expect(page.locator('[data-cb-source]')).toHaveText('LOCAL · PRIVATE');
+    expect(await page.locator('[data-cb-activity]').evaluate(node => getComputedStyle(node).filter)).toBe('none');
+    expect(await page.locator('.cb-activity').textContent()).not.toContain('Synthetic private work detail.');
+  });
+
   test('XState overlay regions drive the rendered display (night/sensitive/critical)', async ({ page }, testInfo) => {
     test.skip(testInfo.project.name !== 'minix-sf10t-landscape', 'MINIX-only landscape project');
     // The behavior machine's parallel overlays are consumed by the renderer as data-attributes +
@@ -2194,10 +2246,12 @@ test.describe('Hermes kiosk smoke and visual regression anchors', () => {
     // Machine is the source of truth...
     expect(view.overlays).toEqual({ health: 'critical', quiet: 'night', privacy: 'sensitive' });
     expect(view.ds).toEqual({ health: 'critical', quiet: 'night', privacy: 'sensitive' });
-    // ...and the renderer consumes it: night dims the stage, sensitive blurs the caption,
-    // critical adds an alert glow. (Distinct elements, so the filters never collide.)
+    // ...and the renderer consumes it: night dims the stage, privacy displays
+    // bounded copy without a blur, and critical adds an alert glow.
     expect(view.stageFilter).toContain('brightness');
-    expect(view.captionFilter).toContain('blur');
+    expect(view.captionFilter).toBe('none');
+    await expect(page.locator('[data-cb-activity]')).toHaveText('Private activity hidden.');
+    await expect(page.locator('[data-cb-source]')).toHaveText('LOCAL · PRIVATE');
     expect(view.glowFilter).toContain('drop-shadow');
   });
 

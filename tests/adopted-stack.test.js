@@ -217,6 +217,19 @@ describe('adopted stack contracts', () => {
     expect(rejected.packet.mode).toBe('idle_watch');
   });
 
+  it('keeps a safe activity caption readable when route metadata contains token-plan identifiers', () => {
+    const window = runScripts(['src/state.js']);
+    const packet = window.HermesDisplayState.normalizePersonaPacket({
+      mood: 'idle',
+      skin: 'retro-robot-core',
+      caption: { text: 'Watching local systems quietly.' },
+      live: { route_rail: { providers: [{ id: 'alibaba-token-plan', label: 'ALIBABA' }] } },
+      safety: { boundary: 'local_trusted_display', contains_credentials: false },
+    });
+    expect(packet.safety.contains_credentials).toBe(false);
+    expect(packet.caption.text).toBe('Watching local systems quietly.');
+  });
+
   it('redacts credential-like browser captions and suppresses snippets', () => {
     const window = runScripts(['src/state.js']);
     const packet = window.HermesDisplayState.normalizePersonaPacket({

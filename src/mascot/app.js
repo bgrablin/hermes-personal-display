@@ -2278,8 +2278,11 @@
             : 'HERMES IS HERE';
       setConceptBStatusText(refs.state, familyAudience ? familyState : label);
       if (refs.stateDot && refs.stateDot.style.background !== instrumentAccent) refs.stateDot.style.background = instrumentAccent;
-      setConceptBStatusText(refs.activity, familyAudience ? familySafeStatusPhrase(label, freshnessTier, live.gateway_ok) : displaySentence(activity.summary));
-      setConceptBText(refs.source, familyAudience ? 'SPARKLE MODE · HOLD CORNER TO LEAVE' : safeDisplayText(source, 32).toUpperCase());
+      const hidePrivateActivity = !familyAudience && behaviorService?.overlays?.privacy === 'sensitive';
+      setConceptBStatusText(refs.activity, familyAudience ? familySafeStatusPhrase(label, freshnessTier, live.gateway_ok)
+        : hidePrivateActivity ? 'Private activity hidden.' : displaySentence(activity.summary));
+      setConceptBText(refs.source, familyAudience ? 'SPARKLE MODE · HOLD CORNER TO LEAVE'
+        : hidePrivateActivity ? 'LOCAL · PRIVATE' : safeDisplayText(source, 32).toUpperCase());
       applyConceptBFeel(live, activity, freshnessTier);
 
       const gatewayText = live.gateway_ok === false ? 'GATEWAY WATCH' : 'GATEWAY OK';
@@ -4017,7 +4020,7 @@
     setConceptBAttribute(track, 'd', conceptBArcPath(cx, cy, r, start, end));
     animateConceptBArc(group, { cx, cy, r, start, span, pct, fill, dot });
     const labelRad = centerDeg * Math.PI / 180;
-    const nx = cx + Math.cos(labelRad) * (r + 46);
+    const nx = cx + Math.cos(labelRad) * (r + (side === 'right' ? 24 : 46));
     const ny = cy + Math.sin(labelRad) * (r + 46);
     const anchor = side === 'right' ? 'start' : side === 'left' ? 'end' : 'middle';
     const explicitDisplay = displayValue !== null && displayValue !== undefined && displayValue !== '';
