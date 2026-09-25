@@ -2,10 +2,10 @@
 set -euo pipefail
 
 # Local safety guard for the public OSS repo.
-# Main remains pushable only from local main. The two temporary review branches
-# are update-only; the Claude quota fix may be created from its matching local
-# ref. Every allowed tip must descend from the current public main, so old
-# private-history branches, tags, and arbitrary ref sources remain blocked.
+# Main remains pushable only from local main. The existing review branches and
+# the compatibility-docs branch are update-only; the Claude quota fix may be
+# created from its matching local ref. Every allowed tip must descend from the
+# current public main, so old private-history and arbitrary refs stay blocked.
 
 remote_url="${2:-}"
 zero_oid="0000000000000000000000000000000000000000"
@@ -96,7 +96,7 @@ while read -r local_ref local_oid remote_ref remote_oid; do
         exit 1
       fi
       ;;
-    refs/heads/feat/cron-incident-watch|refs/heads/feat/concurrent-tool-activity|refs/heads/fix/claude-quota-throttle)
+    refs/heads/feat/cron-incident-watch|refs/heads/feat/concurrent-tool-activity|refs/heads/fix/claude-quota-throttle|refs/heads/docs/compatibility-checkpoint-2026-09-18)
       if [[ "$local_ref" != "$remote_ref" ]]; then
         fail "blocked push from $local_ref; approved branches require matching local refs"
       fi
@@ -115,8 +115,8 @@ while read -r local_ref local_oid remote_ref remote_oid; do
     exit 1
   fi
 
-  if [[ "$remote_ref" == refs/heads/feat/cron-incident-watch || "$remote_ref" == refs/heads/feat/concurrent-tool-activity ]] && [[ "$remote_oid" == "$zero_oid" ]]; then
-    fail "blocked creation of public $remote_ref; feature refs are update-only"
+  if [[ "$remote_ref" == refs/heads/feat/cron-incident-watch || "$remote_ref" == refs/heads/feat/concurrent-tool-activity || "$remote_ref" == refs/heads/docs/compatibility-checkpoint-2026-09-18 ]] && [[ "$remote_oid" == "$zero_oid" ]]; then
+    fail "blocked creation of public $remote_ref; this ref is update-only"
   fi
 
   # Every allowed ref must contain the clean public root. This prevents
