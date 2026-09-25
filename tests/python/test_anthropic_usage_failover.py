@@ -139,7 +139,8 @@ def test_rate_limited_source_does_not_publish_inferred_headroom(
     monkeypatch.setattr(updater, "load_claude_code_headroom", lambda: (0.65, 0))
     monkeypatch.setattr(updater, "apply_alibaba_usage", lambda rows: None)
     monkeypatch.setattr(updater, "apply_alibaba_readiness", lambda rows: None)
-    monkeypatch.setattr(updater, "apply_route_availability", lambda rows: None)
+    monkeypatch.setattr(updater, "load_config_fallback_routes", lambda: {"anthropic": ("anthropic", "claude-test")})
+    monkeypatch.setattr(updater, "route_resolves", lambda *_: True)
 
     assert updater.main() == 0
     claude = next(row for row in json.loads(output.read_text())["providers"] if row["id"] == "anthropic")

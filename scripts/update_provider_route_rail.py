@@ -712,6 +712,8 @@ def apply_route_availability(providers: list[dict]) -> None:
     for row in providers:
         if row.get("state") not in {"unknown", None, ""}:
             continue
+        if row.get("quota_source_state") == "rate_limited":
+            continue
         row_id = str(row.get("id") or "")
         route = routes.get(row_id)
         if not route:
