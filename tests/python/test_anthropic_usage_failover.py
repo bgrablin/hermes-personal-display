@@ -17,6 +17,11 @@ if str(SCRIPTS) not in sys.path:
 import update_provider_route_rail as updater  # noqa: E402
 
 
+@pytest.fixture(autouse=True)
+def isolate_quota_probe_state(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+    monkeypatch.setattr(updater, "HOME", tmp_path)
+
+
 class _RateLimited(Exception):
     code = 429
 
@@ -82,7 +87,6 @@ def test_quota_endpoint_429_backs_off_without_freezing_a_percentage(
 ) -> None:
     now = [1_790_256_800.0]
     monkeypatch.setattr(updater.time, "time", lambda: now[0])
-    monkeypatch.setattr(updater, "HOME", tmp_path)
     monkeypatch.setattr(updater, "_anthropic_pool_tokens", lambda: ["SECRET-TOKEN-VALUE"])
     monkeypatch.setattr(updater, "_load_hermes_env_and_path", lambda: None)
     attempts = []
