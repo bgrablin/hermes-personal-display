@@ -33,7 +33,7 @@ Do not confuse `launch-kiosk.sh` with the live `xsession-minix-kiosk.sh` path. T
 
 ## Safe user-unit install workflow
 
-1. From the graphical session or the NUC shell, inspect display/audio candidates:
+1. From the graphical session or the display host shell, inspect display/audio candidates:
 
    ```bash
    ./scripts/detect-display-env.sh .review-tmp/display-env-report.txt
@@ -113,16 +113,26 @@ Do not confuse `launch-kiosk.sh` with the live `xsession-minix-kiosk.sh` path. T
 
 ## System kiosk recovery install
 
-The live kiosk unit is system-level because it owns tty7/startx and conflicts with the display manager. The checked-in `hermes-personal-display-minix.service` is a template containing `@PROJECT_ROOT@`, `@USER@`, `@HOME@`, and `@UID@`; do not copy it directly into `/etc/systemd/system`. To restore it on the NUC, render/install it with the helper:
+The live kiosk unit is system-level because it owns tty7/startx and conflicts with the display manager. The checked-in `hermes-personal-display-minix.service` is a template containing `@PROJECT_ROOT@`, `@USER@`, `@HOME@`, and `@UID@`; do not copy it directly into `/etc/systemd/system`. To restore it on the display host, render/install it with the helper:
 
 ```bash
 ./scripts/install-system-unit.sh
-sudo install -m 0644 deploy/systemd-system/hermes-nuc-thermal-policy.service /etc/systemd/system/hermes-nuc-thermal-policy.service
 sudo systemctl daemon-reload
-sudo systemctl enable --now hermes-nuc-thermal-policy.service
 sudo systemctl restart hermes-personal-display-minix.service
 ./scripts/hermes-display verify
 ```
+
+The `hermes-nuc-thermal-policy.service` template is an **optional old-NUC-only**
+80% Intel p-state cap. Do not install or enable it as part of generic display
+recovery. The upgraded reference host currently runs without that cap at a
+configured 100% target. Measure the actual host before choosing a thermal
+policy; the historical opt-in procedure is in `docs/thermal-baseline.md`.
+
+For this installation, an installed user-level merged-`main` updater owns the
+validated release switch and kiosk restart. It tests an isolated archive,
+atomically switches the deployed release, verifies the live framebuffer, and
+rolls back on failure. It is host configuration, not a checked-in user unit.
+Do not replace it with `git pull` followed by a manual kiosk restart.
 
 Machine-specific display/audio choices belong in `~/.config/hermes-personal-display.env`; the scripts fall back to auto-detection where possible.
 
@@ -157,4 +167,7 @@ npm test
 ./scripts/hermes-display screenshot
 ```
 
-`hermes-display verify` checks the generated build id, canonical Chromium URL, configured display output geometry, audio sink/volume, and Intel p-state thermal policy (`max_perf_pct` target defaults to 80 on the Hermes NUC kiosk baseline).
+`hermes-display verify` checks the generated build id, canonical Chromium URL,
+configured display output geometry, audio sink/volume, and the configured
+Intel p-state target. The script's default target is 80% for the historical
+NUC policy; the upgraded host sets 100% and does not enable the NUC unit.

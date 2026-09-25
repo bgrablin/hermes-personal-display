@@ -6,9 +6,9 @@ This repository is intentionally trimmed to the files needed to run, test, and o
 
 - `src/character-runtime.html` — canonical browser/kiosk entrypoint.
 - `src/mascot/` — current optic/orb runtime, behavior machine, touch effects, audio hooks, and entertainment/watch logic.
-- `src/styles.css` — kiosk composition, fixed optic material edge, recessed instrument rails, and visible inspection affordances; no decorative telemetry.
+- `src/styles.css` — kiosk composition, fixed optic material edge, recessed instrument rails, and visible inspection affordances; no decorative telemetry. Center activity copy is not blurred; the provider rail leaves room for the MEM reading.
 - `tests/e2e/visual-material.spec.js` — synthetic landscape tests for fixed housing, stationary copy, unknown meters, preview separation, and touch inspection.
-- `src/state.js` — display-state normalization and contract consumption.
+- `src/state.js` — display-state normalization and contract consumption. Route metadata does not classify unrelated activity as sensitive; credential-shaped visible work identifiers are redacted.
 - `src/vendor/` — vendored browser libraries used directly by the runtime.
 - `src/generated/display-contract.js` — generated browser contract constants.
 - `src/generated/build-id.js` — generated content-hash build id used by the runtime, cache keys, and kiosk verification.
@@ -40,6 +40,7 @@ This repository is intentionally trimmed to the files needed to run, test, and o
 - `scripts/launch-herdr-monitor-display.sh` — validates dependencies and launches the optional terminal renderer.
 - `scripts/capture-public-dashboard.cjs` — generates the public README image from bounded synthetic state.
 - `scripts/capture-current-dashboard.sh` — keeps physical captures private and routes repository captures through the synthetic generator.
+- `docs/current-dashboard.png` — synthetic 1920×1280 README preview, refreshed after visible changes and inspected before publication; it is not a live framebuffer capture.
 - `scripts/generate-build-id.js` — synchronizes `src/generated/build-id.js` and first-party runtime `?v=` cache keys.
 - `integrations/display-observer/` — symlink-installed Hermes observer plugin entrypoint and metadata.
 - `integrations/requirements.txt` — exact optional Python dependency pin for RPC monitoring.

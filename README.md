@@ -2,13 +2,16 @@
 
 A local, browser-based companion display for [Hermes Agent](https://github.com/NousResearch/hermes-agent). It turns a small screen attached to a home-lab machine into an ambient status panel for an AI operator: current activity, tool use, health, degraded states, touch cues, and a lightweight character runtime.
 
-![Hermes personal display screenshot](docs/current-dashboard.png)
+![Synthetic Hermes operator display with sharp activity copy and separate memory and provider readings](docs/current-dashboard.png)
 
-The public screenshot uses bounded synthetic state at the reference 1920 x 1280
-viewport. Live physical framebuffer captures remain private verification
-artifacts and are not copied into the public repository.
+This [full-size 1920 x 1280 preview](docs/current-dashboard.png) uses bounded
+synthetic state. The center activity stays readable, and the MEM reading has
+space between it and Route Providers. Live physical framebuffer captures remain
+private verification artifacts and are not copied into the public repository.
 
-Refresh the public image while the local preview server is available:
+Refresh the public image only after the candidate build is verified and the
+matching local preview server is available; inspect the generated pixels before
+committing:
 
 ```bash
 npm run capture:public
@@ -37,6 +40,7 @@ Current capabilities include:
 - Assistant state: idle, active, waiting, finalizing, complete, blocked, degraded.
 - Tool activity hints: shell, Python, file reads, search, patch/write, browser, web, planning.
 - Provider/model route rail for quick visibility into active backend routing, with compact provider marks that inherit each route's live state color.
+- Readable, stationary activity copy. Sensitive activity uses a fixed bounded placeholder instead of a blurred caption; provider route identifiers do not make unrelated activity appear sensitive.
 - Health rails for display feed freshness, local service state, and degraded conditions.
 - A character runtime with gaze, blink, mouth, status badges, touch effects, bounded task-linked pupil dilation, and motion states.
 - Local touch/entertainment hooks for physical-display experiments.
@@ -341,9 +345,9 @@ This project does not require a specific display or mini PC. The public screensh
 - **Display:** [MINIX SF10T portable monitor](https://www.amazon.com/dp/B0G3PBK4LG), a 10.5-inch IPS touchscreen panel.
 - **Native panel mode:** 1920 x 1280, 3:2 aspect ratio, 60 Hz.
 - **Display connectivity:** USB-C with DP Alt Mode or Mini HDMI, with separate USB touch/power wiring depending on host support.
-- **Reference host:** Intel NUC7i5BNH mini PC.
-- **CPU/GPU:** Intel Core i5-7260U with Intel Iris Plus Graphics 640.
-- **Software stack used here:** Linux, Xorg/Openbox, Chromium kiosk, Python display-state server, and systemd user services.
+- **Original reference host:** Intel NUC7i5BNH mini PC (Core i5-7260U / Iris Plus Graphics 640).
+- **Current physical deployment:** an upgraded Linux host. Inspect the actual CPU, display topology, and services before using the older NUC-specific setup notes.
+- **Software stack used here:** Linux, Xorg/Openbox, Chromium kiosk, Python display-state server, a system kiosk unit, and user-level preview/updater services.
 
 Those details are included so other Hermes Agent users can reproduce the physical setup with similar small-panel hardware. Treat them as a known-good reference, not a bill of materials.
 
@@ -351,15 +355,21 @@ Those details are included so other Hermes Agent users can reproduce the physica
 
 The repo includes systemd user unit templates under `deploy/systemd-user/`. See `docs/systemd-user-units.md` for the service layout, install notes, and local environment boundaries.
 
-Typical flow:
+For a new installation or user-session test, the checked-in templates provide a starting point:
 
 ```bash
 scripts/detect-display-env.sh
 scripts/install-user-units.sh
 systemctl --user daemon-reload
 systemctl --user start hermes-personal-display-preview.service
-systemctl --user start hermes-personal-display-kiosk.service
 ```
+
+The physical reference panel instead uses the system-level
+`hermes-personal-display-minix.service`. The installed merged-`main` updater
+validates a release, switches its symlink atomically, restarts the preview and
+kiosk, and verifies the live render with rollback on failure. See
+[`docs/systemd-user-units.md`](docs/systemd-user-units.md) before installing or
+restarting the system kiosk; do not substitute an untested pull and restart.
 
 Keep machine-specific values in your local environment file. Start from:
 
@@ -371,7 +381,7 @@ Do not commit live display paths, session values, API keys, or machine-specific 
 
 ## Display control CLI
 
-The live NUC display is controlled through the service-aware CLI:
+The live physical display is controlled through the service-aware CLI:
 
 ```bash
 hermes-display status
@@ -411,7 +421,7 @@ Useful next steps for contributors:
 - Add a small sample state publisher that does not depend on a specific home setup.
 - Split reusable event-bus/state contracts into a cleaner package boundary.
 - Add screenshots or short clips for major display states.
-- Add GitHub Actions for tests and secret scanning.
+- Extend the existing GitHub Actions test and publication-safety coverage as the runtime grows.
 - Add a documented theme/character customization path.
 
 ## Keywords

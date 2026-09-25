@@ -64,3 +64,15 @@ The contract allows display-safe state only. It should not carry:
 - unbounded free-text diagnostic payloads
 
 Use `tests/fixtures/README.md` when adding fixtures so examples stay synthetic and auditable.
+
+## Operator presentation
+
+The center activity is readable and stationary. Safe, bounded work summaries remain
+sharp even if provider route identifiers contain words such as `token`. Route
+metadata does not classify the whole packet as sensitive. When an actual work
+field or operator-only snippet triggers the sensitive state, the center caption,
+attention line, and top-alert detail use the fixed `Private activity hidden.`
+placeholder instead of blurring private text. Credential-shaped work identifiers
+are redacted before rendering. The MEM arc reading stays separate from the Route
+Providers rail at the reference 1920×1280 viewport. A synthetic README image
+illustrates this layout; verify the physical framebuffer independently.

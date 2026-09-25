@@ -6,7 +6,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 Local browser kiosk / ambient status display for Hermes Agent. A Vite-built SVG character runtime
 (`src/character-runtime.html` + `src/mascot/`) renders display-safe agent state on a small physical
-touchscreen (MINIX SF10T on a NUC, Chromium kiosk via systemd user services). A Python server
+touchscreen (MINIX SF10T, Chromium kiosk via a system-level kiosk unit and user-level preview). A Python server
 (`scripts/hermes_display_server.py`) serves static files plus `/api/hermes-state` and an avatar
 event SSE bus. JS side has no framework — vanilla modules with vendored anime.js/xstate/zod/dompurify.
 
@@ -83,11 +83,15 @@ Local services bind loopback by default.
 - **check scripts are intentional stiffness:** `scripts/check-kiosk-recommendation-regressions.js` and
   friends pattern-match exact source lines and numeric constants. Refactoring guarded code requires
   updating the guard in the same change — that is by design, not an accident to work around.
-- **Git hooks:** pre-commit auto-refreshes `docs/current-dashboard.png` from bounded synthetic state when frontend files change
-  (skip with `HERMES_SKIP_DASHBOARD_CAPTURE=1`). For the public
-  `bgrablin/hermes-personal-display` remote, pre-push permits updates only from matching local
-  `main`, `feat/cron-incident-watch`, or `feat/concurrent-tool-activity` refs; it never permits
-  deletion, tags, arbitrary sources, or refs outside that allowlist. Every allowed tip must descend
+- **Public screenshot:** `docs/current-dashboard.png` is the image embedded in the README.
+  After a visible runtime change, run `npm run capture:public` against the verified
+  current build, inspect its synthetic pixels, and update the README and manifest in
+  the same candidate. Never commit a live framebuffer capture. The pre-commit hook
+  auto-refreshes the synthetic image for staged frontend changes; its skip switch
+  must not leave a visual change merged with a stale README image.
+- **Git hooks:** for the public `bgrablin/hermes-personal-display` remote,
+  pre-push permits `main` and a named allowlist of matching local review refs; it
+  never permits deletion, tags, arbitrary sources, or other refs. Every allowed tip must descend
   from the current public `main`, and every commit unique to that public base must use the
   `bgrablin` author and committer identity with a valid signature matching the configured public
   signing key. The hook checks each exact public-main-to-tip range because the installed

@@ -24,6 +24,7 @@ This repository is a local browser kiosk and ambient status display for Hermes A
 - For UI or runtime changes, also run `npx playwright install --with-deps chromium` when needed and `npm run test:e2e -- --workers=1`; `npm run test:all` is the full local gate.
 - Run focused guards as relevant: `npm run check:client-events`, `npm run check:kiosk`, `npm run check:augury-feed`, and `./scripts/verify-project.sh`.
 - `npm run review:presence` records the synthetic visual rehearsal under `test-results/presence/`.
+- For visible changes, refresh the README's `docs/current-dashboard.png` with `npm run capture:public` against the verified current build, inspect the synthetic image, and include it with the documentation before commit. A private live framebuffer screenshot is verification evidence, not a public README asset.
 
 # Contracts and privacy
 

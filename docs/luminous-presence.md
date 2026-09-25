@@ -35,7 +35,11 @@ stronger surface contours preserve detail without another glow or animation loop
 The activity and provider rails share recessed, open-ended backgrounds and row
 rules. These surfaces contain no synthetic measurements or activity. Unknown
 providers remain readable and retain empty headroom tracks; the active-provider
-underline is confined to its meter rather than crossing the whole rail.
+underline is confined to its meter rather than crossing the whole rail. The
+Route Providers rail leaves room for the MEM arc reading at 1920×1280. Centered
+activity copy stays stationary and sharp; a sensitive state substitutes a bounded
+readable placeholder rather than applying an optical blur.
+
 Activity timestamps, refresh, and the touch hint have stronger contrast. Underlined
 metric labels indicate inspection without drawing boxes across the side rails.
 The generous existing touch targets remain unchanged. The preview marker sits

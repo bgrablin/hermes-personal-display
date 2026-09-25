@@ -1,5 +1,12 @@
 # MINIX SF10T bring-up plan
 
+**Historical plan (2026-05-16), not current recovery instructions.** The physical
+panel now runs in inverted 1920×1280 landscape through the system-level
+`hermes-personal-display-minix.service` on an upgraded host. Use
+[`systemd-user-units.md`](systemd-user-units.md) and the service-aware
+`hermes-display` CLI for current operation; do not run the portrait-mode or
+old NUC thermal steps below as a live recovery recipe.
+
 Date prepared: 2026-05-16
 Target hardware: MINIX SF10T 10.5" portable touchscreen monitor
 Amazon short link provided by Brian: https://a.co/d/02asRjP3
