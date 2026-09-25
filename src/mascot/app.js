@@ -2496,9 +2496,10 @@
         && creditsLimit > 0;
       const clamped = knownHeadroom ? Math.max(0, Math.min(1, headroom)) : null;
       const headroomTier = knownHeadroom ? (clamped <= ROUTE_HEADROOM_LOW_THRESHOLD ? 'low' : 'ok') : 'none';
+      const sourceLimited = state === 'unknown' && provider.id === 'anthropic' && provider.quota_source_state === 'rate_limited';
       // Quiet unknown/disabled idle rows so known/confirmed/low/error routes stay scannable.
       // Keep positions and value-column geometry so whisker/hairline math stays stable.
-      const collapsed = !isActive
+      const collapsed = !sourceLimited && !isActive
         && headroomTier !== 'low'
         && !['confirmed', 'inferred', 'stale', 'error'].includes(state);
       if (collapsed) collapsedCount += 1;
@@ -2530,7 +2531,6 @@
       }
       setConceptBText(entry.icon, providerIcons[provider.id] || '○');
       setConceptBText(entry.label, safeDisplayText(provider.label || 'ROUTE', 8).toUpperCase());
-      const sourceLimited = state === 'unknown' && provider.id === 'anthropic' && provider.quota_source_state === 'rate_limited';
       const unknownRouteCopy = state === 'disabled' ? 'OFF' : state === 'error' ? 'ERR' : 'UNK';
       const creditsUsedSummary = knownCreditsUsed ? `${formatRouteCredits(creditsUsed)}` : '';
       const routeValue = knownHeadroom

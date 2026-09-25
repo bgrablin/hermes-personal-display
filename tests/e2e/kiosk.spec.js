@@ -1047,6 +1047,7 @@ test.describe('Hermes kiosk smoke and visual regression anchors', () => {
     await expect(go.locator('[data-route-value]')).toHaveText('55%');
     await expect(go.locator('[data-route-tier]')).toContainText('GO');
     const claude = page.locator('.cb-route-row').nth(1);
+    await expect(claude).toHaveAttribute('data-collapsed', 'false');
     await expect(claude.locator('[data-route-value]')).toHaveText('API 429');
     await expect(claude.locator('[data-route-tier]')).toContainText('USAGE API LIMITED');
     await expect.poll(async () => go.evaluate((row) => ({
