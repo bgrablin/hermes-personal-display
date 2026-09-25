@@ -3,9 +3,9 @@ set -euo pipefail
 
 # Local safety guard for the public OSS repo.
 # Main remains pushable only from local main. The two temporary review branches
-# are update-only and must be pushed from their matching local refs. Every
-# allowed tip must descend from the current public main, so old private-history
-# branches, tags, and arbitrary ref sources remain blocked.
+# are update-only; the Claude quota fix may be created from its matching local
+# ref. Every allowed tip must descend from the current public main, so old
+# private-history branches, tags, and arbitrary ref sources remain blocked.
 
 remote_url="${2:-}"
 zero_oid="0000000000000000000000000000000000000000"
@@ -96,13 +96,13 @@ while read -r local_ref local_oid remote_ref remote_oid; do
         exit 1
       fi
       ;;
-    refs/heads/feat/cron-incident-watch|refs/heads/feat/concurrent-tool-activity)
+    refs/heads/feat/cron-incident-watch|refs/heads/feat/concurrent-tool-activity|refs/heads/fix/claude-quota-throttle)
       if [[ "$local_ref" != "$remote_ref" ]]; then
-        fail "blocked push from $local_ref; feature updates require the matching local branch"
+        fail "blocked push from $local_ref; approved branches require matching local refs"
       fi
       ;;
     *)
-      fail "blocked push to $remote_ref on public repo; only refs/heads/main, refs/heads/feat/cron-incident-watch, and refs/heads/feat/concurrent-tool-activity are allowed"
+      fail "blocked push to $remote_ref on public repo; only main and approved review branches are allowed"
       ;;
   esac
 
